@@ -24,6 +24,12 @@ type Discovered = BTreeMap<String, Vec<(String, String)>>;
 
 fn main() {
     tauri_build::build();
+    // NDK r27 and older default to 4 KiB pages; align the Android library for 16 KiB devices.
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("android") {
+        println!(
+            "cargo:rustc-link-arg-cdylib=-Wl,-z,max-page-size=16384,-z,common-page-size=16384"
+        );
+    }
     embed_seeded_plugins();
 }
 

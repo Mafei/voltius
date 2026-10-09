@@ -19,7 +19,7 @@ RUN dpkg --add-architecture amd64 \
 # Node & PNPM (same as Dockerfile.cross-compile)
 RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
-    && corepack enable && corepack prepare pnpm@10.33.0 --activate \
+    && npm install -g pnpm@11.5.2 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Android SDK command-line tools
@@ -34,8 +34,8 @@ ENV PATH="${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tool
 RUN yes | sdkmanager --licenses >/dev/null \
     && sdkmanager \
         "platform-tools" \
-        "platforms;android-34" \
-        "build-tools;34.0.0" \
+        "platforms;android-36" \
+        "build-tools;36.0.0" \
         "ndk;${NDK_VERSION}"
 
 # Rust — channel pinned by rust-toolchain.toml (single source of truth)

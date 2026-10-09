@@ -73,7 +73,8 @@ jobs:
       - name: Verify and collect APK evidence
         run: |
           python3 scripts/verify-android-apk.py src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk android-ci-artifacts
-          cp LICENSE NOTICE android-ci-artifacts/
+          cp LICENSE android-ci-artifacts/
+          cp docs/android-fork-build.md android-ci-artifacts/BUILD-NOTICE.md
 
       - name: Preserve APK and build evidence
         if: always()

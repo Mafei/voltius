@@ -38,7 +38,7 @@ jobs:
           docker run --rm --platform linux/amd64 --mount type=bind,src="$PWD/runtime-ci-artifacts",dst=/evidence rockylinux/rockylinux@sha256:e8a49c5403b687db05d4d67333fa45808fbe74f36e683cec7abb1f7d0f2338c6 bash -euc '
             dnf -y install flatpak dnf-plugins-core
             cp /etc/os-release /evidence/rocky-os-release
-            rpm -q flatpak flatpak-libs bubblewrap > /evidence/rocky-flatpak-packages.txt
+            rpm -q flatpak bubblewrap ostree-libs > /evidence/rocky-flatpak-packages.txt
             flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
             flatpak --user remote-info --show-metadata flathub org.gnome.Platform//50 > /evidence/rocky-gnome-50-metadata.txt
             flatpak --user install --noninteractive --assumeyes --no-related flathub org.gnome.Platform//50
@@ -49,6 +49,16 @@ jobs:
             printf "%s\n" "$result" > /evidence/rocky-sandbox-exit-code.txt
             cat /evidence/rocky-flatpak-packages.txt /evidence/rocky-sandbox-probe.txt
           ' 2>&1 | tee runtime-ci-artifacts/rocky-runtime-install.log
+      - name: Print measured runtime reports
+        if: always()
+        shell: bash
+        run: |
+          for report in runtime-ci-artifacts/*installed.txt runtime-ci-artifacts/*packages.txt runtime-ci-artifacts/*metadata.txt runtime-ci-artifacts/*probe.txt runtime-ci-artifacts/*exit-code.txt; do
+            if test -f "$report"; then
+              printf '\nREPORT %s\n' "$report"
+              cat "$report"
+            fi
+          done
       - name: Preserve runtime compatibility reports
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

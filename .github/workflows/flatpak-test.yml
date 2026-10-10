@@ -1,0 +1,61 @@
+name: Restricted Flatpak test build
+on:
+  push:
+    branches: ['candidate/runtime-*']
+permissions:
+  contents: read
+concurrency:
+  group: flatpak-test-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  flatpak-x86-64:
+    if: github.repository == 'Mafei/voltius'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      CARGO_BUILD_JOBS: '2'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+      VOLTIUS_REQUIRE_SEEDED_PLUGINS: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Confirm unchanged application baseline
+        run: git diff --exit-code 47a009190e9c3cb4bf2678f37d8dfe26a59ec113 -- src src-tauri crates package.json pnpm-lock.yaml Cargo.toml Cargo.lock rust-toolchain.toml LICENSE NOTICE.md .github/workflows/android-arm64-debug.yml
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24.19.0'
+      - name: Install ordinary build tools and official runtime
+        run: |
+          mkdir -p flatpak-ci-artifacts
+          sudo apt-get update
+          sudo apt-get install -y build-essential libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libsecret-1-dev libssl-dev libudev-dev flatpak dbus-daemon xvfb x11-utils imagemagick
+          npm install --global pnpm@11.5.2
+          rustup show
+          pnpm install --frozen-lockfile --ignore-scripts
+          flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak --user install --noninteractive --assumeyes flathub org.gnome.Platform//50 org.gnome.Sdk//50
+          flatpak --user update --noninteractive --assumeyes --commit=0bd5091046708e64bc882e8349877cfbae713f6a1e2d0487a5f10af820a2d792 org.gnome.Platform//50
+          flatpak info --user org.gnome.Platform//50 | tee flatpak-ci-artifacts/runtime.txt
+          flatpak info --user org.gnome.Sdk//50 | tee flatpak-ci-artifacts/sdk.txt
+          flatpak list --user --columns=ref,active,origin > flatpak-ci-artifacts/installed-refs.txt
+      - name: Build fixed Linux application with locked dependencies
+        run: |
+          cargo fmt --all --check 2>&1 | tee flatpak-ci-artifacts/rustfmt.log
+          pnpm tauri build --no-bundle --config '{"bundle":{"createUpdaterArtifacts":false}}' -- --locked 2>&1 | tee flatpak-ci-artifacts/build.log
+          cargo test --locked -p voltius --lib local::session::tests 2>&1 | tee flatpak-ci-artifacts/pty-tests.log
+          cargo test --locked -p voltius --lib commands::local::tests 2>&1 | tee flatpak-ci-artifacts/shell-tests.log
+      - name: Package and verify restricted official runtime candidate
+        run: bash scripts/build-flatpak-test.sh target/release/voltius flatpak-ci-artifacts
+      - name: Start normally in a disposable software graphics session
+        run: xvfb-run -a -s '-screen 0 1280x900x24' dbus-run-session -- bash scripts/probe-flatpak-test.sh flatpak-ci-artifacts
+      - name: Preserve test package and evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Voltius-flatpak-restricted-x86_64-${{ github.sha }}
+          path: flatpak-ci-artifacts/
+          retention-days: 14
+          if-no-files-found: error

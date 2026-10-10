@@ -125,21 +125,7 @@ jobs:
           cp scripts/run-restricted-backend-tests.sh vm-data/run-tests.sh
           genisoimage -quiet -o vm-test.iso -V VOLTTEST -J -r vm-data
       - name: Run the same test executable on real Rocky kernel in normal Flatpak
-        run: |
-          set +e
-          timeout --signal=TERM 2400 qemu-system-x86_64 -machine q35,accel=tcg -cpu max -smp 2 -m 4096 -display none -monitor none -serial stdio -nic user,model=virtio-net-pci -drive file=vm-work/test-overlay.qcow2,if=virtio,format=qcow2 -drive file=vm-seed.iso,media=cdrom,readonly=on -drive file=vm-test.iso,media=cdrom,readonly=on 2>&1 | tee rocky-backend-evidence/guest-serial.log
-          result=${PIPESTATUS[0]}
-          set -e
-          test "$result" = 0
-          python3 - <<'PY'
-          import json,pathlib,re
-          t=pathlib.Path('rocky-backend-evidence/guest-serial.log').read_text().replace('\r','')
-          assert 'VOLTIUS_ROCKY_BACKEND_EXIT=0' in t and 'VOLTIUS_BACKEND_COMPLETE=PASS' in t
-          counts=[tuple(map(int,m)) for m in re.findall(r'test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored;',t)]
-          assert len(counts)==8 and all(n>0 and f==0 and i==0 for n,f,i in counts),counts
-          pathlib.Path('rocky-backend-evidence/RESULT.json').write_text(json.dumps({'passed':sum(n for n,_,_ in counts),'failed':0,'ignored':0,'suite_counts':counts,'extra_permissions':[],'scope':'Same unchanged app bundle and backend test executable inside ordinary Flatpak on verified Rocky 8.10 QEMU TCG VM. GUI/account/keychain and remote interactive PTY untested.'},indent=2)+'\n')
-          PY
-          cat rocky-backend-evidence/RESULT.json
+        run: bash scripts/run-rocky-backend-vm.sh rocky-backend-evidence
       - name: Preserve measured Rocky backend evidence only
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

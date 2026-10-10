@@ -38,7 +38,7 @@ flatpak run --user --command=sh "$app_id" -ec '
   done
   printf "\nVOLTIUS_BACKEND_COMPLETE=PASS\n"
 ' 2>&1 | tee "$evidence/runtime-tests.log"
-if rg -q 'not found|UNEXPECTED_HOST_EXECUTION' "$evidence/runtime-tests.log"; then exit 1; fi
+if grep -Eq 'not found|UNEXPECTED_HOST_EXECUTION' "$evidence/runtime-tests.log"; then exit 1; fi
 flatpak info --user --show-permissions "$app_id" > "$evidence/permissions-after.txt"
 cmp "$evidence/permissions-before.txt" "$evidence/permissions-after.txt"
 python3 - "$evidence/runtime-tests.log" "$evidence/RESULT.json" <<'PY'

@@ -1,0 +1,59 @@
+name: Rocky backend revalidation without rebuild
+on:
+  push:
+    branches: ['build/backend-rocky-evidence-*']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: backend-rocky-evidence-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  rocky-runtime:
+    if: github.repository == 'Mafei/voltius'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PROBE_RUN: '38023737138'
+      PROBE_SHA: '431f5e8eb0eed081995f35779c1c42e107cb37c7'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Reuse exact executables and package from successful Ubuntu backend job
+        run: |
+          mkdir -p rocky-backend-evidence vm-data
+          git rev-parse HEAD | tee rocky-backend-evidence/validator-sha.txt
+          git diff --exit-code "$PROBE_SHA" -- src src-tauri crates Cargo.toml Cargo.lock rust-toolchain.toml package.json pnpm-lock.yaml LICENSE NOTICE.md
+          test "$(gh api "repos/Mafei/voltius/actions/runs/$PROBE_RUN" --jq .head_sha)" = "$PROBE_SHA"
+          test "$(gh api "repos/Mafei/voltius/actions/runs/$PROBE_RUN/jobs" --jq '.jobs[] | select(.name=="ubuntu-runtime") | .conclusion')" = success
+          gh run download "$PROBE_RUN" --repo Mafei/voltius --name "Voltius-backend-probe-input-$PROBE_SHA" --dir vm-data
+          python3 - <<'PY'
+          import hashlib,json,pathlib
+          expected={'voltius-backend-tests':'b25bcc1ca93822ade368d2bc98e2fb2e7893dbea541fa23e4c8e4f7dc507e372','sftp-server':'777d973f84266925648e28ec84fcf059e63c7048819642043149df1e8b08b12c','voltius.flatpak':'1474140f564529d572ec144760b7c6cd63d07d9d0841476ebfb7b49d35d75e5c'}
+          for name,digest in expected.items():
+              assert hashlib.file_digest((pathlib.Path('vm-data')/name).open('rb'),'sha256').hexdigest()==digest,name
+          pathlib.Path('rocky-backend-evidence/REUSED-INPUT.json').write_text(json.dumps(expected,indent=2)+'\n')
+          PY
+      - name: Prepare verified Rocky VM with standard repositories and unchanged sandbox
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 qemu-utils genisoimage gnupg aria2
+          bash scripts/prepare-rocky-test-vm.sh rocky-backend-evidence
+          cp scripts/test-backend-in-rocky-guest.sh vm-data/test-guest.sh
+          cp scripts/test-backend-as-rocky-user.sh vm-data/test-user.sh
+          cp scripts/run-restricted-backend-tests.sh vm-data/run-tests.sh
+          genisoimage -quiet -o vm-test.iso -V VOLTTEST -J -r vm-data
+      - name: Test exact backend executable inside real Rocky Flatpak
+        run: bash scripts/run-rocky-backend-vm.sh rocky-backend-evidence
+      - name: Preserve measured Rocky evidence without guest disks or credentials
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Voltius-backend-rocky-revalidation-${{ github.sha }}
+          path: rocky-backend-evidence/
+          retention-days: 14
+          if-no-files-found: error

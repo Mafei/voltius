@@ -10,6 +10,6 @@ trap finish EXIT
 cat /etc/os-release
 uname -a
 getenforce
-dnf -y install flatpak dbus-daemon ripgrep
+dnf -y install flatpak dbus-daemon python3
 rpm -q glibc flatpak bubblewrap ostree-libs
 runuser -u voltius-test -- dbus-run-session -- bash /mnt/voltius-test/test-user.sh

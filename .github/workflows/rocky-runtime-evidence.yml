@@ -1,0 +1,94 @@
+name: Rocky userspace Flatpak evidence
+on:
+  push:
+    branches: ['build/rocky-runtime-evidence-*']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: rocky-runtime-evidence-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  rocky-userspace:
+    if: github.repository == 'Mafei/voltius'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_RUN: '38015048224'
+      SOURCE_SHA: '698d01d5d0cb25e82454db31285c3a1ba7156244'
+    steps:
+      - name: Prepare official Rocky userspace without host privilege changes
+        run: |
+          mkdir -p rocky-runtime-evidence rootfs test-home test-run artifacts
+          chmod 700 test-run
+          sudo apt-get update
+          sudo apt-get install -y flatpak dbus-daemon xvfb x11-utils imagemagick
+          docker build --build-arg TEST_UID="$(id -u)" -t voltius-rocky-flatpak-evidence:local - <<'DOCKERFILE'
+          FROM rockylinux/rockylinux@sha256:e8a49c5403b687db05d4d67333fa45808fbe74f36e683cec7abb1f7d0f2338c6
+          ARG TEST_UID
+          RUN dnf -y install flatpak dbus-daemon shadow-utils && useradd -u "$TEST_UID" -m voltius-test && mkdir -p /run/user /packages /evidence && dnf clean all
+          DOCKERFILE
+          container=$(docker create voltius-rocky-flatpak-evidence:local)
+          docker export "$container" | tar --no-same-owner -xf - -C rootfs
+          docker rm "$container"
+          mkdir -p "rootfs/run/user/$(id -u)"
+          cat > run-rocky.sh <<'SHELL'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          bwrap --unshare-user --unshare-pid --die-with-parent \
+            --ro-bind "$PWD/rootfs" / --dev /dev --proc /proc --tmpfs /tmp \
+            --bind "$PWD/test-home" /home/voltius-test \
+            --bind "$PWD/test-run" "/run/user/$(id -u)" \
+            --bind "$PWD/rocky-runtime-evidence" /evidence \
+            --ro-bind "$PWD/artifacts" /packages \
+            --ro-bind /etc/resolv.conf /etc/resolv.conf \
+            --setenv HOME /home/voltius-test --setenv XDG_RUNTIME_DIR "/run/user/$(id -u)" \
+            --setenv PATH /usr/bin:/bin --chdir /home/voltius-test "$@"
+          SHELL
+          # Record a normal unprivileged launcher failure without changing security.
+          set +e
+          bash run-rocky.sh bash -ec 'cat /etc/os-release; ldd --version; rpm -q flatpak bubblewrap; flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo; flatpak --user install --noninteractive --assumeyes flathub org.gnome.Platform//50; flatpak --user update --noninteractive --assumeyes --commit=0bd5091046708e64bc882e8349877cfbae713f6a1e2d0487a5f10af820a2d792 org.gnome.Platform//50; flatpak info --user org.gnome.Platform//50; dbus-run-session -- flatpak run --user --unshare=network --command=sh org.gnome.Platform//50 -ec "getconf GNU_LIBC_VERSION; find /usr/lib -name libwebkit2gtk-4.1.so.0 -o -name libsoup-3.0.so.0"' > rocky-runtime-evidence/ordinary-rocky-runtime.log 2>&1
+          result=$?
+          printf '%s\n' "$result" | tee rocky-runtime-evidence/ordinary-rocky-runtime-exit-code.txt
+          cat rocky-runtime-evidence/ordinary-rocky-runtime.log
+      - name: Inspect the fixed candidate artifact after the authorized build
+        run: |
+          gh run watch "$SOURCE_RUN" --repo Mafei/voltius --exit-status
+          test "$(gh api "repos/Mafei/voltius/actions/runs/$SOURCE_RUN" --jq .head_sha)" = "$SOURCE_SHA"
+          gh run download "$SOURCE_RUN" --repo Mafei/voltius --name "Voltius-flatpak-restricted-x86_64-$SOURCE_SHA" --dir artifacts
+          for report in artifacts/BUILD-MANIFEST.json artifacts/SHA256SUMS artifacts/runtime-linker-and-isolation.txt artifacts/elf-needed.txt artifacts/app-permissions.txt artifacts/GUI-SCOPE.txt artifacts/launch.log; do
+            if test -f "$report"; then printf '\nREPORT %s\n' "$report"; cat "$report"; fi
+          done
+          python3 - <<'PY'
+          import hashlib,json,pathlib
+          root=pathlib.Path('artifacts')
+          m=json.loads((root/'BUILD-MANIFEST.json').read_text())
+          assert m['candidate_sha']=='698d01d5d0cb25e82454db31285c3a1ba7156244'
+          assert hashlib.file_digest((root/m['package']).open('rb'),'sha256').hexdigest()==m['sha256']
+          print('ACTUAL PACKAGE SHA256 VERIFIED',m['sha256'])
+          PY
+          printf '\nELF MAXIMUM SYMBOL REQUIREMENTS\n'
+          rg -o 'GLIBC_[0-9.]+' artifacts/elf-symbol-versions.txt | sort -Vu | tail -1
+          rg -o 'GLIBCXX_[0-9.]+' artifacts/elf-symbol-versions.txt | sort -Vu | tail -1 || true
+          if test -f artifacts/launch.png; then
+            printf '\nVOLTIUS_FLATPAK_SCREENSHOT_BEGIN\n'
+            base64 artifacts/launch.png
+            printf '\nVOLTIUS_FLATPAK_SCREENSHOT_END\n'
+          fi
+      - name: Attempt normal Rocky userspace Flatpak desktop only if the sandbox passed
+        run: |
+          if test "$(cat rocky-runtime-evidence/ordinary-rocky-runtime-exit-code.txt)" != 0; then
+            printf '%s\n' 'Blocked by ordinary CI sandbox controls; no policy exception attempted. Rocky desktop launch is untested.' | tee rocky-runtime-evidence/GUI-SCOPE.txt
+            exit 0
+          fi
+          bash run-rocky.sh bash -ec 'flatpak --user install --noninteractive --assumeyes --bundle /packages/*.flatpak; dbus-run-session -- flatpak run --user --unshare=network --command=sh app.voltius.Voltius -ec "ldd /app/bin/voltius; getconf GNU_LIBC_VERSION"' | tee rocky-runtime-evidence/rocky-app-linker.txt
+          # A Rocky userspace test shares the Ubuntu kernel; it is not a real Rocky kernel/GPU test.
+          printf '%s\n' 'Rocky 8.10 userspace launcher/linker passed on Ubuntu CI kernel. Normal Rocky desktop/GPU and interactive SSH remain untested.' > rocky-runtime-evidence/GUI-SCOPE.txt
+      - name: Preserve independent evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Voltius-rocky-runtime-evidence-${{ github.sha }}
+          path: rocky-runtime-evidence/
+          retention-days: 14

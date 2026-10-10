@@ -1,0 +1,57 @@
+name: Rocky 8.10 software VM evidence
+on:
+  push:
+    branches: ['build/rocky-vm-evidence-*']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: rocky-vm-evidence-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  rocky-vm:
+    if: github.repository == 'Mafei/voltius'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_RUN: '38015048224'
+      SOURCE_SHA: '698d01d5d0cb25e82454db31285c3a1ba7156244'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Prepare and verify vendor image with public signing key
+        run: |
+          mkdir -p rocky-vm-evidence vm-data candidate-artifacts
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 qemu-utils genisoimage gnupg
+          bash scripts/prepare-rocky-test-vm.sh rocky-vm-evidence
+      - name: Obtain only the fixed authorized candidate artifact
+        run: |
+          gh run watch "$SOURCE_RUN" --repo Mafei/voltius --interval 45 --exit-status
+          test "$(gh api "repos/Mafei/voltius/actions/runs/$SOURCE_RUN" --jq .head_sha)" = "$SOURCE_SHA"
+          gh run download "$SOURCE_RUN" --repo Mafei/voltius --name "Voltius-flatpak-restricted-x86_64-$SOURCE_SHA" --dir candidate-artifacts
+          python3 - <<'PY'
+          import hashlib,json,pathlib,shutil
+          r=pathlib.Path('candidate-artifacts'); m=json.loads((r/'BUILD-MANIFEST.json').read_text())
+          assert m['candidate_sha']=='698d01d5d0cb25e82454db31285c3a1ba7156244'
+          assert hashlib.file_digest((r/m['package']).open('rb'),'sha256').hexdigest()==m['sha256']
+          shutil.copyfile(r/m['package'],'vm-data/voltius.flatpak')
+          shutil.copyfile(r/'BUILD-MANIFEST.json','vm-data/BUILD-MANIFEST.json')
+          shutil.copyfile(r/'BUILD-MANIFEST.json','rocky-vm-evidence/BUILD-MANIFEST.json')
+          PY
+          cp scripts/test-flatpak-in-rocky-guest.sh vm-data/test-guest.sh
+          cp scripts/test-flatpak-as-rocky-user.sh vm-data/test-user.sh
+          genisoimage -quiet -o vm-test.iso -V VOLTTEST -J -r vm-data
+      - name: Test the real Rocky kernel and ordinary Flatpak sandbox in software emulation
+        run: bash scripts/run-rocky-test-vm.sh rocky-vm-evidence
+      - name: Preserve measured guest evidence only
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Voltius-rocky-8.10-vm-evidence-${{ github.sha }}
+          path: rocky-vm-evidence/
+          retention-days: 14
+          if-no-files-found: error

@@ -19,6 +19,7 @@ jobs:
     timeout-minutes: 60
     env:
       CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
       CARGO_BUILD_JOBS: '4'
       VOLTIUS_REQUIRE_SEEDED_PLUGINS: '1'
     defaults:
@@ -64,16 +65,23 @@ jobs:
         run: |
           mkdir -p android-ci-artifacts
           cargo fmt --all --check 2>&1 | tee android-ci-artifacts/rustfmt.log
-          pnpm test src/services/appLock.test.ts src/hooks/useSessionExpiration.test.ts src/components/layout/SplashScreen.appLock.test.tsx src/components/layout/SplashScreen.keychainHint.test.tsx src/services/androidKeyboard.lock.test.ts src/components/terminal/androidDownloadDir.test.ts 2>&1 | tee android-ci-artifacts/frontend-tests.log
+          pnpm test src/services/appLock.test.ts src/hooks/useSessionExpiration.test.ts src/components/layout/SplashScreen.appLock.test.tsx src/components/layout/SplashScreen.keychainHint.test.tsx src/services/androidKeyboard.lock.test.ts src/components/terminal/androidDownloadDir.test.ts src/components/filetransfer/SFTPPage.relink.test.tsx src/hooks/useInlineRename.test.tsx src/hooks/useListKeyNav.test.ts src/hooks/usePageClipboard.test.ts src/stores/shortcutStore.clipboard.test.ts 2>&1 | tee android-ci-artifacts/frontend-tests.log
           cargo test --locked -p voltius-crypto 2>&1 | tee android-ci-artifacts/crypto-tests.log
 
       - name: Build the development-signed ARM64 APK
         run: pnpm tauri android build --target aarch64 --apk --debug 2>&1 | tee android-ci-artifacts/android-build.log
 
+      - name: Check transfer safety regressions on the Linux host
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libsoup-3.0-dev libsecret-1-dev openssh-sftp-server
+          cargo test --locked -p voltius --lib commands::sftp::resume -- --skip '::live::' 2>&1 | tee android-ci-artifacts/sftp-resume-tests.log
+          cargo test --locked -p voltius --lib commands::wsl::tests 2>&1 | tee android-ci-artifacts/wsl-timeout-tests.log
+
       - name: Verify and collect APK evidence
         run: |
           python3 scripts/verify-android-apk.py src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk android-ci-artifacts
-          cp LICENSE android-ci-artifacts/
+          cp LICENSE NOTICE.md android-ci-artifacts/
           cp docs/android-fork-build.md android-ci-artifacts/BUILD-NOTICE.md
 
       - name: Preserve APK and build evidence

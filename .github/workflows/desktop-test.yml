@@ -1,0 +1,85 @@
+name: Desktop test builds
+
+on:
+  push:
+    branches:
+      - 'candidate/desktop-*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-test-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  macos-arm64:
+    if: github.repository == 'Mafei/voltius'
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      CARGO_BUILD_JOBS: '2'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+      VOLTIUS_REQUIRE_SEEDED_PLUGINS: '1'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24.19.0'
+      - name: Install pinned tools and locked dependencies
+        run: |
+          test "$(uname -m)" = arm64
+          npm install --global pnpm@11.5.2
+          rustup show
+          rustup target add aarch64-apple-darwin
+          pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build ARM64 app with ad-hoc test signing
+        run: |
+          mkdir -p desktop-ci-artifacts
+          cargo fmt --all --check 2>&1 | tee desktop-ci-artifacts/rustfmt.log
+          pnpm tauri build --target aarch64-apple-darwin --bundles app --config '{"bundle":{"createUpdaterArtifacts":false,"macOS":{"signingIdentity":"-"}}}' -- --locked 2>&1 | tee desktop-ci-artifacts/macos-build.log
+      - name: Check existing native terminal and shell regressions
+        run: |
+          cargo test --locked -p voltius --lib local::session::tests 2>&1 | tee desktop-ci-artifacts/pty-tests.log
+          cargo test --locked -p voltius --lib commands::local::tests 2>&1 | tee desktop-ci-artifacts/shell-tests.log
+      - name: Verify signatures, launch normally, and collect package
+        run: bash scripts/verify-macos-test.sh target/aarch64-apple-darwin/release/bundle/macos/Voltius.app desktop-ci-artifacts
+      - name: Preserve package and evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Voltius-macos-arm64-test-${{ github.sha }}
+          path: desktop-ci-artifacts/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 9
+
+  rocky-8-10-audit:
+    if: github.repository == 'Mafei/voltius'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Audit exact Rocky 8.10 x86_64 userspace
+        shell: bash
+        run: |
+          mkdir -p rocky-ci-artifacts
+          docker run --rm --platform linux/amd64 --mount type=bind,src="$PWD",dst=/source,readonly --mount type=bind,src="$PWD/rocky-ci-artifacts",dst=/evidence rockylinux/rockylinux@sha256:e8a49c5403b687db05d4d67333fa45808fbe74f36e683cec7abb1f7d0f2338c6 bash /source/scripts/audit-rocky-desktop.sh /evidence 2>&1 | tee rocky-ci-artifacts/rocky-audit.log
+      - name: Preserve compatibility evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Voltius-rocky-8.10-audit-${{ github.sha }}
+          path: rocky-ci-artifacts/
+          retention-days: 14
+

@@ -29,8 +29,8 @@ jobs:
     timeout-minutes: 90
     env:
       GH_TOKEN: ${{ github.token }}
-      SOURCE_RUN: '38012695799'
-      SOURCE_SHA: 'd58461f53792106b68c9d87f04db1806c5a65b97'
+      SOURCE_RUN: '38013144488'
+      SOURCE_SHA: '4ce05b99986355548aed886a81bf31c20be96b15'
     steps:
       - name: Wait for the fixed desktop build and inspect its public reports
         shell: bash
@@ -46,6 +46,25 @@ jobs:
             fi
           done
           find macos-evidence -maxdepth 1 -type f -printf '%f %s bytes\n'
+          python3 - <<'PY'
+          import base64, hashlib, json, pathlib, tarfile, zipfile
+          root = pathlib.Path('macos-evidence')
+          manifest = json.loads((root/'BUILD-MANIFEST.json').read_text())
+          package = root/manifest['package']
+          assert hashlib.sha256(package.read_bytes()).hexdigest() == manifest['package_sha256']
+          with zipfile.ZipFile(package) as z:
+              assert any(n.endswith('/Contents/MacOS/voltius') for n in z.namelist())
+              assert not any(n.endswith(('.keystore', '.p12', '.pfx', '.jks')) for n in z.namelist())
+          source = next(root.glob('voltius-source-*.tar.gz'))
+          with tarfile.open(source) as t:
+              assert not any('/keystore/' in n for n in t.getnames())
+          print('Package SHA256 and archive contents verified; no signing keystore in package/source archive')
+          screenshot = root/'launch.png'
+          if screenshot.exists():
+              print('VOLTIUS_SCREENSHOT_BASE64_BEGIN')
+              print(base64.b64encode(screenshot.read_bytes()).decode())
+              print('VOLTIUS_SCREENSHOT_BASE64_END')
+          PY
           gh run download "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --name "Voltius-rocky-8.10-audit-$SOURCE_SHA" --dir rocky-evidence
           for report in enabled-repositories.txt available-webview-packages.txt webkit-provides.txt COMPATIBILITY.txt; do
             printf '\nREPORT %s\n' "$report"

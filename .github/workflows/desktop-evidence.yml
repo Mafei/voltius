@@ -1,0 +1,36 @@
+name: Inspect desktop test evidence
+on:
+  push:
+    branches: ['build/desktop-evidence-*']
+permissions:
+  actions: read
+  contents: read
+jobs:
+  inspect:
+    if: github.repository == 'Mafei/voltius'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_RUN: '38012695799'
+      SOURCE_SHA: 'd58461f53792106b68c9d87f04db1806c5a65b97'
+    steps:
+      - name: Wait for the fixed desktop build and inspect its public reports
+        shell: bash
+        run: |
+          gh run watch "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --interval 45
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN" --jq '{id,head_sha,status,conclusion,html_url}' | tee source-run.json
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN" --jq .head_sha)" = "$SOURCE_SHA"
+          gh run download "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --name "Voltius-macos-arm64-test-$SOURCE_SHA" --dir macos-evidence
+          for report in BUILD-MANIFEST.json macho-signatures.txt Info.plist.txt runner-os.txt launch.json launch-probe-error.txt open-error.txt screenshot-error.txt SHA256SUMS; do
+            if test -f "macos-evidence/$report"; then
+              printf '\nREPORT %s\n' "$report"
+              cat "macos-evidence/$report"
+            fi
+          done
+          find macos-evidence -maxdepth 1 -type f -printf '%f %s bytes\n'
+          gh run download "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --name "Voltius-rocky-8.10-audit-$SOURCE_SHA" --dir rocky-evidence
+          for report in enabled-repositories.txt available-webview-packages.txt webkit-provides.txt COMPATIBILITY.txt; do
+            printf '\nREPORT %s\n' "$report"
+            cat "rocky-evidence/$report"
+          done

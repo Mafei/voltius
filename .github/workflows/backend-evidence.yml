@@ -1,0 +1,150 @@
+name: Restricted backend evidence with existing package
+on:
+  push:
+    branches: ['build/backend-evidence-*']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: backend-evidence-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  SOURCE_RUN: '38015048224'
+  SOURCE_SHA: '698d01d5d0cb25e82454db31285c3a1ba7156244'
+  PACKAGE_SHA256: '1474140f564529d572ec144760b7c6cd63d07d9d0841476ebfb7b49d35d75e5c'
+  RUNTIME_COMMIT: '0bd5091046708e64bc882e8349877cfbae713f6a1e2d0487a5f10af820a2d792'
+jobs:
+  ubuntu-runtime:
+    if: github.repository == 'Mafei/voltius'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      CARGO_BUILD_JOBS: '2'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+      VOLTIUS_REQUIRE_SEEDED_PLUGINS: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify production sources and preserve test-only delta
+        run: |
+          mkdir -p backend-evidence probe-input candidate-artifacts
+          git rev-parse HEAD | tee backend-evidence/validator-sha.txt
+          git diff --exit-code 47a009190e9c3cb4bf2678f37d8dfe26a59ec113 -- src src-tauri crates package.json pnpm-lock.yaml Cargo.toml Cargo.lock rust-toolchain.toml LICENSE NOTICE.md ':!src-tauri/src/lib.rs' ':!src-tauri/src/ssh/test_proc_server.rs' ':!src-tauri/src/restricted_backend_tests.rs'
+          python3 - <<'PY'
+          import pathlib,subprocess
+          original=subprocess.check_output(['git','show','47a009190e9c3cb4bf2678f37d8dfe26a59ec113:src-tauri/src/lib.rs']).decode()
+          current=pathlib.Path('src-tauri/src/lib.rs').read_text()
+          assert current.replace('#[cfg(all(test, unix))]\nmod restricted_backend_tests;\n','')==original
+          PY
+          git diff 47a009190e9c3cb4bf2678f37d8dfe26a59ec113 -- src-tauri/src > backend-evidence/test-only-delta.patch
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24.19.0'
+      - name: Install ordinary test dependencies and official runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libsecret-1-dev libssl-dev libudev-dev openssh-sftp-server flatpak dbus-daemon ripgrep
+          npm install --global pnpm@11.5.2
+          rustup show
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm build 2>&1 | tee backend-evidence/frontend-test-resources.log
+          flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak --user install --noninteractive --assumeyes --no-related flathub org.gnome.Platform//50
+          flatpak --user update --noninteractive --assumeyes --commit="$RUNTIME_COMMIT" org.gnome.Platform//50
+          flatpak info --user org.gnome.Platform//50 | tee backend-evidence/runtime.txt
+      - name: Compile only native test executable with locked dependencies
+        run: |
+          cargo fmt --all --check
+          cargo test --locked -p voltius --lib --no-run --message-format=json > backend-evidence/test-build.jsonl 2> backend-evidence/test-build.log || { tail -100 backend-evidence/test-build.log; exit 1; }
+          python3 - <<'PY'
+          import json,pathlib,shutil
+          items=[json.loads(l) for l in pathlib.Path('backend-evidence/test-build.jsonl').read_text().splitlines() if l.startswith('{')]
+          tests=[i['executable'] for i in items if i.get('reason')=='compiler-artifact' and i.get('profile',{}).get('test') and i.get('target',{}).get('name')=='voltius_lib' and i.get('executable')]
+          assert len(tests)==1,tests
+          shutil.copyfile(tests[0],'probe-input/voltius-backend-tests')
+          shutil.copyfile('/usr/lib/openssh/sftp-server','probe-input/sftp-server')
+          PY
+          chmod 700 probe-input/*
+          sha256sum probe-input/* | tee backend-evidence/test-executables-sha256.txt
+          dpkg-query -W openssh-sftp-server | tee backend-evidence/sftp-server-package.txt
+      - name: Obtain fixed existing bundle without rebuilding it
+        run: |
+          test "$(gh api "repos/Mafei/voltius/actions/runs/$SOURCE_RUN" --jq .head_sha)" = "$SOURCE_SHA"
+          gh run download "$SOURCE_RUN" --repo Mafei/voltius --name "Voltius-flatpak-restricted-x86_64-$SOURCE_SHA" --dir candidate-artifacts
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib,shutil
+          r=pathlib.Path('candidate-artifacts');m=json.loads((r/'BUILD-MANIFEST.json').read_text())
+          assert m['candidate_sha']==os.environ['SOURCE_SHA']
+          bundle=r/m['package'];assert hashlib.file_digest(bundle.open('rb'),'sha256').hexdigest()==os.environ['PACKAGE_SHA256']
+          shutil.copyfile(bundle,'probe-input/voltius.flatpak')
+          shutil.copyfile(r/'BUILD-MANIFEST.json','backend-evidence/BUILD-MANIFEST.json')
+          PY
+          flatpak --user install --noninteractive --assumeyes --bundle probe-input/voltius.flatpak
+      - name: Test actual backend within current permissions
+        run: dbus-run-session -- bash scripts/run-restricted-backend-tests.sh probe-input backend-evidence
+      - name: Preserve measured backend evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Voltius-backend-ubuntu-evidence-${{ github.sha }}
+          path: backend-evidence/
+          retention-days: 14
+          if-no-files-found: error
+      - name: Pass only synthetic test executables and unchanged app bundle to isolated VM
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Voltius-backend-probe-input-${{ github.sha }}
+          path: probe-input/
+          retention-days: 3
+          if-no-files-found: error
+  rocky-runtime:
+    needs: ubuntu-runtime
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: Voltius-backend-probe-input-${{ github.sha }}
+          path: vm-data
+      - name: Prepare verified Rocky VM without policy exceptions
+        run: |
+          mkdir -p rocky-backend-evidence
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 qemu-utils genisoimage gnupg aria2
+          bash scripts/prepare-rocky-test-vm.sh rocky-backend-evidence
+          cp scripts/test-backend-in-rocky-guest.sh vm-data/test-guest.sh
+          cp scripts/test-backend-as-rocky-user.sh vm-data/test-user.sh
+          cp scripts/run-restricted-backend-tests.sh vm-data/run-tests.sh
+          genisoimage -quiet -o vm-test.iso -V VOLTTEST -J -r vm-data
+      - name: Run the same test executable on real Rocky kernel in normal Flatpak
+        run: |
+          set +e
+          timeout --signal=TERM 2400 qemu-system-x86_64 -machine q35,accel=tcg -cpu max -smp 2 -m 4096 -display none -monitor none -serial stdio -nic user,model=virtio-net-pci -drive file=vm-work/test-overlay.qcow2,if=virtio,format=qcow2 -drive file=vm-seed.iso,media=cdrom,readonly=on -drive file=vm-test.iso,media=cdrom,readonly=on 2>&1 | tee rocky-backend-evidence/guest-serial.log
+          result=${PIPESTATUS[0]}
+          set -e
+          test "$result" = 0
+          python3 - <<'PY'
+          import json,pathlib,re
+          t=pathlib.Path('rocky-backend-evidence/guest-serial.log').read_text().replace('\r','')
+          assert 'VOLTIUS_ROCKY_BACKEND_EXIT=0' in t and 'VOLTIUS_BACKEND_COMPLETE=PASS' in t
+          counts=[tuple(map(int,m)) for m in re.findall(r'test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored;',t)]
+          assert len(counts)==8 and all(n>0 and f==0 and i==0 for n,f,i in counts),counts
+          pathlib.Path('rocky-backend-evidence/RESULT.json').write_text(json.dumps({'passed':sum(n for n,_,_ in counts),'failed':0,'ignored':0,'suite_counts':counts,'extra_permissions':[],'scope':'Same unchanged app bundle and backend test executable inside ordinary Flatpak on verified Rocky 8.10 QEMU TCG VM. GUI/account/keychain and remote interactive PTY untested.'},indent=2)+'\n')
+          PY
+          cat rocky-backend-evidence/RESULT.json
+      - name: Preserve measured Rocky backend evidence only
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Voltius-backend-rocky-evidence-${{ github.sha }}
+          path: rocky-backend-evidence/
+          retention-days: 14
+          if-no-files-found: error

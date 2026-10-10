@@ -29,6 +29,8 @@ mod port_forward;
 mod processes;
 mod proxmox;
 mod proxy;
+#[cfg(all(test, unix))]
+mod restricted_backend_tests;
 mod scratch;
 mod serial;
 mod sftp;

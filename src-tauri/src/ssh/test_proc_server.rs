@@ -46,12 +46,19 @@ pub struct ProcLog {
 
 struct ProcServer {
     opts: ProcOptions,
+    require_password: bool,
     refused: usize,
     log: Arc<std::sync::Mutex<ProcLog>>,
     stdins: Arc<Mutex<HashMap<ChannelId, ChildStdin>>>,
 }
 
 pub fn sftp_server_path() -> &'static str {
+    // This module is test-only. A supplied official sftp-server can live in the
+    // app's private cache without granting access to host executable paths.
+    if let Ok(path) = std::env::var("VOLTIUS_TEST_SFTP_SERVER") {
+        assert!(std::path::Path::new(&path).is_file());
+        return Box::leak(path.into_boxed_str());
+    }
     [
         "/usr/lib/openssh/sftp-server",
         "/usr/libexec/sftp-server",
@@ -95,7 +102,27 @@ impl russh::server::Handler for ProcServer {
     type Error = russh::Error;
 
     async fn auth_none(&mut self, _user: &str) -> Result<Auth, Self::Error> {
-        Ok(Auth::Accept)
+        Ok(if self.require_password {
+            Auth::Reject {
+                proceed_with_methods: Some((&[russh::MethodKind::Password][..]).into()),
+                partial_success: false,
+            }
+        } else {
+            Auth::Accept
+        })
+    }
+
+    async fn auth_password(&mut self, user: &str, password: &str) -> Result<Auth, Self::Error> {
+        Ok(
+            if user == "voltius-fixture" && password == "fixture-password-only" {
+                Auth::Accept
+            } else {
+                Auth::Reject {
+                    proceed_with_methods: Some((&[russh::MethodKind::Password][..]).into()),
+                    partial_success: false,
+                }
+            },
+        )
     }
 
     async fn channel_open_session(
@@ -260,20 +287,21 @@ async fn cutting_relay(to: u16, limit: u64, hold: bool) -> u16 {
     port
 }
 
-pub async fn proc_server(
+pub async fn proc_server_endpoint(
     opts: ProcOptions,
-) -> (
-    Arc<russh::client::Handle<TestClient>>,
-    Arc<std::sync::Mutex<ProcLog>>,
-) {
+    require_password: bool,
+) -> (u16, Arc<std::sync::Mutex<ProcLog>>) {
     let log = Arc::new(std::sync::Mutex::new(ProcLog::default()));
     let server = ProcServer {
         opts,
+        require_password,
         refused: 0,
         log: log.clone(),
         stdins: Arc::default(),
     };
     let mut config = russh::server::Config::default();
+    config.auth_rejection_time = std::time::Duration::ZERO;
+    config.auth_rejection_time_initial = Some(std::time::Duration::ZERO);
     if let Some(window) = opts.window {
         config.window_size = window;
     }
@@ -283,6 +311,16 @@ pub async fn proc_server(
     } else if let Some(limit) = opts.blackhole_after_bytes {
         port = cutting_relay(port, limit, true).await;
     }
+    (port, log)
+}
+
+pub async fn proc_server(
+    opts: ProcOptions,
+) -> (
+    Arc<russh::client::Handle<TestClient>>,
+    Arc<std::sync::Mutex<ProcLog>>,
+) {
+    let (port, log) = proc_server_endpoint(opts, false).await;
     let mut handle = russh::client::connect(Default::default(), ("127.0.0.1", port), TestClient)
         .await
         .unwrap();

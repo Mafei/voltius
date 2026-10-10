@@ -2,6 +2,12 @@ name: Restricted Flatpak test build
 on:
   push:
     branches: ['candidate/runtime-*']
+    paths-ignore:
+      - 'docs/**'
+      - 'scripts/probe-flatpak-test.sh'
+      - '.github/workflows/flatpak-test.yml'
+      - '.github/workflows/flatpak-revalidate.yml'
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
@@ -31,7 +37,7 @@ jobs:
         run: |
           mkdir -p flatpak-ci-artifacts
           sudo apt-get update
-          sudo apt-get install -y build-essential libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libsecret-1-dev libssl-dev libudev-dev flatpak dbus-daemon xvfb x11-utils imagemagick
+          sudo apt-get install -y build-essential libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libsecret-1-dev libssl-dev libudev-dev flatpak dbus-daemon xvfb x11-utils imagemagick ripgrep
           npm install --global pnpm@11.5.2
           rustup show
           pnpm install --frozen-lockfile --ignore-scripts

@@ -1,0 +1,92 @@
+name: Validate fixed existing Flatpak bundle
+on:
+  push:
+    branches: ['candidate/runtime-*']
+    paths:
+      - '.github/workflows/flatpak-revalidate.yml'
+      - 'scripts/probe-flatpak-test.sh'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: flatpak-revalidate-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    if: github.repository == 'Mafei/voltius'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_RUN: '38015048224'
+      SOURCE_SHA: '698d01d5d0cb25e82454db31285c3a1ba7156244'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate original native build and exact artifact identity
+        run: |
+          test "$(gh api "repos/Mafei/voltius/actions/runs/$SOURCE_RUN" --jq .head_sha)" = "$SOURCE_SHA"
+          gh api "repos/Mafei/voltius/actions/runs/$SOURCE_RUN/jobs" --jq '.jobs[0].steps' > /tmp/source-build-steps.json
+          python3 - <<'PY'
+          import json
+          steps=json.load(open('/tmp/source-build-steps.json'))
+          for name in ['Build fixed Linux application with locked dependencies','Package and verify restricted official runtime candidate']:
+              assert next(s for s in steps if s['name']==name)['conclusion']=='success'
+          PY
+          gh run download "$SOURCE_RUN" --repo Mafei/voltius --name "Voltius-flatpak-restricted-x86_64-$SOURCE_SHA" --dir verified-flatpak
+          python3 - <<'PY'
+          import hashlib,json,pathlib,tarfile
+          r=pathlib.Path('verified-flatpak');m=json.loads((r/'BUILD-MANIFEST.json').read_text())
+          assert m['candidate_sha']=='698d01d5d0cb25e82454db31285c3a1ba7156244'
+          assert m['sha256']=='1474140f564529d572ec144760b7c6cd63d07d9d0841476ebfb7b49d35d75e5c'
+          assert hashlib.file_digest((r/m['package']).open('rb'),'sha256').hexdigest()==m['sha256']
+          with tarfile.open(r/'sources.tar.gz') as t:
+              names=t.getnames()
+              assert len(names)>1000
+              assert not any('/keystore/' in '/'+n or n.endswith(('.jks','.p12','.pfx','.keystore')) for n in names)
+          print('ACTUAL PACKAGE SHA256 VERIFIED',m['sha256'],'SOURCE ARCHIVE VERIFIED',len(names),'entries')
+          print(json.dumps(m,indent=2))
+          PY
+          (cd verified-flatpak; sha256sum --check SHA256SUMS)
+      - name: Install ordinary launcher and verify runtime isolation
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak dbus-daemon xvfb x11-utils imagemagick ripgrep
+          flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak --user install --noninteractive --assumeyes flathub org.gnome.Platform//50
+          flatpak --user update --noninteractive --assumeyes --commit=0bd5091046708e64bc882e8349877cfbae713f6a1e2d0487a5f10af820a2d792 org.gnome.Platform//50
+          flatpak --user install --noninteractive --assumeyes --bundle verified-flatpak/*.flatpak
+          flatpak info --user --show-permissions app.voltius.Voltius | tee verified-flatpak/revalidated-permissions.txt
+          location=$(flatpak info --user --show-location app.voltius.Voltius)
+          find "$location/files" -type f > verified-flatpak/installed-file-list.txt
+          python3 - "$location/files" <<'PY'
+          import pathlib,sys
+          assert not any(p.suffix in ['.p12','.pfx','.keystore','.jks'] for p in pathlib.Path(sys.argv[1]).rglob('*'))
+          PY
+          dbus-run-session -- flatpak run --user --unshare=network --command=sh app.voltius.Voltius -ec 'ldd /app/bin/voltius; getconf GNU_LIBC_VERSION; if flatpak-spawn --host true; then echo UNEXPECTED_HOST_EXECUTION; exit 1; else echo HOST_EXECUTION_DENIED; fi' > verified-flatpak/revalidated-linker.txt 2>&1
+          cat verified-flatpak/revalidated-linker.txt
+          python3 - <<'PY'
+          import pathlib
+          t=pathlib.Path('verified-flatpak/revalidated-linker.txt').read_text()
+          assert 'not found' not in t and 'UNEXPECTED_HOST_EXECUTION' not in t and 'HOST_EXECUTION_DENIED' in t
+          PY
+      - name: Verify the original package's normal GUI launch
+        run: |
+          xvfb-run -a -s '-screen 0 1280x900x24' dbus-run-session -- bash scripts/probe-flatpak-test.sh verified-flatpak
+          printf '\nVOLTIUS_FLATPAK_SCREENSHOT_BEGIN\n'
+          base64 verified-flatpak/launch.png
+          printf '\nVOLTIUS_FLATPAK_SCREENSHOT_END\n'
+          printf '\nELF MAXIMUM SYMBOL REQUIREMENTS\n'
+          rg -o 'GLIBC_[0-9.]+' verified-flatpak/elf-symbol-versions.txt | sort -Vu | tail -1
+          rg -o 'GLIBCXX_[0-9.]+' verified-flatpak/elf-symbol-versions.txt | sort -Vu | tail -1 || true
+          find verified-flatpak -maxdepth 1 -type f -printf '%f %s bytes\n'
+          printf '%s\n' "Independent validation of unchanged bundle from source run $SOURCE_RUN / SHA $SOURCE_SHA; validator $GITHUB_SHA. No application rebuild." > verified-flatpak/REVALIDATION.txt
+      - name: Preserve same package and independent evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Voltius-flatpak-verified-${{ github.sha }}
+          path: verified-flatpak/
+          retention-days: 14

@@ -36,6 +36,11 @@ normal Ubuntu cloud Xvfb launch. These checks cannot establish a normal Rocky
 desktop launch or real GPU compatibility; report the actual measured scope.
 
 Reproduce in a disposable Linux build machine with ordinary Flatpak support:
+install the ordinary dependencies listed in `flatpak-test.yml`, including
+`ripgrep` for verification. Workflow/GUI-verification-only edits do not recompile
+the native application; use the workflow's manual Run action for a build-tool
+change. A separate read-only revalidation workflow verifies the exact already
+built bundle, archive contents, linker and GUI rather than compiling it again.
 
 ```sh
 pnpm install --frozen-lockfile --ignore-scripts

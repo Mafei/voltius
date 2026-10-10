@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+command -v rg > /dev/null
 evidence=$(realpath "${1:?evidence directory}")
 # Software graphics is for this cloud Xvfb test; no WebKit/Flatpak sandbox is disabled.
 export LIBGL_ALWAYS_SOFTWARE=1

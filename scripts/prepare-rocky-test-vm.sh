@@ -5,7 +5,6 @@ image=Rocky-8-GenericCloud-Base-8.10-20240528.0.x86_64.qcow2
 vendor=https://download.rockylinux.org/pub/rocky
 base="$vendor/8.10/images/x86_64"
 mkdir -p vm-work vm-seed
-curl --fail --location --retry 3 --max-time 600 "$base/$image" -o "vm-work/$image"
 curl --fail --location --retry 3 "$base/CHECKSUM" -o "$evidence/vendor-CHECKSUM"
 curl --fail --location --retry 3 "$base/CHECKSUM.sig" -o "$evidence/vendor-CHECKSUM.sig"
 curl --fail --location --retry 3 "$vendor/RPM-GPG-KEY-Rocky-8" -o "$evidence/vendor-public-key.asc"
@@ -21,6 +20,10 @@ m=re.search(r'SHA256 \('+re.escape(sys.argv[2])+r'\)\s*=\s*([0-9a-fA-F]{64})',te
 assert m,'vendor checksum entry missing'
 pathlib.Path(sys.argv[3]).write_text(m[1].lower()+'  '+sys.argv[2]+'\n')
 PY
+checksum=$(awk '{print $1}' "$evidence/vendor-image-SHA256.txt")
+# Four ordinary HTTP ranges on the same official URL, with resumption and the
+# vendor-signed digest. No insecure mirror, proxy exception or policy change.
+aria2c --continue=true --split=4 --max-connection-per-server=4 --min-split-size=16M --max-tries=3 --timeout=60 --connect-timeout=30 --summary-interval=60 --checksum="sha-256=$checksum" --dir=vm-work --out="$image" "$base/$image"
 (cd vm-work; sha256sum --check "$evidence/vendor-image-SHA256.txt")
 qemu-img info "vm-work/$image" > "$evidence/vendor-image-info.txt"
 qemu-img create -f qcow2 -F qcow2 -b "$(realpath "vm-work/$image")" vm-work/test-overlay.qcow2 24G

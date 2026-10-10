@@ -26,7 +26,7 @@ jobs:
         run: |
           mkdir -p rocky-vm-evidence vm-data candidate-artifacts
           sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 qemu-utils genisoimage gnupg
+          sudo apt-get install -y qemu-system-x86 qemu-utils genisoimage gnupg aria2
           bash scripts/prepare-rocky-test-vm.sh rocky-vm-evidence
       - name: Obtain only the fixed authorized candidate artifact
         run: |

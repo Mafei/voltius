@@ -15,6 +15,7 @@ import { useUIContributions } from "@/hooks/useUIContributions";
 import { useSyncPrefsStore } from "@/stores/syncPrefsStore";
 import { buildConnectionMenuItems } from "@/utils/connectionMenuItems";
 import { useCanConnect } from "@/hooks/useCanConnect";
+import { useInlineRename } from "@/hooks/useInlineRename";
 import { useConnectAsMenuItem } from "@/hooks/useConnectAsMenuItem";
 import { useCredentialPlan } from "@/hooks/useCredentialPlan";
 import { effectiveUsername } from "@/services/credentialScope";
@@ -84,6 +85,10 @@ export default function HostCard({
   const pinConnection = useConnectionStore((s) => s.pinConnection);
   const pinConnectionForTeam = useConnectionStore((s) => s.pinConnectionForTeam);
   const updateConnection = useConnectionStore((s) => s.updateConnection);
+  const displayName = connectionDisplayName(connection);
+  const rename = useInlineRename(connection.id, canEdit, displayName, (name) => {
+    void updateConnection(connection.id, { ...connectionToFormData(connection), name });
+  });
   const effectivePinned = useEffectivePinned(connection, "connection");
   const pinSource = useEffectivePinSource(connection, "connection");
   const isTeamVault = useTeamStore((s) => s.teams.some((t) => t.id === connection.vault_id));
@@ -155,7 +160,8 @@ export default function HostCard({
   );
 
   const contextMenuItems: ContextMenuItem[] = [
-    ...(canEdit ? [{ label: t("common.action.edit"), icon: "lucide:square-pen", onClick: () => onEdit(connection), shortcut: "E" }] : []),
+    ...(canEdit ? [{ label: t("common.action.edit"), icon: "lucide:pencil", onClick: () => onEdit(connection), shortcut: "E" }] : []),
+    ...rename.menuItems,
     ...(!isSerial ? [{ label: t("hosts.card.openInSftp"), icon: "lucide:folder-open", onClick: () => useUIStore.getState().openSftpWith(connection.id) }] : []),
     ...(connection.host ? [{
       label: t("hosts.card.copyHostnameIp"),
@@ -275,7 +281,7 @@ export default function HostCard({
             )}
           </div>
           <p className="text-sm font-medium-bold truncate w-52 shrink-0 text-(--t-text-bright)">
-            {connectionDisplayName(connection)}
+            {rename.editor ?? displayName}
           </p>
           <p className="text-xs truncate flex-1 text-(--t-text-secondary)">
             {isSerial
@@ -289,7 +295,7 @@ export default function HostCard({
           <div className="flex items-center gap-1 shrink-0">
             {presenceAvatar}
             {syncIcon}
-            {canEdit && <CardActionButton icon="lucide:square-pen" title={t("common.action.edit")} onClick={() => onEdit(connection)} />}
+            {canEdit && <CardActionButton icon="lucide:pencil" title={t("common.action.edit")} onClick={() => onEdit(connection)} />}
             {canEdit && <CardActionButton icon="lucide:trash-2" title={t("common.action.delete")} onClick={() => onDelete(connection.id)} danger />}
             {canConnect && !isSerial && !fileOnly && <CardActionButton icon="lucide:folder-open" title={t("hosts.card.openInSftp")} onClick={() => useUIStore.getState().openSftpWith(connection.id)} />}
             <button
@@ -313,7 +319,7 @@ export default function HostCard({
               <div ref={contentColRef} className="flex flex-col gap-0.5 flex-1 min-w-0">
                 <div className="flex items-center gap-2 min-w-0">
                   <p className="text-sm font-bold truncate text-(--t-text-bright)">
-                    {connectionDisplayName(connection)}
+                    {rename.editor ?? displayName}
                   </p>
                   <span className="shrink-0 px-1.5 py-0.5 rounded-md text-[11px] font-semibold bg-(--t-bg-input) text-(--t-text-dim) border border-(--t-border)">
                     {protocol}
@@ -350,7 +356,7 @@ export default function HostCard({
             <div className="flex items-end">
               <div className="flex items-center gap-1 flex-1 -mb-1.5">
                 {canEdit && (
-                  <CardActionButton icon="lucide:square-pen" title={t("common.action.edit")} reveal={false} onClick={() => onEdit(connection)} />
+                  <CardActionButton icon="lucide:pencil" title={t("common.action.edit")} reveal={false} onClick={() => onEdit(connection)} />
                 )}
                 {canConnect && !isSerial && !fileOnly && (
                   <CardActionButton icon="lucide:folder-open" title={t("hosts.card.openInSftp")} reveal={false} onClick={() => useUIStore.getState().openSftpWith(connection.id)} />

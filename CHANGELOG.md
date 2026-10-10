@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.52.1] - 2026-10-09
+
+### Fixed
+
+- Windows: the app no longer freezes when WSL stops responding. WSL detection now gives up after a few seconds, and the rest of the app (vaults, SSH, SFTP) keeps working without the WSL shell (#605)
+
+## [0.52.0] - 2026-10-09
+
+### Added
+
+- Press F2 to rename the selected folder, host, key, identity, snippet, port-forwarding rule or SFTP file in place. The shortcut can be remapped (#600)
+
+### Changed
+
+- Edit uses the pencil icon everywhere, and Rename has its own text-cursor icon in the SFTP, folder, session, split-tab and vault menus (#599)
+
+### Fixed
+
+- New folders get a default name in the app's language (#602)
+- Corrected Czech wording and terminology (#601)
+- Long plugin names in the settings sidebar wrap onto a second line instead of being cut off (#604)
+
+## [0.51.1] - 2026-10-09
+
+### Fixed
+
+- App lock now applies at launch: force-closing the app and reopening it after the auto-lock time (or any launch with Immediately) locks instead of signing straight back in. A local account with no saved secrets can no longer be unlocked with any password (#593)
+- Typing `exit` in a PowerShell, cmd or WSL tab on Windows now closes the tab (#594)
+- Cancelling an SFTP upload also removes leftover partial files from earlier versions of the same file (#596)
+- When a transfer fails after a lost connection, the queue says Retry will resume where it stopped only for destinations that support it (local, SFTP, Docker, and WebDAV/FTP once resume is confirmed) (#597)
+
 ## [0.51.0] - 2026-10-09
 
 ### Added

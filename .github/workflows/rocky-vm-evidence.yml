@@ -30,8 +30,12 @@ jobs:
           bash scripts/prepare-rocky-test-vm.sh rocky-vm-evidence
       - name: Obtain only the fixed authorized candidate artifact
         run: |
-          gh run watch "$SOURCE_RUN" --repo Mafei/voltius --interval 45 --exit-status
+          # The original final GUI check lacked ripgrep; validate build/package
+          # steps and the exact bundle, then repeat launch in this independent VM.
+          gh run watch "$SOURCE_RUN" --repo Mafei/voltius --interval 45
           test "$(gh api "repos/Mafei/voltius/actions/runs/$SOURCE_RUN" --jq .head_sha)" = "$SOURCE_SHA"
+          test "$(gh api "repos/Mafei/voltius/actions/runs/$SOURCE_RUN/jobs" --jq '.jobs[0].steps[] | select(.name=="Build fixed Linux application with locked dependencies") | .conclusion')" = success
+          test "$(gh api "repos/Mafei/voltius/actions/runs/$SOURCE_RUN/jobs" --jq '.jobs[0].steps[] | select(.name=="Package and verify restricted official runtime candidate") | .conclusion')" = success
           gh run download "$SOURCE_RUN" --repo Mafei/voltius --name "Voltius-flatpak-restricted-x86_64-$SOURCE_SHA" --dir candidate-artifacts
           python3 - <<'PY'
           import hashlib,json,pathlib,shutil

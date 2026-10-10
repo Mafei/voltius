@@ -60,6 +60,17 @@ for graphics_mode in default software-compositing; do
     if ! kill -0 "$launcher" 2>/dev/null; then break; fi
     sleep 5
   done
+  if [[ "$main_window" == 1 && "$nonblank" == 1 ]]; then
+    # The first painted React frame is the splash, not completed startup.
+    # Allow slow TCG IPC/bootstrap to settle before the evidence screenshot.
+    for settled in 30 60 90 120 150 180; do
+      sleep 30
+      kill -0 "$launcher"
+      printf 'Post-paint startup observation: %s seconds\n' "$settled"
+      python3 /mnt/voltius-test/capture-gui.py
+      cat evidence/launch.log
+    done
+  fi
   xwininfo -root -tree > evidence/window-tree.txt
   cat evidence/window-tree.txt
   cat evidence/launch.log

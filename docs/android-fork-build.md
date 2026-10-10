@@ -56,6 +56,14 @@ read-only repository permissions and does not publish releases or use signing
 secrets. Static alignment checks are not a runtime test. Phone/emulator startup,
 InputConnection, biometric unlock and SSH/SFTP remain untested for this build.
 
+Daily candidates also run the reconnect/rename/selection frontend regressions and
+the Linux-host SFTP resume/cancellation tests (`cargo test --locked -p voltius
+--lib commands::sftp::resume -- --skip '::live::'`), plus the WSL timeout helper
+tests. The SFTP tests use local temporary fixtures and the OpenSSH sftp-server;
+the Docker live test is excluded. Linux native test dependencies match the
+upstream `ci.yml` package list. These host regressions do not prove Android
+runtime behavior. CI artifacts preserve LICENSE and the upstream NOTICE.md.
+
 ## Daily candidate and maintenance branches
 
 Track upstream `dev`; use `mafei/android` as the validated maintenance branch.

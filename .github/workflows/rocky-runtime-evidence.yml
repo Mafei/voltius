@@ -36,8 +36,16 @@ jobs:
           cat > run-rocky.sh <<'SHELL'
           #!/usr/bin/env bash
           set -euo pipefail
+          display_mounts=()
+          if test -d /tmp/.X11-unix; then
+            display_mounts+=(--ro-bind /tmp/.X11-unix /tmp/.X11-unix)
+          fi
+          if test -n "${XAUTHORITY:-}" && test -f "$XAUTHORITY"; then
+            display_mounts+=(--ro-bind "$XAUTHORITY" "/run/user/$(id -u)/xauthority" --setenv XAUTHORITY "/run/user/$(id -u)/xauthority")
+          fi
           bwrap --unshare-user --unshare-pid --die-with-parent \
             --ro-bind "$PWD/rootfs" / --dev /dev --proc /proc --tmpfs /tmp \
+            "${display_mounts[@]}" \
             --bind "$PWD/test-home" /home/voltius-test \
             --bind "$PWD/test-run" "/run/user/$(id -u)" \
             --bind "$PWD/rocky-runtime-evidence" /evidence \
@@ -52,11 +60,14 @@ jobs:
           result=$?
           printf '%s\n' "$result" | tee rocky-runtime-evidence/ordinary-rocky-runtime-exit-code.txt
           cat rocky-runtime-evidence/ordinary-rocky-runtime.log
+          find test-home/.local/share/flatpak/runtime/org.gnome.Platform -name libc.so.6 -print -exec readelf -n '{}' \; > rocky-runtime-evidence/runtime-glibc-abi-tag.txt 2>&1 || true
+          cat rocky-runtime-evidence/runtime-glibc-abi-tag.txt
       - name: Inspect the fixed candidate artifact after the authorized build
         run: |
           gh run watch "$SOURCE_RUN" --repo Mafei/voltius --exit-status
           test "$(gh api "repos/Mafei/voltius/actions/runs/$SOURCE_RUN" --jq .head_sha)" = "$SOURCE_SHA"
           gh run download "$SOURCE_RUN" --repo Mafei/voltius --name "Voltius-flatpak-restricted-x86_64-$SOURCE_SHA" --dir artifacts
+          find artifacts -maxdepth 1 -type f -printf '%f %s bytes\n'
           for report in artifacts/BUILD-MANIFEST.json artifacts/SHA256SUMS artifacts/runtime-linker-and-isolation.txt artifacts/elf-needed.txt artifacts/app-permissions.txt artifacts/GUI-SCOPE.txt artifacts/launch.log; do
             if test -f "$report"; then printf '\nREPORT %s\n' "$report"; cat "$report"; fi
           done
@@ -83,8 +94,30 @@ jobs:
             exit 0
           fi
           bash run-rocky.sh bash -ec 'flatpak --user install --noninteractive --assumeyes --bundle /packages/*.flatpak; dbus-run-session -- flatpak run --user --unshare=network --command=sh app.voltius.Voltius -ec "ldd /app/bin/voltius; getconf GNU_LIBC_VERSION"' | tee rocky-runtime-evidence/rocky-app-linker.txt
-          # A Rocky userspace test shares the Ubuntu kernel; it is not a real Rocky kernel/GPU test.
-          printf '%s\n' 'Rocky 8.10 userspace launcher/linker passed on Ubuntu CI kernel. Normal Rocky desktop/GPU and interactive SSH remain untested.' > rocky-runtime-evidence/GUI-SCOPE.txt
+          cat > rocky-gui.sh <<'SHELL'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          bash run-rocky.sh dbus-run-session -- flatpak run --user --env=LIBGL_ALWAYS_SOFTWARE=1 app.voltius.Voltius > rocky-runtime-evidence/rocky-gui-launch.log 2>&1 &
+          launcher=$!
+          trap 'kill "$launcher" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            xwininfo -root -tree > rocky-runtime-evidence/rocky-window-tree.txt
+            if rg -q '"Voltius"' rocky-runtime-evidence/rocky-window-tree.txt; then break; fi
+            if ! kill -0 "$launcher" 2>/dev/null; then cat rocky-runtime-evidence/rocky-gui-launch.log; exit 1; fi
+            sleep 1
+          done
+          sleep 10
+          xwininfo -root -tree | tee rocky-runtime-evidence/rocky-window-tree.txt
+          import -window root rocky-runtime-evidence/rocky-launch.png
+          cat rocky-runtime-evidence/rocky-gui-launch.log
+          rg -q '"Voltius"' rocky-runtime-evidence/rocky-window-tree.txt
+          kill -0 "$launcher"
+          printf '%s\n' 'Rocky 8.10 userspace Flatpak launcher/linker and visible window passed on Ubuntu CI kernel and Xvfb software graphics. Screenshot needs visual inspection. Real Rocky kernel/GPU, interactive terminal, account initialization and SSH/SFTP remain untested.' > rocky-runtime-evidence/GUI-SCOPE.txt
+          printf '\nVOLTIUS_ROCKY_SCREENSHOT_BEGIN\n'
+          base64 rocky-runtime-evidence/rocky-launch.png
+          printf '\nVOLTIUS_ROCKY_SCREENSHOT_END\n'
+          SHELL
+          xvfb-run -a -s '-screen 0 1280x900x24' bash rocky-gui.sh
       - name: Preserve independent evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

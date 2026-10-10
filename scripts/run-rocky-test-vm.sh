@@ -16,6 +16,8 @@ if start>=0 and end>start:
     (root/'launch.png').write_bytes(base64.b64decode(''.join(lines),validate=True))
 if 'VOLTIUS_ROCKY_VM_TEST_EXIT=0' not in text:
     raise SystemExit('Rocky guest test failed or timed out; preserve serial log, no security exception')
-(root/'RESULT.txt').write_text('PASS: real Rocky 8.10 kernel and userspace, official Flatpak/GNOME 50, unsigned fixed-source test bundle, normal Xvfb software window launch. No GPU/SSH/interactive terminal/account/keychain validation.\n')
+mode=re.search(r'VOLTIUS_ROCKY_VM_GUI_MODE=([a-z-]+)',text)
+assert mode,'Successful graphics mode not recorded'
+(root/'RESULT.txt').write_text('PASS: real Rocky 8.10 kernel and userspace, official Flatpak/GNOME 50, unsigned fixed-source test bundle, nonblank Xvfb window capture; manual visual inspection still required. Graphics mode: '+mode[1]+'. No GPU/SSH/interactive terminal/account/keychain validation.\n')
 PY
 test "$qemu_result" = 0

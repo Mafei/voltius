@@ -48,6 +48,7 @@ jobs:
           PY
           cp scripts/test-flatpak-in-rocky-guest.sh vm-data/test-guest.sh
           cp scripts/test-flatpak-as-rocky-user.sh vm-data/test-user.sh
+          cp scripts/capture-rocky-flatpak-gui.py vm-data/capture-gui.py
           genisoimage -quiet -o vm-test.iso -V VOLTTEST -J -r vm-data
       - name: Test the real Rocky kernel and ordinary Flatpak sandbox in software emulation
         run: bash scripts/run-rocky-test-vm.sh rocky-vm-evidence

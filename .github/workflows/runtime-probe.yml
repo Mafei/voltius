@@ -1,0 +1,58 @@
+name: Rocky Flatpak runtime feasibility
+on:
+  push:
+    branches: ['candidate/runtime-*']
+permissions:
+  contents: read
+concurrency:
+  group: runtime-probe-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  probe:
+    if: github.repository == 'Mafei/voltius'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Probe maintained GNOME runtime with ordinary sandboxing
+        shell: bash
+        run: |
+          mkdir -p runtime-ci-artifacts
+          sudo apt-get update
+          sudo apt-get install -y flatpak dbus-daemon
+          flatpak --version | tee runtime-ci-artifacts/ubuntu-flatpak-version.txt
+          flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak --user remote-info --show-metadata flathub org.gnome.Platform//50 | tee runtime-ci-artifacts/gnome-50-metadata.txt
+          flatpak --user remote-info --log flathub org.gnome.Platform//50 > runtime-ci-artifacts/gnome-50-history.txt
+          flatpak --user install --noninteractive --assumeyes --no-related flathub org.gnome.Platform//50
+          flatpak info --user org.gnome.Platform//50 | tee runtime-ci-artifacts/gnome-50-installed.txt
+          set +e
+          dbus-run-session -- flatpak run --user --unshare=network --nofilesystem=host --nofilesystem=home --nosocket=ssh-auth --no-talk-name=org.freedesktop.Flatpak --no-talk-name=org.freedesktop.secrets --command=sh org.gnome.Platform//50 -c 'ldd --version; find /usr/lib -name "libwebkit2gtk-4.1.so*" -o -name "libsoup-3.0.so*" -o -name "libsecret-1.so*"' > runtime-ci-artifacts/gnome-50-sandbox-probe.txt 2>&1
+          result=$?
+          set -e
+          printf '%s\n' "$result" > runtime-ci-artifacts/gnome-50-sandbox-exit-code.txt
+          cat runtime-ci-artifacts/gnome-50-sandbox-probe.txt
+          # Never change AppArmor, sysctls, seccomp or sandbox settings on failure.
+      - name: Audit Rocky's maintained host launcher without added capabilities
+        shell: bash
+        run: |
+          docker run --rm --platform linux/amd64 --mount type=bind,src="$PWD/runtime-ci-artifacts",dst=/evidence rockylinux/rockylinux@sha256:e8a49c5403b687db05d4d67333fa45808fbe74f36e683cec7abb1f7d0f2338c6 bash -euc '
+            dnf -y install flatpak dnf-plugins-core
+            cp /etc/os-release /evidence/rocky-os-release
+            rpm -q flatpak flatpak-libs bubblewrap > /evidence/rocky-flatpak-packages.txt
+            flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+            flatpak --user remote-info --show-metadata flathub org.gnome.Platform//50 > /evidence/rocky-gnome-50-metadata.txt
+            flatpak --user install --noninteractive --assumeyes --no-related flathub org.gnome.Platform//50
+            flatpak info --user org.gnome.Platform//50 > /evidence/rocky-gnome-50-installed.txt
+            set +e
+            dbus-run-session -- flatpak run --user --unshare=network --nofilesystem=host --nofilesystem=home --nosocket=ssh-auth --no-talk-name=org.freedesktop.Flatpak --no-talk-name=org.freedesktop.secrets --command=sh org.gnome.Platform//50 -c "ldd --version" > /evidence/rocky-sandbox-probe.txt 2>&1
+            result=$?
+            printf "%s\n" "$result" > /evidence/rocky-sandbox-exit-code.txt
+            cat /evidence/rocky-flatpak-packages.txt /evidence/rocky-sandbox-probe.txt
+          ' 2>&1 | tee runtime-ci-artifacts/rocky-runtime-install.log
+      - name: Preserve runtime compatibility reports
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Voltius-runtime-probe-${{ github.sha }}
+          path: runtime-ci-artifacts/
+          retention-days: 14

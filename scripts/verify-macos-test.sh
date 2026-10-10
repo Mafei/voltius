@@ -51,7 +51,7 @@ version=$(node -p "JSON.parse(require('fs').readFileSync('package.json')).versio
 name="Voltius_${version}_${sha:0:8}_macos-arm64-adhoc-test.zip"
 ditto -c -k --sequesterRsrc --keepParent "$app" "$out/$name"
 shasum -a 256 "$out/$name" | tee "$out/SHA256SUMS"
-git archive --format=tar.gz --prefix=voltius-source/ HEAD > "$out/voltius-source-$sha.tar.gz"
+git archive --format=tar.gz --prefix=voltius-source/ HEAD -- . ':!keystore' > "$out/voltius-source-$sha.tar.gz"
 python3 - "$out" "$sha" "$name" <<'PY'
 import hashlib, json, pathlib, sys
 out, sha, name = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
@@ -71,3 +71,4 @@ else:
     manifest['unverified'].append('GUI startup on the cloud runner: see open/launch probe error logs')
 (out/'BUILD-MANIFEST.json').write_text(json.dumps(manifest, indent=2)+'\n')
 PY
+cat "$out/BUILD-MANIFEST.json" "$out/macho-signatures.txt" "$out/runner-os.txt"

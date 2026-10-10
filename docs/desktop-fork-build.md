@@ -38,13 +38,17 @@ not establish interactive terminal UI, real SSH/SFTP, or user-machine behavior.
 Any GUI startup limitation is preserved separately from the verified package.
 The generated reports identify signatures/CDHash, minimum macOS load commands,
 linked libraries, package SHA256, source SHA, and measured/unmeasured scope.
+The source archive excludes `keystore/` (the public upstream Android debug key);
+desktop compilation does not require it. No signing key file is uploaded.
 
 ## Rocky Linux 8.10 x86_64
 
 The independent compatibility audit runs inside the Rocky project's pinned
 `rockylinux/rockylinux:8.10` image:
 `sha256:e8a49c5403b687db05d4d67333fa45808fbe74f36e683cec7abb1f7d0f2338c6`.
-It records OS, official repositories, glibc, maximum provided GLIBCXX, package
+It queries BaseOS, AppStream, Extras and the official PowerTools, Devel and Plus
+metadata without installing a replacement runtime. It records OS, repositories,
+glibc, maximum provided GLIBCXX, package
 versions and providers for WebKitGTK 4.1 / libsoup 3. Its successful CI status
 means that the audit completed, not that a Rocky-compatible app exists.
 

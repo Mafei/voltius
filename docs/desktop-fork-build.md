@@ -13,6 +13,9 @@ runner, Node 24.19.0, pnpm 11.5.2, repository Rust 1.96.0, frozen pnpm/Cargo loc
 and `aarch64-apple-darwin`. It builds only an app bundle, with updater artifact
 generation disabled. It never imports a certificate, requests an account token,
 creates a release, or runs the upstream release workflow.
+The upstream packaging smoke workflow is restricted to the upstream repository
+in this candidate: its path filter otherwise starts unrelated Windows builds
+and a certificate-import probe when macOS test scripts change in the fork.
 
 ```sh
 pnpm install --frozen-lockfile --ignore-scripts
@@ -29,9 +32,10 @@ need to approve the downloaded app manually through macOS. We do not remove
 quarantine, change Gatekeeper, or change the user's machine. Ad-hoc signatures
 change across builds, so Keychain approvals can repeat after an update.
 
-Normal `open` launch and a visible window are checked on the disposable cloud
+Normal `open` launch and a visible window are attempted on the disposable cloud
 runner. Existing native PTY and shell enumeration tests run separately. They do
 not establish interactive terminal UI, real SSH/SFTP, or user-machine behavior.
+Any GUI startup limitation is preserved separately from the verified package.
 The generated reports identify signatures/CDHash, minimum macOS load commands,
 linked libraries, package SHA256, source SHA, and measured/unmeasured scope.
 

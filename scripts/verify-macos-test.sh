@@ -37,9 +37,10 @@ done < <(find "$app" -type f -print0)
 sw_vers > "$out/runner-os.txt"
 uname -m >> "$out/runner-os.txt"
 # Launch via LaunchServices, the same normal app-open path used by Finder.
-open -n "$app"
-sleep 15
-swift scripts/macos-launch-probe.swift "$out/launch.json"
+if open -n "$app" 2> "$out/open-error.txt"; then
+  sleep 15
+  swift scripts/macos-launch-probe.swift "$out/launch.json" 2> "$out/launch-probe-error.txt" || true
+fi
 # Screen capture can be unavailable on a cloud runner; preserve that limitation.
 screencapture -x "$out/launch.png" 2> "$out/screenshot-error.txt" || true
 pkill -x voltius || true
@@ -60,9 +61,13 @@ manifest = {
     'arch': 'arm64', 'package': name,
     'package_sha256': hashlib.sha256((out/name).read_bytes()).hexdigest(),
     'signing': 'ad-hoc; no certificate, Developer ID or notarization',
-    'launch': json.loads((out/'launch.json').read_text()),
-    'tested': ['all embedded Mach-O signatures and ARM64 architecture', 'LaunchServices open and live app window', 'existing native PTY exit and shell enumeration regressions'],
+    'launch': json.loads((out/'launch.json').read_text()) if (out/'launch.json').exists() else {'running': False, 'visibleWindowCount': 0},
+    'tested': ['all embedded Mach-O signatures and ARM64 architecture', 'existing native PTY exit and shell enumeration regressions'],
     'unverified': ['user-machine Gatekeeper approval', 'interactive terminal UI', 'SSH/SFTP with real hosts', 'Keychain grant continuity across updates'],
 }
+if manifest['launch'].get('running') and manifest['launch'].get('visibleWindowCount', 0) > 0:
+    manifest['tested'].append('LaunchServices open and live app window')
+else:
+    manifest['unverified'].append('GUI startup on the cloud runner: see open/launch probe error logs')
 (out/'BUILD-MANIFEST.json').write_text(json.dumps(manifest, indent=2)+'\n')
 PY

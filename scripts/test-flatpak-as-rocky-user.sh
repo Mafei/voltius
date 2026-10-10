@@ -26,22 +26,41 @@ for attempt in $(seq 1 30); do
 done
 flatpak run --user --env=LIBGL_ALWAYS_SOFTWARE=1 app.voltius.Voltius > evidence/launch.log 2>&1 &
 launcher=$!
-for attempt in $(seq 1 90); do
+main_window=0
+# TCG software emulation is slow. GTK creates a 10x10 helper before the real
+# Tauri window, so require a normal-sized window and keep refreshing evidence.
+for attempt in $(seq 1 600); do
   xwininfo -root -tree > evidence/window-tree.txt
-  if grep -q '"Voltius"' evidence/window-tree.txt; then break; fi
+  if python3 - <<'PY'
+import re,sys
+for line in open('evidence/window-tree.txt'):
+    if 'voltius' not in line.lower(): continue
+    size=re.search(r'\b(\d+)x(\d+)\+',line)
+    if size and int(size.group(1)) >= 800 and int(size.group(2)) >= 500:
+        sys.exit(0)
+sys.exit(1)
+PY
+  then main_window=1; break; fi
   if ! kill -0 "$launcher" 2>/dev/null; then cat evidence/launch.log; exit 1; fi
+  if (( attempt % 30 == 0 )); then
+    printf 'Waiting for Rocky main window: %s seconds\n' "$attempt"
+    cat evidence/window-tree.txt
+    cat evidence/launch.log
+    flatpak ps
+  fi
   sleep 1
 done
 sleep 20
+xwininfo -root -tree > evidence/window-tree.txt
 cat evidence/window-tree.txt
 cat evidence/launch.log
 flatpak ps
-grep -q '"Voltius"' evidence/window-tree.txt
 kill -0 "$launcher"
 python3 - <<'PY'
 import gi
 gi.require_version('Gdk','3.0')
 from gi.repository import Gdk
+Gdk.init([])
 root=Gdk.get_default_root_window()
 assert root
 pix=Gdk.pixbuf_get_from_window(root,0,0,root.get_width(),root.get_height())
@@ -51,4 +70,9 @@ PY
 printf '\nVOLTIUS_ROCKY_VM_SCREENSHOT_BEGIN\n'
 base64 evidence/launch.png
 printf '\nVOLTIUS_ROCKY_VM_SCREENSHOT_END\n'
+if [[ "$main_window" != 1 ]]; then
+  printf '%s\n' 'No normal-sized Voltius main window appeared within 600 seconds; preserve screenshot and logs.'
+  ps -ef | grep -E 'voltius|WebKit|bwrap' || true
+  exit 1
+fi
 printf '%s\n' 'Real Rocky 8.10 kernel/userspace: ordinary Flatpak installation, runtime linker, denied host spawn, normal launch and live window passed. Xvfb/software rendering only; screenshot needs inspection. Real GPU, account initialization, interactive terminal UI, SSH/SFTP, Secret Service, agent and serial are untested.'

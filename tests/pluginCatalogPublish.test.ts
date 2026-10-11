@@ -267,12 +267,14 @@ describe("plugin catalogue publish pipeline", () => {
   });
 
   test("releaseRepoFor matches the client's unprefixed fetch pattern", () => {
+    // Publishing targets the current Actions repository; local runs use upstream.
+    const repository = process.env.GITHUB_REPOSITORY || "VoltiusApp/voltius";
     const repo = releaseRepoFor("plugin-docker", "9.9.9");
-    expect(repo).toBe("https://github.com/VoltiusApp/voltius/releases/download/plugin-docker-v9.9.9");
+    expect(repo).toBe(`https://github.com/${repository}/releases/download/plugin-docker-v9.9.9`);
     // src/stores/marketplaceStore.ts always fetches `${plugin.repo}/index.js` and
     // `${plugin.repo}/manifest.json` verbatim — no per-plugin prefix.
     expect(`${repo}/index.js`).toBe(
-      "https://github.com/VoltiusApp/voltius/releases/download/plugin-docker-v9.9.9/index.js",
+      `https://github.com/${repository}/releases/download/plugin-docker-v9.9.9/index.js`,
     );
   });
 });

@@ -10,11 +10,13 @@ import { useAllPortForwardingRules } from "@/hooks/useAllPortForwardingRules";
 import { usePfState } from "@/hooks/usePfStates";
 import {
   openPfTunnel,
+  openRuleTunnel,
   closePfTunnel,
   resumeAutoPort,
 } from "@/services/portForwardingTunnels";
 import { createPfRule, updatePfRule, deletePfRule } from "@/services/portForwardingRules";
 import { useDefaultVaultId, resolveVaultIdForSave } from "@/hooks/useWritableVaultIds";
+import { useRuleStartErrors } from "@/hooks/useRuleStartErrors";
 import { formatActiveTunnelLabel, formatRuleLabel, getLocalTunnelHttpUrl } from "@/utils/tunnelFormat";
 import type { ActiveTunnel, PortForwardingRule } from "@/types";
 
@@ -33,6 +35,7 @@ export function PortsPanel() {
   const isHidden = (port: number) => hiddenPorts.has(`${activeSessionId}:${port}`);
   const hidePort = (port: number) => setHiddenPorts((prev) => new Set(prev).add(`${activeSessionId}:${port}`));
   const [busy, setBusy] = useState<Set<string>>(new Set());
+  const { errorFor, startRuleOn } = useRuleStartErrors();
 
   const quickForwardInputRef = useRef<HTMLInputElement>(null);
   const savingTunnelsRef = useRef<Set<string>>(new Set());
@@ -53,7 +56,7 @@ export function PortsPanel() {
         remote_port: tunnel.remote_port,
         remote_host: tunnel.remote_host || "127.0.0.1",
         tunnel_type: "local",
-        bind_host: "127.0.0.1",
+        bind_host: tunnel.bind_host ?? "127.0.0.1",
         target_host: "127.0.0.1",
         connection_ids: activeSession?.connectionId ? [activeSession.connectionId] : [],
         vault_id: resolveVaultIdForSave(defaultVaultId),
@@ -61,15 +64,7 @@ export function PortsPanel() {
       await loadRules();
       // Re-open the running tunnel as rule-backed so it migrates ACTIVE → SAVED.
       await closePfTunnel(activeSessionId, tunnel.id);
-      await openPfTunnel({
-        sessionId: activeSessionId,
-        localPort: tunnel.local_port,
-        remotePort: tunnel.remote_port,
-        remoteHost: tunnel.remote_host,
-        tunnelType: "local",
-        ruleId: rule.id,
-        ruleName: rule.name,
-      });
+      await openRuleTunnel(activeSessionId, rule);
       setRenamingRuleId(rule.id);
     } catch (e) {
       console.error("save as rule failed:", e);
@@ -124,20 +119,8 @@ export function PortsPanel() {
   async function handleRuleEnable(rule: PortForwardingRule) {
     if (!activeSessionId) return;
     setBusyKey(rule.id, true);
-    try {
-      await openPfTunnel({
-        sessionId: activeSessionId,
-        localPort: rule.local_port,
-        remotePort: rule.remote_port,
-        remoteHost: rule.remote_host,
-        tunnelType: rule.tunnel_type,
-        bindHost: rule.bind_host,
-        targetHost: rule.target_host,
-        ruleId: rule.id,
-        ruleName: rule.name,
-      });
-    } catch (e) { console.error("pf_tunnel_open failed:", e); }
-    finally { setBusyKey(rule.id, false); }
+    await startRuleOn(activeSessionId, rule);
+    setBusyKey(rule.id, false);
   }
 
   async function handleRuleDisable(tunnelId: string, ruleId: string) {
@@ -236,14 +219,16 @@ export function PortsPanel() {
       {rules.map((rule) => {
         const tunnel = ruleToTunnel.get(rule.id);
         const isActive = !!tunnel;
-        const isError = tunnel && typeof tunnel.state === "object" && "error" in tunnel.state;
+        const error = errorFor(rule.id, tunnel);
+        const isError = error !== undefined;
         return (
           <PortRow
             key={rule.id}
             label={rule.name}
             portInfo={formatRuleLabel(rule)}
             isActive={isActive && !isError}
-            isError={!!isError}
+            isError={isError}
+            error={error}
             isBusy={busy.has(rule.id)}
             isDeleting={busy.has(`del-${rule.id}`)}
             badge={null}
@@ -251,7 +236,7 @@ export function PortsPanel() {
             bytesTransferred={tunnel?.bytes_transferred}
             localPort={tunnel?.local_port}
             httpUrl={isActive && !isError && tunnel
-              ? getLocalTunnelHttpUrl(rule.tunnel_type ?? "local", rule.remote_port, tunnel.local_port)
+              ? getLocalTunnelHttpUrl(rule.tunnel_type ?? "local", rule.remote_port, tunnel.local_port, tunnel.bind_host)
               : null}
             onToggle={() => isActive ? handleRuleDisable(tunnel!.id, rule.id) : handleRuleEnable(rule)}
             onDelete={() => handleRuleDelete(rule, tunnel)}
@@ -293,7 +278,7 @@ export function PortsPanel() {
                 remoteListening={tunnel.remote_listening}
                 bytesTransferred={tunnel.bytes_transferred}
                 localPort={tunnel.local_port}
-                httpUrl={getLocalTunnelHttpUrl(tunnel.tunnel_type ?? "local", tunnel.remote_port, tunnel.local_port)}
+                httpUrl={getLocalTunnelHttpUrl(tunnel.tunnel_type ?? "local", tunnel.remote_port, tunnel.local_port, tunnel.bind_host)}
                 onToggle={() => handleTunnelStop(tunnel.id, key)}
                 onDelete={() => handleTunnelDelete(tunnel.id, tunnel.remote_port, key)}
                 onSaveAsRule={tunnel.tunnel_type === "dynamic" ? undefined : () => handleSaveAsRule(tunnel)}

@@ -66,6 +66,16 @@ runtime behavior. CI artifacts preserve LICENSE and the upstream NOTICE.md.
 
 ## Daily candidate and maintenance branches
 
+The 2026-10-11 candidate starts from validated maintenance commit
+`47a009190e9c3cb4bf2678f37d8dfe26a59ec113` and merges the fixed upstream `dev`
+commit `c8f330bdc9ed4daee5945eac8474dca4a7554dcc` (version 0.53.0). This includes
+the upstream `main` release commit `54c8c3b9c50ca293e9d6842813ac1f9a45c7d423`
+and one subsequent team-vault secret-refusal fix. Existing Android build
+adaptations and history are preserved. Candidate CI now runs the complete
+frontend test suite and the Linux-host port-forwarding regressions in addition
+to crypto, transfer resume/cancellation and WSL timeout checks. These host
+checks and static APK verification do not establish Android runtime behavior.
+
 Track upstream `dev`; use `mafei/android` as the validated maintenance branch.
 Preserve `build/upstream-dev-caf470f3` as the review baseline for this first build.
 Create a new branch such as `candidate/android-YYYYMMDD-<upstream-short-sha>` for

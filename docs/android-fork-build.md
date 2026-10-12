@@ -66,6 +66,17 @@ runtime behavior. CI artifacts preserve LICENSE and the upstream NOTICE.md.
 
 ## Daily candidate and maintenance branches
 
+The 2026-10-12 candidate starts from validated maintenance commit
+`4e83ff5e685285b59f865d31526c4a1b66fd90c9` and merges the fixed upstream
+`main`/`dev` commit `035b9aeb3a0b32b5ec819c065e4dc629ce36fa7b` (version 0.55.0).
+Both upstream branches pointed to that same release commit at the check.
+Existing Android adaptations and history remain. CI also runs upstream's new
+passkey-loopback and updated shell-integration tests on the Linux host; zsh is
+installed so its command-mark regression executes rather than returning early.
+The full frontend suite covers account/two-factor/passkey/deep-link and sync
+changes with synthetic fixtures. No user account, security key or phone is used;
+these tests do not establish Android browser/passkey or terminal runtime behavior.
+
 The 2026-10-11 candidate starts from validated maintenance commit
 `47a009190e9c3cb4bf2678f37d8dfe26a59ec113` and merges the fixed upstream `dev`
 commit `c8f330bdc9ed4daee5945eac8474dca4a7554dcc` (version 0.53.0). This includes

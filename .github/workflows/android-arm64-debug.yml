@@ -74,10 +74,12 @@ jobs:
       - name: Check transfer safety regressions on the Linux host
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libsoup-3.0-dev libsecret-1-dev openssh-sftp-server
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libsoup-3.0-dev libsecret-1-dev openssh-sftp-server zsh
           cargo test --locked -p voltius --lib commands::sftp::resume -- --skip '::live::' 2>&1 | tee android-ci-artifacts/sftp-resume-tests.log
           cargo test --locked -p voltius --lib commands::wsl::tests 2>&1 | tee android-ci-artifacts/wsl-timeout-tests.log
           cargo test --locked -p voltius --lib port_forward:: 2>&1 | tee android-ci-artifacts/port-forward-tests.log
+          cargo test --locked -p voltius --lib passkey_loopback:: 2>&1 | tee android-ci-artifacts/passkey-loopback-tests.log
+          cargo test --locked -p voltius --lib shell_integration:: 2>&1 | tee android-ci-artifacts/shell-integration-tests.log
 
       - name: Verify and collect APK evidence
         run: |

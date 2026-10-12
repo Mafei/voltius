@@ -77,8 +77,8 @@ export type KeychainPendingAction =
   | { action: "edit-identity"; id: string }
   | null;
 export type CloudAuthMode = "signin" | "register";
-/** `link` moves the current local account to the cloud; `add` signs in to another one beside it. */
-export type CloudAuthPurpose = "link" | "add";
+/** `link` moves the current local account to the cloud; `add` signs in to another one beside it; `reauth` renews the current one after the server ended its session. */
+export type CloudAuthPurpose = "link" | "add" | "reauth";
 
 export type MembersPanel = "invite" | "roles" | "security";
 
@@ -124,6 +124,7 @@ interface UIStore {
   keychainSortMode: SortMode;
   homePendingAction: HomePendingAction;
   portForwardingLayoutMode: LayoutMode;
+  activeTunnelsCollapsed: boolean;
   portForwardingSortMode: SortMode;
   membersLayoutMode: LayoutMode;
   membersSortMode: SortMode;
@@ -173,6 +174,7 @@ interface UIStore {
   setKeychainSortMode: (v: SortMode) => void;
   setHomePendingAction: (action: HomePendingAction) => void;
   setPortForwardingLayoutMode: (v: LayoutMode) => void;
+  toggleActiveTunnelsCollapsed: () => void;
   setPortForwardingSortMode: (v: SortMode) => void;
   setPortForwardingPendingAction: (action: PortForwardingPendingAction) => void;
   setKeychainPendingAction: (action: KeychainPendingAction) => void;
@@ -237,6 +239,7 @@ export const useUIStore = create<UIStore>()(
         keychainSortMode: "newest" as SortMode,
         homePendingAction: null as HomePendingAction,
         portForwardingLayoutMode: "list" as LayoutMode,
+        activeTunnelsCollapsed: false,
         portForwardingSortMode: "newest" as SortMode,
         portForwardingPendingAction: null as PortForwardingPendingAction,
         membersLayoutMode: "list" as LayoutMode,
@@ -303,6 +306,7 @@ export const useUIStore = create<UIStore>()(
         setKeychainSortMode: (v) => setPref({ keychainSortMode: v }),
         setHomePendingAction: (action) => set({ homePendingAction: action }),
         setPortForwardingLayoutMode: (v) => setPref({ portForwardingLayoutMode: v }),
+        toggleActiveTunnelsCollapsed: () => set((s) => ({ activeTunnelsCollapsed: !s.activeTunnelsCollapsed })),
         setPortForwardingSortMode: (v) => setPref({ portForwardingSortMode: v }),
         setPortForwardingPendingAction: (action) => set({ portForwardingPendingAction: action }),
         setKeychainPendingAction: (action) => set({ keychainPendingAction: action }),
@@ -347,6 +351,7 @@ export const useUIStore = create<UIStore>()(
         keychainLayoutMode: state.keychainLayoutMode,
         keychainSortMode: state.keychainSortMode,
         portForwardingLayoutMode: state.portForwardingLayoutMode,
+        activeTunnelsCollapsed: state.activeTunnelsCollapsed,
         portForwardingSortMode: state.portForwardingSortMode,
         membersLayoutMode: state.membersLayoutMode,
         membersSortMode: state.membersSortMode,

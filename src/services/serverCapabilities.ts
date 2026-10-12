@@ -11,9 +11,16 @@ const REFRESH_INTERVAL_MS = 5 * 60_000;
 interface ServerCapabilities {
   advertisedSecretTypes: string[] | null;
   refusedSecretTypes: TeamSecretType[];
+  twoFactor: boolean;
+  passkeys: boolean;
 }
 
-const UNKNOWN: ServerCapabilities = { advertisedSecretTypes: null, refusedSecretTypes: [] };
+const UNKNOWN: ServerCapabilities = {
+  advertisedSecretTypes: null,
+  refusedSecretTypes: [],
+  twoFactor: false,
+  passkeys: false,
+};
 const useServerCapabilities = create<ServerCapabilities>(() => UNKNOWN);
 
 let fetchedAt: number | null = null;
@@ -21,13 +28,17 @@ let inFlight: Promise<void> | null = null;
 
 async function loadCapabilities(): Promise<void> {
   try {
-    const { team_secret_types: types } = await fetchServerMeta("common.error.failedToLoadServerCapabilities");
-    fetchedAt = Date.now();
-    useServerCapabilities.setState(
-      Array.isArray(types)
-        ? { advertisedSecretTypes: types.filter((t): t is string => typeof t === "string"), refusedSecretTypes: [] }
-        : { advertisedSecretTypes: null },
+    const { team_secret_types: types, two_factor, passkeys } = await fetchServerMeta(
+      "common.error.failedToLoadServerCapabilities",
     );
+    fetchedAt = Date.now();
+    useServerCapabilities.setState({
+      twoFactor: two_factor === true,
+      passkeys: passkeys === true,
+      ...(Array.isArray(types)
+        ? { advertisedSecretTypes: types.filter((t): t is string => typeof t === "string"), refusedSecretTypes: [] }
+        : { advertisedSecretTypes: null }),
+    });
   } catch (e) {
     logFailure("server capabilities")(e);
   } finally {
@@ -64,4 +75,12 @@ export function noteRefusedSecretType(type: TeamSecretType): boolean {
 export function useServerLacksSecretType(type: TeamSecretType): boolean {
   useEffect(() => void refreshServerCapabilities(), []);
   return useServerCapabilities((s) => lacks(s, type));
+}
+
+/** Which second factors this server lets an account enrol; none until it says so. */
+export function useServerSecondFactors(): { totp: boolean; passkeys: boolean } {
+  useEffect(() => void refreshServerCapabilities(), []);
+  const totp = useServerCapabilities((s) => s.twoFactor);
+  const passkeys = useServerCapabilities((s) => s.passkeys);
+  return { totp, passkeys };
 }

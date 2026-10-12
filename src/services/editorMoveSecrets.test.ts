@@ -56,7 +56,7 @@ vi.mock("@/stores/pendingTeamSecretUploadStore", () => ({
 vi.mock("@/stores/teamVaultStateStore", () => ({
   useTeamVaultStateStore: { getState: () => ({ credentialsUnavailableByTeamId: h.unavailable }) },
 }));
-vi.mock("@/stores/notificationStore", () => ({ useNotificationStore: { getState: () => ({ addToast: h.addToast }) } }));
+vi.mock("@/stores/notificationStore", () => ({ useNotificationStore: { getState: () => ({ addToast: h.addToast, toasts: [] }) } }));
 vi.mock("@/i18n", () => ({ default: { t: (k: string) => k } }));
 vi.mock("@/lib/logger", () => ({ logFailure: () => () => {} }));
 
@@ -70,17 +70,17 @@ const editors = [
   {
     kind: "host", key: "password:c1",
     save: (vault_id: string, value: string, from = "personal") =>
-      saveHostFromForm({ id: "c1", vault_id: from } as Connection, { tags: [], vault_id }, { ...none, password: value }, "personal"),
+      saveHostFromForm({ id: "c1", vault_id: from } as Connection, { tags: [], vault_id }, { ...none, password: value }, "personal", () => {}),
   },
   {
     kind: "key", key: "key:k1:private",
     save: (vault_id: string, value: string, from = "personal") =>
-      saveKeyFromForm({ id: "k1", vault_id: from } as SshKey, { tags: [], vault_id }, value, null, null, "personal"),
+      saveKeyFromForm({ id: "k1", vault_id: from } as SshKey, { tags: [], vault_id }, value, null, null, "personal", () => {}),
   },
   {
     kind: "identity", key: "identity:i1:password",
     save: (vault_id: string, value: string, from = "personal") =>
-      saveIdentityFromForm({ id: "i1", vault_id: from } as Identity, { vault_id } as never, value, undefined, { current: null }, "personal"),
+      saveIdentityFromForm({ id: "i1", vault_id: from } as Identity, { vault_id } as never, value, undefined, { current: null }, "personal", () => {}),
   },
 ];
 

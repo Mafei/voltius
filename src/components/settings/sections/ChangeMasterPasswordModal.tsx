@@ -1,24 +1,48 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Icon } from "@iconify/react";
 import { useTranslation } from "react-i18next";
 import { changeMasterPassword } from "@/services/account";
+import { INPUT_CLASS } from "@/components/layout/authParts";
+import {
+  EMPTY_TWO_FACTOR_ENTRY, TwoFactorField, entryProof, usePasskeyCeremony, wasCancelled, type TwoFactorEntry,
+} from "@/components/shared/TwoFactorStep";
+import { factorMethods, getFactors, passkeyStepUp } from "@/services/twoFactor";
+import type { TwoFactorMethod, TwoFactorProof } from "@/services/twoFactorProof";
 import { FormButtons, SettingsDialog, SettingsInput } from "./shared";
 
 interface Props {
+  /** The server asks for a code with the change once the account has a second factor. */
+  twoFactorEnabled?: boolean;
   onClose: () => void;
 }
 
-export default function ChangeMasterPasswordModal({ onClose }: Props) {
+export default function ChangeMasterPasswordModal({ twoFactorEnabled, onClose }: Props) {
   const { t } = useTranslation();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [twoFactor, setTwoFactor] = useState<TwoFactorEntry>(EMPTY_TWO_FACTOR_ENTRY);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const [methods, setMethods] = useState<TwoFactorMethod[]>(["totp", "recovery"]);
+  const passkey = usePasskeyCeremony();
 
-  const handleSubmit = async (e: FormEvent) => {
+  useEffect(() => {
+    if (!twoFactorEnabled) return;
+    let alive = true;
+    void getFactors(true).then((factors) => alive && setMethods(factorMethods(factors))).catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [twoFactorEnabled]);
+
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
+    void change(async () => entryProof(twoFactor));
+  };
+
+  const change = async (getProof: () => Promise<TwoFactorProof | null>) => {
     if (!currentPassword) {
       setError(t("settings.account.changeMasterPassword.errorCurrentRequired"));
       return;
@@ -39,10 +63,10 @@ export default function ChangeMasterPasswordModal({ onClose }: Props) {
     setLoading(true);
     setError("");
     try {
-      await changeMasterPassword(currentPassword, newPassword);
+      await changeMasterPassword(currentPassword, newPassword, twoFactorEnabled ? await getProof() : null);
       setDone(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      if (!wasCancelled(e)) setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
@@ -87,6 +111,15 @@ export default function ChangeMasterPasswordModal({ onClose }: Props) {
             value={confirmPassword}
             onChange={setConfirmPassword}
           />
+          {twoFactorEnabled && (
+            <TwoFactorField
+              entry={twoFactor}
+              onChange={setTwoFactor}
+              inputClassName={INPUT_CLASS}
+              methods={methods}
+              passkey={{ start: () => void change(() => passkey.track(passkeyStepUp)), waiting: passkey.waiting }}
+            />
+          )}
           {error && <p className="text-xs text-(--t-status-error)">{error}</p>}
           <FormButtons
             onCancel={onClose}

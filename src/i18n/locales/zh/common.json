@@ -64,7 +64,9 @@
       "undoFailed": "撤销失败：{{error}}",
       "redoFailed": "重做失败：{{error}}",
       "fileSaved": "已保存到 {{path}}",
-      "fileSaveFailed": "无法保存文件：{{error}}"
+      "fileSaveFailed": "无法保存文件：{{error}}",
+      "sessionRevoked": "此设备已退出您的 Voltius 账户。请重新登录以继续同步。",
+      "signInAgain": "登录"
     },
     "error": {
       "identityPickUnavailable": "你在 {{host}} 的身份不可用",
@@ -170,6 +172,8 @@
       "secretsUploadPending": "已移动，但其凭据暂时无法上传。它们会保留在此设备上，并在下次加载保险库时重试：{{error}}",
       "failedToSaveTeamSecret": "保存团队密钥失败：{{status}}",
       "serverLacksTeamSecretType": "此 Voltius 服务器版本过旧，无法在团队保险库中存储此内容。请让管理员更新服务器，然后重新保存。",
+      "teamSecretRefused": "团队保险库未接受此内容，因此未保存：{{error}}",
+      "teamSecretUploadPending": "尚未上传到团队保险库。它会保留到 Voltius 关闭为止，并在下次加载保险库时重试：{{error}}",
       "failedToLoadServerCapabilities": "无法检查服务器支持的功能（{{status}}）",
       "keyFetchFailed": "获取密钥失败：{{error}}",
       "failedToUploadVaultKeys": "上传保险库密钥失败：{{status}}",
@@ -203,7 +207,16 @@
       "inviteCodeMalformed": "该邀请码格式不正确",
       "inviteCodeNotFound": "该邀请码已过期或不正确",
       "inviteCodeTooManyAttempts": "尝试次数过多 — 请稍后重试",
-      "businessPlanRequired": "此操作需要团队的 Business 套餐。"
+      "businessPlanRequired": "此操作需要团队的 Business 套餐。",
+      "twoFactorRequired": "请用第二重验证确认：验证码、通行密钥或恢复码。",
+      "twoFactorInvalid": "验证码错误。请尝试应用显示的下一个验证码。",
+      "twoFactorLocked": "错误的验证码次数过多。请在 15 分钟后重试。",
+      "twoFactorUnavailable": "此服务器目前无法校验身份验证器验证码。请使用恢复码。",
+      "twoFactorAlreadyEnabled": "双重验证已开启。",
+      "twoFactorNotEnabled": "双重验证未开启。",
+      "twoFactorExpired": "本次登录耗时过长。请重新开始。",
+      "passkeyIncomplete": "通行密钥步骤未完成。请重试。",
+      "passkeyLimit": "此账户的通行密钥数量已达上限。"
     },
     "clipboard": {
       "cut_one": "已剪切 {{count}} 个项目",

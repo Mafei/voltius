@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.55.0] - 2026-10-11
+
+### Added
+
+- Passkeys as a second factor for cloud accounts, free on every plan. An account can hold an authenticator app, passkeys, or both, managed in **Settings → Account**. Voltius opens your browser to create or use a passkey (fingerprint, face, device PIN or a security key) and picks up from there. Sign-in and the master password change offer "Use a passkey" beside the code field. The master password is still required: a passkey replaces the six-digit code, not the password. Self-hosted servers offer passkeys once updated (`ghcr.io/voltiusapp/voltius-server:sha-e87034d` or newer) and given a `WEBAUTHN_RP_ID` (VoltiusApp/server#106)
+- "Pause sync on this device" in **Settings → Sync**. A paused device stops background sync with the server until you resume; "Sync now" still works. Team vaults stop updating and do not load at launch while paused (#619)
+
+### Changed
+
+- Two-factor settings list each factor separately. Adding a second factor or removing one asks for the master password and proof of a factor you already hold, and removing the last one says it turns two-factor off (VoltiusApp/server#106)
+
+### Fixed
+
+- With the server out of reach, Voltius retried every 5 seconds forever and the sync status flipped between syncing and error. It now waits longer between attempts, up to 5 minutes, and tries again at once when the network returns or the app comes back to the foreground (#619)
+
+## [0.54.0] - 2026-10-11
+
+### Added
+
+- Two-factor sign-in for cloud accounts, optional and free on every plan. Turn it on in **Settings → Account**: scan the QR code with an authenticator app, confirm a code, and save the ten recovery codes. Signing in on a new device then asks for a code after the master password; unlocking does not. Self-hosted servers offer it once updated and given a `TOTP_ENC_KEY` (#615)
+- Themes can set the colour of selected text. The theme creator has a "Selected Text" row under Terminal Base; themes that leave it unset look as before (#317)
+
+### Changed
+
+- When the server ends this device's session (password changed on another device, two-factor turned on), Voltius says so and offers to sign in again, instead of silently no longer syncing (#615)
+- Unlocking a cloud vault no longer signs in to the server again while its session is still valid (#615)
+
+## [0.53.1] - 2026-10-11
+
+### Changed
+
+- Port Forwarding: the "Active session forwards" header folds the host cards away, so a host with many detected ports no longer pushes saved rules off the page. The header keeps the host count, tunnel total and an error count when a forward failed (#610)
+
+### Fixed
+
+- Team vaults: a secret the server refused is no longer shown as saved. The editor goes back to what the server holds (#608)
+- Team vaults: a secret that could not reach the server (offline, timeout, server error) stays usable and is sent again until it lands, instead of vanishing at the next vault load (#611)
+- Team vaults: saving a port-knock sequence against a server too old to store it now says the server needs an update, and the knock panel explains why instead of offering ports (#608)
+- A secret that fails to save during a connect prompt, import, paste, duplicate, copy to vault, undo or plugin key creation shows an error instead of failing silently (#611)
+- Creating a host, key or identity whose secret fails to save no longer creates the object again on every autosave (#613)
+- A card's "more options" menu stays whole near the bottom of the window, and the terminal status bar menu in the top pane of a split (#610)
+
 ## [0.53.0] - 2026-10-10
 
 ### Added

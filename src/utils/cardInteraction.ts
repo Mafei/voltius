@@ -1,6 +1,6 @@
 type Click = { ctrlKey: boolean; metaKey: boolean; shiftKey: boolean };
 
-const isPlainClick = (e: Click): boolean => !e.ctrlKey && !e.metaKey && !e.shiftKey;
+export const isPlainClick = (e: Click): boolean => !e.ctrlKey && !e.metaKey && !e.shiftKey;
 
 export function selectFollowing<E extends Click>(
   select: (id: string, e: E) => void,

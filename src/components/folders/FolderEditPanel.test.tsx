@@ -171,3 +171,19 @@ test("using the custom color popover keeps the appearance picker open", async ()
   expect(screen.getByText("folders.appearance.color")).toBeTruthy();
   expect(screen.getByDisplayValue("#abcdef")).toBeTruthy();
 });
+
+test("a plain click opens the folder card; modifier clicks select it", () => {
+  const onOpen = vi.fn();
+  const onSelect = vi.fn();
+  const { container } = render(<FolderCard folder={folder} itemCount={0} layout="grid" onOpen={onOpen} onSelect={onSelect} onRename={vi.fn()} onDelete={vi.fn()} />);
+  const card = container.querySelector("[data-folder-card]")!;
+
+  fireEvent.click(card);
+  expect(onOpen).toHaveBeenCalledTimes(1);
+  expect(onSelect).not.toHaveBeenCalled();
+
+  fireEvent.click(card, { ctrlKey: true });
+  fireEvent.click(card, { shiftKey: true });
+  expect(onSelect).toHaveBeenCalledTimes(2);
+  expect(onOpen).toHaveBeenCalledTimes(1);
+});

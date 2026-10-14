@@ -1,7 +1,10 @@
 package com.voltius.app
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
@@ -12,6 +15,7 @@ class MainActivity : TauriActivity() {
   private lateinit var dirPicker: ActivityResultLauncher<Uri?>
 
   override fun onCreate(savedInstanceState: Bundle?) {
+    intent?.let(::withLinkType)
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
     // super.onCreate loaded the Rust lib; hand the keychain store the app Context + VM.
@@ -56,17 +60,38 @@ class MainActivity : TauriActivity() {
     TerminalKeyboard.install(this, webView)
   }
 
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(withLinkType(intent))
+  }
+
   override fun onDestroy() {
     if (instance === this) instance = null
     super.onDestroy()
+  }
+
+  // tao 0.35 unwraps getType() on every VIEW intent, so an untyped voltius:// link aborts the app.
+  private fun withLinkType(intent: Intent): Intent {
+    val data = intent.data
+    if (intent.action == Intent.ACTION_VIEW && intent.type == null && data != null) {
+      intent.setDataAndType(data, "application/x-voltius-link")
+    }
+    return intent
   }
 
   fun launchDirPicker() {
     runOnUiThread { dirPicker.launch(null) }
   }
 
+  fun requestNotificationPermission() {
+    if (Build.VERSION.SDK_INT < 33 || notificationPermissionAsked) return
+    if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return
+    notificationPermissionAsked = true
+    runOnUiThread { requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 0) }
+  }
+
   companion object {
     @Volatile
     var instance: MainActivity? = null
+    private var notificationPermissionAsked = false
   }
 }

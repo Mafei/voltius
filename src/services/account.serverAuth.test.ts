@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { routeVaultSecret } from "@/test/vaultSecretRoute";
 import { test, expect, vi, beforeEach } from "vitest";
+import type { Identity } from "./identity";
 
 const h = vi.hoisted(() => ({
   invoke: vi.fn(),
@@ -26,6 +27,10 @@ const h = vi.hoisted(() => ({
   http: {} as Record<string, { ok: boolean; status: number; body?: unknown }>,
   dek: null as number[] | null,
   x25519: null as number[] | null,
+  kek: null as number[] | null,
+  ensureIdentity: vi.fn<() => Promise<Identity>>(),
+  syncPaused: false,
+  isSyncPaused: vi.fn((): boolean => h.syncPaused),
   emailVerified: false,
   seq: [] as string[],
   /** Request bodies by endpoint path, so a test can assert what was sent. */
@@ -35,7 +40,7 @@ const h = vi.hoisted(() => ({
 vi.mock("@tauri-apps/api/core", () => ({ invoke: h.invoke }));
 vi.mock("@/i18n", () => ({ default: { t: (k: string) => k } }));
 vi.mock("@/services/http", () => ({ appFetch: h.appFetch, isAbortError: () => false }));
-vi.mock("@/services/sync", () => ({ push: h.push }));
+vi.mock("@/services/sync", () => ({ push: h.push, isSyncPaused: h.isSyncPaused }));
 vi.mock("./vault", () => ({
   setVaultKey: (key: number[]) => {
     h.sessionKey = key;
@@ -53,8 +58,9 @@ vi.mock("./vault", () => ({
 vi.mock("@/stores/subscriptionStore", () => ({
   useSubscriptionStore: { getState: () => ({ load: h.load, emailVerified: h.emailVerified }) },
 }));
+vi.mock("@/services/identity", () => ({ ensureIdentity: h.ensureIdentity }));
 vi.mock("@/stores/vaultKeysStore", () => ({
-  useVaultKeysStore: { getState: () => ({ set: h.keysSet, clear: vi.fn(), dek: h.dek, x25519Private: h.x25519 }) },
+  useVaultKeysStore: { getState: () => ({ set: h.keysSet, clear: vi.fn(), dek: h.dek, kek: h.kek, x25519Private: h.x25519 }) },
 }));
 
 import {
@@ -65,6 +71,7 @@ import {
   signInToCloud,
   linkToCloud,
   changeMasterPassword,
+  settleVaultOnDek,
   changeEmail,
   refreshSession,
   refreshVerificationState,
@@ -79,6 +86,7 @@ import { DEFAULT_SERVER_URL, lastServerUrl } from "@/utils/serverInstance";
 import { GLOBAL_PROXY_PASSWORD_KEY } from "./teamVaultSecretKeys";
 
 const S = "https://srv";
+const STORED_IDENTITY: Identity = { privateKey: btoa("id"), publicKey: "P", proven: true, stored: true };
 const TOKENS = { jwt_token: "JWT", refresh_token: "RT" };
 
 function routeInvoke() {
@@ -110,7 +118,9 @@ function routeInvoke() {
         return { dek: [1, 1, 1], x25519_private: [2, 2, 2], x25519_public: "RANDOM_PUB" };
       case "wrap_user_secrets_cmd":
         return "WRAPPED_B64";
+      // "W_OLD" stands for secrets wrapped under the old password's kek.
       case "unwrap_user_secrets_cmd":
+        if (args.wrappedB64 === "W_OLD" && String(args.kek) !== "9,9,9") throw new Error("Decryption failed");
         return { dek: [1, 1, 1], x25519_private: [2, 2, 2] };
       case "get_machine_fingerprint":
         return "FP";
@@ -145,6 +155,11 @@ const err = (status: number, body: unknown = {}) => ({ ok: false, status, body }
 
 beforeEach(() => {
   clearSessionRevoked();
+  h.kek = null;
+  h.ensureIdentity.mockReset();
+  h.ensureIdentity.mockResolvedValue(STORED_IDENTITY);
+  h.syncPaused = false;
+  h.isSyncPaused.mockClear();
   for (const m of [h.invoke, h.appFetch, h.setVaultKey, h.wipeLocalConfig, h.load, h.keysSet]) m.mockReset();
   h.readLocalSecrets.mockReset().mockResolvedValue({});
   h.getVaultStatus.mockReset();
@@ -232,12 +247,38 @@ test("createServerAccount registers the identity its vault key derives, not the 
   expect(h.sent["/auth/register"].public_key).toBe("DERIVED_FROM_1,1,1"); // the dek
 });
 
-test("linkToCloud registers the identity of the vault it keeps", async () => {
+test("linkToCloud registers the identity a cloud-created account would have", async () => {
   h.store.master_password = "pw";
   h.store.account_id = "acc";
   h.http["/auth/register"] = ok(TOKENS);
   await linkToCloud("a@b.co", S);
-  expect(h.sent["/auth/register"].public_key).toBe("DERIVED_FROM_9,9,9");
+  expect(h.sent["/auth/register"].public_key).toBe("DERIVED_FROM_1,1,1");
+  expect(h.invoke).toHaveBeenCalledWith("wrap_user_secrets_cmd", {
+    kek: [9, 9, 9],
+    dek: [1, 1, 1],
+    x25519Private: Array.from(atob(btoa("legacy-x25519-private")), (c) => c.charCodeAt(0)),
+  });
+});
+
+test("linkToCloud moves the vault it already has to the dek", async () => {
+  h.store.master_password = "pw";
+  h.store.account_id = "acc";
+  h.http["/auth/register"] = ok(TOKENS);
+  existingVaultOpenedBy([9, 9, 9]);
+  await linkToCloud("a@b.co", S);
+  expect(h.invoke).toHaveBeenCalledWith("secrets_rekey", { oldEncKey: [9, 9, 9], newEncKey: [1, 1, 1] });
+  expect(h.setVaultKey).toHaveBeenLastCalledWith([1, 1, 1]);
+});
+
+test("a link whose rekey fails keeps the vault on the kek and still links", async () => {
+  h.store.master_password = "pw";
+  h.store.account_id = "acc";
+  h.http["/auth/register"] = ok(TOKENS);
+  existingVaultOpenedBy([9, 9, 9]);
+  h.rekeyError = new Error("disk full");
+  await linkToCloud("a@b.co", S);
+  expect(h.store.mode).toBe("server");
+  expect(h.fileKey).toEqual([9, 9, 9]);
 });
 
 /**
@@ -532,6 +573,40 @@ test("changeMasterPassword maps 401 to currentPasswordIncorrect", async () => {
   cloudSessionOn([1, 1, 1]);
   h.http["/auth/password"] = err(401);
   await expect(changeMasterPassword("old", "new")).rejects.toThrow("common.error.currentPasswordIncorrect");
+});
+
+test("a password change wraps the proven identity under the new key", async () => {
+  cloudSessionOn([1, 1, 1]);
+  h.ensureIdentity.mockResolvedValueOnce({ privateKey: btoa("\x07\x07"), publicKey: "P", proven: true, stored: false });
+  await changeMasterPassword("old", "new");
+  expect(h.invoke).toHaveBeenCalledWith("wrap_user_secrets_cmd", { kek: [8, 8, 8], dek: [1, 1, 1], x25519Private: [7, 7] });
+});
+
+test("an unproven identity keeps the stored key in the new wrap", async () => {
+  cloudSessionOn([1, 1, 1]);
+  h.ensureIdentity.mockResolvedValueOnce({ privateKey: btoa("x"), publicKey: "P", proven: false, stored: false });
+  await changeMasterPassword("old", "new");
+  expect(h.invoke).toHaveBeenCalledWith("wrap_user_secrets_cmd", { kek: [8, 8, 8], dek: [1, 1, 1], x25519Private: [2, 2, 2] });
+});
+
+test("a session without cached keys adopts the server's before resolving the identity", async () => {
+  cloudSessionOn([1, 1, 1]);
+  h.dek = null;
+  h.x25519 = null;
+  h.http["/auth/me"] = ok({ wrapped_user_secrets: "W" });
+  await changeMasterPassword("old", "new");
+  expect(h.keysSet).toHaveBeenCalledWith({ dek: [1, 1, 1], x25519Private: [2, 2, 2], kek: [9, 9, 9] });
+  expect(h.keysSet.mock.invocationCallOrder[0]).toBeLessThan(h.ensureIdentity.mock.invocationCallOrder[0]);
+});
+
+test("an identity that cannot be resolved fails the change before anything is touched", async () => {
+  cloudSessionOn([9, 9, 9]);
+  existingVaultOpenedBy([9, 9, 9]);
+  h.ensureIdentity.mockRejectedValueOnce(new Error("offline"));
+  await expect(changeMasterPassword("old", "new")).rejects.toThrow("offline");
+  expect(h.seq).not.toContain("secrets_rekey");
+  expect(step("/auth/password")).toBe(-1);
+  expect(h.setVaultKey).not.toHaveBeenCalled();
 });
 
 test("changeMasterPassword rotates tokens and password on success", async () => {
@@ -1025,4 +1100,190 @@ test("changeMasterPassword sends the code and names a refused one", async () => 
 
   h.http["/auth/password"] = err(428, { error: "TWO_FACTOR_REQUIRED" });
   await expect(changeMasterPassword("pw", "new")).rejects.toThrow("common.error.twoFactorRequired");
+});
+
+// ─── settleVaultOnDek ────────────────────────────────────────────────────────
+
+function kekVaultWithDek() {
+  cloudSessionOn([9, 9, 9]);
+  h.kek = [9, 9, 9];
+  existingVaultOpenedBy([9, 9, 9]);
+}
+
+test("a kek vault moves to the dek once the identity is stored", async () => {
+  kekVaultWithDek();
+  await settleVaultOnDek();
+  expect(h.invoke).toHaveBeenCalledWith("secrets_rekey", { oldEncKey: [9, 9, 9], newEncKey: [1, 1, 1] });
+  expect(h.setVaultKey).toHaveBeenLastCalledWith([1, 1, 1]);
+  await vi.waitFor(() => expect(h.push).toHaveBeenCalled());
+});
+
+test("a paused device moves its vault to the dek without uploading", async () => {
+  kekVaultWithDek();
+  h.syncPaused = true;
+  await settleVaultOnDek();
+  expect(h.invoke).toHaveBeenCalledWith("secrets_rekey", { oldEncKey: [9, 9, 9], newEncKey: [1, 1, 1] });
+  await vi.waitFor(() => expect(h.isSyncPaused).toHaveBeenCalled());
+  expect(h.push).not.toHaveBeenCalled();
+});
+
+test("a vault stays on the kek while the identity is not stored", async () => {
+  kekVaultWithDek();
+  h.ensureIdentity.mockResolvedValueOnce({ privateKey: "", publicKey: "", proven: true, stored: false });
+  await settleVaultOnDek();
+  expect(h.seq).not.toContain("secrets_rekey");
+  expect(h.setVaultKey).not.toHaveBeenCalled();
+});
+
+test("an offline device keeps its vault and its unlock", async () => {
+  kekVaultWithDek();
+  h.ensureIdentity.mockRejectedValueOnce(new Error("offline"));
+  await expect(settleVaultOnDek()).resolves.toBeUndefined();
+  expect(h.seq).not.toContain("secrets_rekey");
+  expect(h.setVaultKey).not.toHaveBeenCalled();
+});
+
+test("a vault already on the dek is left alone without asking for the identity", async () => {
+  cloudSessionOn([1, 1, 1]);
+  h.kek = [9, 9, 9];
+  await settleVaultOnDek();
+  expect(h.ensureIdentity).not.toHaveBeenCalled();
+});
+
+test("a local account is never settled", async () => {
+  kekVaultWithDek();
+  h.store.mode = "local";
+  await settleVaultOnDek();
+  expect(h.ensureIdentity).not.toHaveBeenCalled();
+});
+
+test("an account switch while the identity resolves leaves the new account's vault alone", async () => {
+  kekVaultWithDek();
+  h.ensureIdentity.mockImplementationOnce(async () => {
+    h.sessionKey = [7, 7, 7];
+    h.kek = [7, 7, 7];
+    return STORED_IDENTITY;
+  });
+  await settleVaultOnDek();
+  expect(h.seq).not.toContain("secrets_rekey");
+  expect(h.setVaultKey).not.toHaveBeenCalled();
+});
+
+// ─── stranded vault ──────────────────────────────────────────────────────────
+
+function strandedOnOldKek() {
+  h.store.account_id = "acc";
+  h.store.mode = "server";
+  h.store.email = "a@b.co";
+  h.store.server_url = S;
+  h.http["/auth/login"] = ok({ ...TOKENS, wrapped_user_secrets: "W_NEW" });
+  existingVaultOpenedBy([9, 9, 9]);
+}
+
+test("sign-in after a change elsewhere reopens the vault with the password stored here", async () => {
+  strandedOnOldKek();
+  h.store.master_password = "old";
+  await login("new");
+  expect(h.invoke).toHaveBeenCalledWith("secrets_rekey", { oldEncKey: [9, 9, 9], newEncKey: [1, 1, 1] });
+  expect(h.setVaultKey).toHaveBeenLastCalledWith([1, 1, 1]);
+  expect(h.store.master_password).toBe("new");
+  await vi.waitFor(() => expect(h.push).toHaveBeenCalled());
+});
+
+test("the identity is looked up while the old key is still the vault key", async () => {
+  strandedOnOldKek();
+  h.store.master_password = "old";
+  let vaultKeyDuringLookup: number[] | null = null;
+  h.ensureIdentity.mockImplementationOnce(async () => {
+    vaultKeyDuringLookup = h.sessionKey;
+    return { privateKey: "", publicKey: "", proven: true, stored: true };
+  });
+  await login("new");
+  expect(vaultKeyDuringLookup).toEqual([9, 9, 9]);
+});
+
+test("the server's wrapped secrets are cached before the lookup compares against them", async () => {
+  strandedOnOldKek();
+  h.store.master_password = "old";
+  let cachedDuringLookup: string | null | undefined;
+  h.ensureIdentity.mockImplementationOnce(async () => {
+    cachedDuringLookup = h.store.wrapped_user_secrets;
+    return { privateKey: "", publicKey: "", proven: true, stored: true };
+  });
+  await login("new");
+  expect(cachedDuringLookup).toBe("W_NEW");
+});
+
+test("a bound device reads the old sealed password to reopen the vault, then seals the new one", async () => {
+  strandedOnOldKek();
+  h.store.master_password_sealed = "S:old";
+  h.store.wrapped_user_secrets = "W_OLD";
+  await login("new");
+  expect(h.setVaultKey).toHaveBeenLastCalledWith([1, 1, 1]);
+  expect(h.store.master_password_sealed).toBe("S:new");
+});
+
+test("a bound device signing in after a change elsewhere seals the new password", async () => {
+  strandedOnOldKek();
+  existingVaultOpenedBy([1, 1, 1]);
+  h.store.master_password_sealed = "S:old";
+  h.store.wrapped_user_secrets = "W_OLD";
+  await login("new");
+  expect(h.store.master_password_sealed).toBe("S:new");
+});
+
+test("a bound device signing in with the password it already holds is not asked to seal again", async () => {
+  strandedOnOldKek();
+  existingVaultOpenedBy([1, 1, 1]);
+  h.store.master_password_sealed = "S:old";
+  h.store.wrapped_user_secrets = "W_OLD";
+  await login("old");
+  expect(h.invoke).not.toHaveBeenCalledWith("vault_secret_set", expect.anything());
+  expect(h.store.master_password_sealed).toBe("S:old");
+});
+
+test("a cancelled prompt on a bound device leaves today's unreadable vault", async () => {
+  strandedOnOldKek();
+  h.store.master_password_sealed = "S:old";
+  const route = h.invoke.getMockImplementation()!;
+  h.invoke.mockImplementation(async (cmd: string, args: Record<string, unknown>) =>
+    cmd === "vault_secret_get" ? { outcome: "cancelled", value: null } : route(cmd, args));
+  await expect(login("new")).rejects.toThrow(VaultUnreadableError);
+  expect(h.seq).not.toContain("secrets_rekey");
+});
+
+test("a device that stored the same password has nothing older to try", async () => {
+  strandedOnOldKek();
+  h.store.master_password = "new";
+  await expect(login("new")).rejects.toThrow(VaultUnreadableError);
+});
+
+test.each([
+  ["its rekey fails", () => {
+    h.rekeyError = new Error("disk full");
+  }],
+  ["the file cannot be read", () => {
+    const fits = h.verifyVaultKey.getMockImplementation()!;
+    h.verifyVaultKey.mockImplementation(async (key: number[]) => {
+      if (String(key) === "9,9,9") throw new Error("EBUSY");
+      return fits(key);
+    });
+  }],
+])("a recovery where %s is an unreadable vault, on the key the sign-in installed", async (_name, fail) => {
+  strandedOnOldKek();
+  h.store.master_password = "old";
+  fail();
+  await expect(login("new")).rejects.toThrow(VaultUnreadableError);
+  expect(h.sessionKey).toEqual([8, 8, 8]);
+  expect(h.push).not.toHaveBeenCalled();
+});
+
+test("a stored password that opens nothing either is an unreadable vault", async () => {
+  strandedOnOldKek();
+  // "zzz" derives [9, 9, 9]; this file is on a key neither password reaches.
+  existingVaultOpenedBy([7, 7, 7]);
+  h.store.master_password = "zzz";
+  await expect(login("new")).rejects.toThrow(VaultUnreadableError);
+  expect(h.seq).not.toContain("secrets_rekey");
+  expect(h.sessionKey).toEqual([8, 8, 8]);
 });

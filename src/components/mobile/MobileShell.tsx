@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import BottomTabBar from "./BottomTabBar";
 import VaultSwitcherSheet from "./sheets/VaultSwitcherSheet";
+import SyncSheet from "./sheets/SyncSheet";
 import MobileHostsScreen from "./screens/MobileHostsScreen";
 import MobileHostEditScreen from "./screens/MobileHostEditScreen";
 import MobileSnippetsScreen from "./screens/MobileSnippetsScreen";
@@ -47,6 +48,8 @@ import { resolvePanelScreen } from "./mobilePanelDispatch";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { useVisualViewport } from "@/hooks/useVisualViewport";
 import { useHostPingPolling } from "@/hooks/useHostPingPolling";
+import { usePfToastBridge } from "@/hooks/usePfToastBridge";
+import { openPortForwardingPage } from "@/services/portForwardingNav";
 import { useBlockedTeamVault } from "@/hooks/useBlockedTeamVault";
 import { refitSession } from "@/hooks/useTerminal";
 
@@ -55,6 +58,7 @@ export default function MobileShell() {
   const MORE_PAGE_TITLES = getMorePageTitles(t);
   useAndroidBack();
   useHostPingPolling(); // desktop mounts this in MainPanel; the mobile shell doesn't
+  usePfToastBridge(openPortForwardingPage);
   const tab = useMobileNavStore((s) => s.tab);
   const stack = useMobileNavStore((s) => s.stack);
   const sheet = useMobileNavStore((s) => s.sheet);
@@ -172,6 +176,7 @@ export default function MobileShell() {
           visible-but-covered under the overlay, and tapping a tab silently clears the stack. */}
       {!immersive && !top && <BottomTabBar />}
       {sheet?.kind === "vault-switcher" && <VaultSwitcherSheet />}
+      {sheet?.kind === "sync" && <SyncSheet />}
       {sheet?.kind === "host-actions" && <HostActionsSheet hostId={sheet.hostId} />}
       {sheet?.kind === "snippet-target" && (
         <MobileSnippetTargetSheet snippetId={sheet.snippetId} mode={sheet.mode} preselectSessionId={sheet.preselectSessionId} />

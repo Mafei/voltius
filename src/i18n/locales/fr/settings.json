@@ -36,6 +36,20 @@
       "ignoreBracketedPaste": {
         "title": "Collage simple (sans collage entre crochets)",
         "desc": "Coller en texte brut sans les marqueurs \\x1b[200~ / \\x1b[201~. Corrige un affichage corrompu (ex. « 200~ ») lors d'un collage dans un prompt sudo ou une application CLI qui ne prend pas en charge le collage entre crochets."
+      },
+      "pasteImageAsPath": {
+        "title": "Coller les images comme chemin de fichier",
+        "desc": "Quand le presse-papiers contient une image, l'envoyer sur l'hôte SSH (~/.cache/voltius/pastes, accessible au seul propriétaire, supprimée après 7 jours) et coller son chemin. Permet aux outils de l'hôte comme Claude Code de joindre une capture d'écran. Si vous rebondissez en SSH depuis cet hôte, le chemin désigne ce premier hôte."
+      },
+      "keywordHighlight": {
+        "title": "Mise en évidence de mots-clés",
+        "desc": "Colore des mots comme « error » ou « warning » dans la sortie des commandes. Fonctionne dans les sessions avec l'intégration du shell.",
+        "addRule": "Ajouter une règle",
+        "deleteRule": "Supprimer la règle",
+        "ruleEnabled": "Activer la règle",
+        "color": "Couleur",
+        "wordsPlaceholder": "Ajouter un mot…",
+        "removeWord": "Retirer {{word}}"
       }
     },
     "appearance": {
@@ -330,6 +344,11 @@
         "sub": "Mettez à jour votre mot de passe sans rechiffrer votre coffre-fort",
         "title": "Changer le mot de passe maître",
         "currentPlaceholder": "Mot de passe actuel",
+        "verifyWithDevice": "Oublié ? Confirmez plutôt avec {{method}}",
+        "verifiedWithDevice": "Confirmé sur cet appareil",
+        "deviceReason": "Confirmez pour changer votre mot de passe maître",
+        "deviceFailed": "Cet appareil n'a pas pu confirmer votre identité. Saisissez plutôt votre mot de passe actuel.",
+        "deviceSignedOut": "Cet appareil a été déconnecté, sans doute après un changement de mot de passe sur un autre appareil. Reconnectez-vous avec le nouveau mot de passe.",
         "newPlaceholder": "Nouveau mot de passe (min 8 caractères)",
         "confirmPlaceholder": "Confirmer le nouveau mot de passe",
         "errorCurrentRequired": "Le mot de passe actuel est requis",
@@ -588,7 +607,8 @@
         "syncing": "Synchronisation en cours…",
         "error": "Erreur : {{error}}",
         "lastSync": "Dernière synchro : {{time}}",
-        "offline": "Hors ligne",
+        "offline": "Serveur injoignable",
+        "offlineDetail": "Serveur injoignable : {{error}}",
         "idle": "Pas encore synchronisé",
         "paused": "En pause sur cet appareil",
         "syncNow": "Synchroniser"
@@ -1036,6 +1056,12 @@
       },
       "ignoreBracketedPaste": {
         "label": "Collage simple (sans crochets)"
+      },
+      "pasteImageAsPath": {
+        "label": "Coller les images comme chemin de fichier"
+      },
+      "keywordHighlight": {
+        "label": "Mise en évidence de mots-clés"
       },
       "autoForward": {
         "label": "Transfert de ports automatique"

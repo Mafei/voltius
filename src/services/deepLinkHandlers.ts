@@ -5,11 +5,10 @@ import { getSavedAccounts, switchToAccount, type SavedAccount } from "@/services
 import { isNavigateIntent } from "@/services/deepLinkUrl";
 import type { NavigateIntent, UnpromptedIntent, VerifiedIntent } from "@/services/deepLinkUrl";
 import { useUIStore } from "@/stores/uiStore";
-import { useNotificationStore } from "@/stores/notificationStore";
+import { APP_SOURCE, useNotificationStore } from "@/stores/notificationStore";
 import { parseJwtPayload } from "@/utils/emailVerification";
 import type { ToastSeverity } from "@/plugins/api";
-
-const SOURCE = { kind: "plugin", id: "system", name: "Voltius" } as const;
+import { openPortForwardingPage } from "@/services/portForwardingNav";
 
 function toast(
   message: string,
@@ -17,7 +16,7 @@ function toast(
   action?: { label: string; onClick: () => void },
 ): void {
   useNotificationStore.getState().addToast({
-    source: SOURCE,
+    source: APP_SOURCE,
     type: "toast",
     message,
     severity,
@@ -85,6 +84,9 @@ function handleNavigate(intent: NavigateIntent): void {
       return;
     case "billing":
       ui.openSettings("account");
+      return;
+    case "port-forwarding":
+      openPortForwardingPage();
       return;
     default: {
       const _exhaustive: never = intent;

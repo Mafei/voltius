@@ -4,6 +4,8 @@ import { TOGGLE_DEFS, useToggle } from "@/stores/toggleSettingsStore";
 import { DEFAULT_SCROLLBACK_LINES, MAX_SCROLLBACK_LINES, MIN_SCROLLBACK_LINES } from "@/stores/terminalSettingsUtils";
 import { FormSelect } from "@/components/shared/FormSelect";
 import { Toggle } from "@/components/shared/Toggle";
+import { DEFAULT_KEYWORD_RULES, sameKeywordRules } from "@/utils/keywordMatcher";
+import { KeywordRulesEditor } from "./KeywordRulesEditor";
 import { SettingRow } from "./shared";
 
 export default function TerminalSection() {
@@ -13,10 +15,16 @@ export default function TerminalSection() {
   const [selectToCopy, setSelectToCopy] = useToggle("select-to-copy");
   const [dragSelectsText, setDragSelectsText] = useToggle("drag-selects-text");
   const [ignoreBracketedPaste, setIgnoreBracketedPaste] = useToggle("ignore-bracketed-paste");
+  const [pasteImageAsPath, setPasteImageAsPath] = useToggle("paste-image-as-path");
   const scrollbackLines = useTerminalSettingsStore((s) => s.scrollbackLines);
   const setScrollbackLines = useTerminalSettingsStore((s) => s.setScrollbackLines);
   const cursorStyle = useTerminalSettingsStore((s) => s.cursorStyle);
   const setCursorStyle = useTerminalSettingsStore((s) => s.setCursorStyle);
+  const [keywordHighlight, setKeywordHighlight] = useToggle("keyword-highlight");
+  const keywordRules = useTerminalSettingsStore((s) => s.keywordRules);
+  const setKeywordRules = useTerminalSettingsStore((s) => s.setKeywordRules);
+  const keywordDefault = TOGGLE_DEFS["keyword-highlight"].default;
+  const keywordDirty = keywordHighlight !== keywordDefault || !sameKeywordRules(keywordRules, DEFAULT_KEYWORD_RULES);
 
   const scrollbackOptions = [1_000, 10_000, 50_000, 100_000, 250_000]
     .filter((value) => value >= MIN_SCROLLBACK_LINES && value <= MAX_SCROLLBACK_LINES)
@@ -113,6 +121,32 @@ export default function TerminalSection() {
         >
           <Toggle checked={ignoreBracketedPaste} onChange={setIgnoreBracketedPaste} />
         </SettingRow>
+        <SettingRow
+          variant="card"
+          className="mt-4"
+          syncKey="appSettings.toggles.paste-image-as-path"
+          title={t("settings.terminal.pasteImageAsPath.title")}
+          desc={t("settings.terminal.pasteImageAsPath.desc")}
+          dirty={pasteImageAsPath !== TOGGLE_DEFS["paste-image-as-path"].default}
+          onReset={() => setPasteImageAsPath(TOGGLE_DEFS["paste-image-as-path"].default)}
+        >
+          <Toggle checked={pasteImageAsPath} onChange={setPasteImageAsPath} />
+        </SettingRow>
+        <SettingRow
+          variant="card"
+          className="mt-4"
+          syncKey="appSettings.toggles.keyword-highlight"
+          title={t("settings.terminal.keywordHighlight.title")}
+          desc={t("settings.terminal.keywordHighlight.desc")}
+          dirty={keywordDirty}
+          onReset={() => {
+            setKeywordHighlight(keywordDefault);
+            setKeywordRules(DEFAULT_KEYWORD_RULES);
+          }}
+        >
+          <Toggle checked={keywordHighlight} onChange={setKeywordHighlight} />
+        </SettingRow>
+        {keywordHighlight && <KeywordRulesEditor />}
       </div>
     </div>
   );

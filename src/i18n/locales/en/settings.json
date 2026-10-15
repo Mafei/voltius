@@ -36,6 +36,20 @@
       "ignoreBracketedPaste": {
         "title": "Plain paste (no bracketed paste)",
         "desc": "Paste as plain text without the \\x1b[200~ / \\x1b[201~ markers. Fixes garbled input (e.g. \"200~\") when pasting into sudo prompts or CLI apps that don't support bracketed paste."
+      },
+      "pasteImageAsPath": {
+        "title": "Paste images as a file path",
+        "desc": "When the clipboard holds an image, upload it to the SSH host (~/.cache/voltius/pastes, owner-only, pruned after 7 days) and paste its path. Lets tools on the host such as Claude Code attach a screenshot. If you SSH further from there, the path points to this first host."
+      },
+      "keywordHighlight": {
+        "title": "Keyword highlighting",
+        "desc": "Color words such as “error” or “warning” in command output. Works in sessions with shell integration.",
+        "addRule": "Add rule",
+        "deleteRule": "Delete rule",
+        "ruleEnabled": "Enable rule",
+        "color": "Color",
+        "wordsPlaceholder": "Add a word…",
+        "removeWord": "Remove {{word}}"
       }
     },
     "appearance": {
@@ -330,6 +344,11 @@
         "sub": "Update your password without re-encrypting your vault",
         "title": "Change master password",
         "currentPlaceholder": "Current password",
+        "verifyWithDevice": "Forgot it? Confirm with {{method}} instead",
+        "verifiedWithDevice": "Confirmed on this device",
+        "deviceReason": "Confirm to change your master password",
+        "deviceFailed": "This device could not confirm it's you. Type your current password instead.",
+        "deviceSignedOut": "This device was signed out, likely after a password change on another device. Sign in again with the new password.",
         "newPlaceholder": "New password (min 8 chars)",
         "confirmPlaceholder": "Confirm new password",
         "errorCurrentRequired": "Current password is required",
@@ -585,7 +604,8 @@
         "syncing": "Syncing…",
         "error": "Error: {{error}}",
         "lastSync": "Last sync: {{time}}",
-        "offline": "Offline",
+        "offline": "Can't reach server",
+        "offlineDetail": "Can't reach server: {{error}}",
         "idle": "Not synced yet",
         "paused": "Paused on this device",
         "syncNow": "Sync now"
@@ -1030,6 +1050,12 @@
       },
       "ignoreBracketedPaste": {
         "label": "Plain Paste (No Bracketed Paste)"
+      },
+      "pasteImageAsPath": {
+        "label": "Paste Images as a File Path"
+      },
+      "keywordHighlight": {
+        "label": "Keyword Highlighting"
       },
       "autoForward": {
         "label": "Automatic Port Forwarding"

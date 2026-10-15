@@ -36,6 +36,20 @@
       "ignoreBracketedPaste": {
         "title": "纯文本粘贴（无括号粘贴）",
         "desc": "不带 \\x1b[200~ / \\x1b[201~ 标记的纯文本粘贴。修复粘贴到 sudo 提示符或不支持括号粘贴的 CLI 应用时的乱码问题。"
+      },
+      "pasteImageAsPath": {
+        "title": "以文件路径粘贴图片",
+        "desc": "剪贴板中是图片时，将其上传到 SSH 主机（~/.cache/voltius/pastes，仅所有者可访问，7 天后清理）并粘贴其路径。让主机上的工具（如 Claude Code）可以附加截图。若从该主机再 SSH 到其他主机，路径仍指向这第一台主机。"
+      },
+      "keywordHighlight": {
+        "title": "关键词高亮",
+        "desc": "为命令输出中的“error”“warning”等词语着色。仅在启用 Shell 集成的会话中生效。",
+        "addRule": "添加规则",
+        "deleteRule": "删除规则",
+        "ruleEnabled": "启用规则",
+        "color": "颜色",
+        "wordsPlaceholder": "添加词语…",
+        "removeWord": "移除 {{word}}"
       }
     },
     "appearance": {
@@ -224,6 +238,11 @@
         "sub": "更新密码而无需重新加密保险库",
         "title": "更改主密码",
         "currentPlaceholder": "当前密码",
+        "verifyWithDevice": "忘记了？改用{{method}}确认",
+        "verifiedWithDevice": "已在此设备上确认",
+        "deviceReason": "确认以更改主密码",
+        "deviceFailed": "此设备无法确认您的身份。请改为输入当前密码。",
+        "deviceSignedOut": "此设备已退出登录，可能是因为在其他设备上更改了密码。请使用新密码重新登录。",
         "newPlaceholder": "新密码（至少 8 个字符）",
         "confirmPlaceholder": "确认新密码",
         "errorCurrentRequired": "需要当前密码",
@@ -479,7 +498,8 @@
         "syncing": "正在同步…",
         "error": "错误：{{error}}",
         "lastSync": "上次同步：{{time}}",
-        "offline": "离线",
+        "offline": "无法连接服务器",
+        "offlineDetail": "无法连接服务器：{{error}}",
         "idle": "尚未同步",
         "paused": "已在此设备上暂停",
         "syncNow": "立即同步"
@@ -1081,6 +1101,8 @@
       "dragSelectsText": { "label": "拖动即选择文本" },
       "groupTabsByHost": { "label": "按主机分组标签页" },
       "ignoreBracketedPaste": { "label": "纯文本粘贴（无括号粘贴）" },
+      "pasteImageAsPath": { "label": "以文件路径粘贴图片" },
+      "keywordHighlight": { "label": "关键词高亮" },
       "autoForward": { "label": "自动端口转发" },
       "forwardingNotifications": { "label": "端口转发通知" },
       "sftpTar": { "label": "SFTP Tar 加速" },

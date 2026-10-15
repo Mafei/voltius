@@ -36,6 +36,20 @@
       "ignoreBracketedPaste": {
         "title": "Prosté vkládání (bez bracketed paste)",
         "desc": "Vkládat jako prostý text bez značek \\x1b[200~ / \\x1b[201~. Opravuje poškozený vstup (např. „200~“) při vkládání do výzev sudo nebo CLI aplikací, které bracketed paste nepodporují."
+      },
+      "pasteImageAsPath": {
+        "title": "Vkládat obrázky jako cestu k souboru",
+        "desc": "Když schránka obsahuje obrázek, nahraje se na SSH hostitele (~/.cache/voltius/pastes, jen pro vlastníka, mazáno po 7 dnech) a vloží se jeho cesta. Nástroje na hostiteli jako Claude Code tak mohou přiložit snímek obrazovky. Pokud se odtud připojíte dál přes SSH, cesta ukazuje na tohoto prvního hostitele."
+      },
+      "keywordHighlight": {
+        "title": "Zvýrazňování klíčových slov",
+        "desc": "Obarví slova jako „error“ nebo „warning“ ve výstupu příkazů. Funguje v relacích s integrací shellu.",
+        "addRule": "Přidat pravidlo",
+        "deleteRule": "Smazat pravidlo",
+        "ruleEnabled": "Povolit pravidlo",
+        "color": "Barva",
+        "wordsPlaceholder": "Přidat slovo…",
+        "removeWord": "Odebrat {{word}}"
       }
     },
     "appearance": {
@@ -330,6 +344,11 @@
         "sub": "Změní heslo bez opětovného šifrování trezoru",
         "title": "Změnit hlavní heslo",
         "currentPlaceholder": "Aktuální heslo",
+        "verifyWithDevice": "Zapomněli jste ho? Potvrďte to raději: {{method}}",
+        "verifiedWithDevice": "Potvrzeno na tomto zařízení",
+        "deviceReason": "Potvrďte změnu hlavního hesla",
+        "deviceFailed": "Toto zařízení nemohlo potvrdit vaši totožnost. Zadejte raději aktuální heslo.",
+        "deviceSignedOut": "Toto zařízení bylo odhlášeno, nejspíš po změně hesla na jiném zařízení. Přihlaste se znovu novým heslem.",
         "newPlaceholder": "Nové heslo (min. 8 znaků)",
         "confirmPlaceholder": "Potvrďte nové heslo",
         "errorCurrentRequired": "Aktuální heslo je povinné",
@@ -591,7 +610,8 @@
         "syncing": "Synchronizace…",
         "error": "Chyba: {{error}}",
         "lastSync": "Poslední synchronizace: {{time}}",
-        "offline": "Offline",
+        "offline": "Server je nedostupný",
+        "offlineDetail": "Server je nedostupný: {{error}}",
         "idle": "Zatím nesynchronizováno",
         "paused": "Pozastaveno na tomto zařízení",
         "syncNow": "Synchronizovat nyní"
@@ -1264,6 +1284,12 @@
       },
       "ignoreBracketedPaste": {
         "label": "Prosté vkládání (bez bracketed paste)"
+      },
+      "pasteImageAsPath": {
+        "label": "Vkládat obrázky jako cestu k souboru"
+      },
+      "keywordHighlight": {
+        "label": "Zvýrazňování klíčových slov"
       },
       "autoForward": {
         "label": "Automatické přesměrování portů"

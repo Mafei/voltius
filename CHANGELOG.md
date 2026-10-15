@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.57.0] - 2026-10-14
+
+### Added
+
+- Change the master password on a signed-in device without typing the current one. "Forgot it? Confirm with …" in the change-password dialog lets the system confirm it's you (Windows Hello, Touch ID, polkit, or the Android unlock prompt). The server still checks your second factor (#629)
+- The sync server emails you when your master password changes (VoltiusApp/server#112)
+- Paste an image into an SSH session. When the clipboard holds an image and no text, pasting (Ctrl+V, Ctrl+Shift+V, right-click, or Cmd+V on macOS) uploads it to the host under `~/.cache/voltius/pastes` and types its path, so tools on the host such as Claude Code can attach a screenshot. Pasted files are owner-only and removed after 7 days. A toast shows progress with Cancel, Retry on failure, and "Delete from host" once done. Turn it off in **Settings → Terminal** (#630, by @ghecko)
+- Images opened from the SFTP panel or page now show in the editor tab instead of "Binary file — can't edit": PNG, JPEG, GIF, WebP, BMP, ICO, AVIF and SVG, with Fit/100%, zoom, pan, copy and download. Files over 25 MB ask before loading (#634)
+- Port forwarding on Android. The Port Forwarding screen lists the session's active forwards, auto-detected ones included, and the terminal's panel row opens it. Tunnels keep running while Voltius is in the background, with a "N ports forwarded" notification that opens the screen (#637)
+
+### Changed
+
+- A single click opens a vault folder card; Ctrl/Cmd/Shift-click selects it. SFTP folders still open with a double click
+
+### Fixed
+
+- Accounts linked from a local vault, or migrated, had a different team identity on each device, and a master password change could cut a device off from its team vaults. The identity is now stored with the account and survives password changes and linked devices. A device left on the old password after a change made elsewhere opens again at sign-in, and biometric unlock picks up the new password
+- In a Proxmox LXC tab opened with `pct exec`, the Docker panel, process manager, metrics and system info showed, and acted on, the Proxmox host instead of the container. They now run inside the LXC (#642)
+- Stopping an auto-forwarded port lasted only until the host's last terminal closed or the app restarted. Stopped ports are now remembered per connection on this device (#632)
+- Under tmux with mouse tracking (for example, a pane running Claude Code), the next mouse move cleared a fresh selection, so copy-on-select, Ctrl+Shift+C and search prefill got nothing (#631)
+- Ctrl+S in an SFTP editor tab with no loaded text (a binary file, or one still loading) saved an empty file over the original (#634)
+- Opening a `voltius://` link crashed the Android app (#637)
+- The app's own notifications carried a "[Voltius]" tag. Only plugin notifications show a tag now (#635)
+
+## [0.56.0] - 2026-10-12
+
+### Added
+
+- Keyword highlighting in the terminal. Words such as `error`, `warning` and `ok` are coloured in command output, in the theme's ANSI colours. It applies to output marked by shell integration. Rules are editable in **Settings → Terminal** and sync across devices (#317)
+- A server that cannot be reached shows as its own state: a grey cloud labelled "Can't reach server", with the reason in the sync menu, the tooltip and **Settings → Sync**, instead of a red sync error. Background syncs wait and run when the server is back (#619)
+- Pause and resume sync from the sync menu, next to "Sync now" (#619)
+- On Android, the header sync icon opens a sheet with each provider's status, the reason for a failure, "Sync now" and pause/resume. The icon stays visible while sync is paused, and the cloud sync row on the account page opens the same sheet (#619)
+- Removing a saved account asks for confirmation. Signing out asks when this device holds the only copy of the account's data or may be ahead of the server (#622)
+
+### Fixed
+
+- Switching accounts deleted the outgoing account's local data and relied on the sync server to bring it back, so an account with no server copy lost its hosts. Each saved account's data now stays on the device across a switch, and switching works without the server (#622)
+
 ## [0.55.0] - 2026-10-11
 
 ### Added

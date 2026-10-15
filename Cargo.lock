@@ -7717,7 +7717,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "voltius"
-version = "0.55.0"
+version = "0.57.0"
 dependencies = [
  "aes 0.9.0",
  "apple-native-keyring-store",
@@ -7744,6 +7744,7 @@ dependencies = [
  "httpdate",
  "hyper",
  "hyper-util",
+ "infer",
  "jni 0.21.1",
  "keyring-core",
  "libc",
@@ -7756,6 +7757,7 @@ dependencies = [
  "objc2-foundation",
  "objc2-local-authentication",
  "percent-encoding",
+ "png 0.17.16",
  "portable-pty",
  "quick-xml",
  "rand 0.8.6",

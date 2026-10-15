@@ -2,6 +2,10 @@ import type { Terminal } from "@xterm/xterm";
 import { ClipboardAddon, type IClipboardProvider } from "@xterm/addon-clipboard";
 import { writeClipboard, readClipboard } from "@/utils/clipboard";
 import { getToggle } from "@/stores/toggleSettingsStore";
+import { logFailure } from "@/lib/logger";
+import { getPlatformSync } from "@/utils/platform";
+
+const MOUSE_MOVE = 32;
 
 export interface TerminalClipboardHandle {
   /** Returns false to consume the event, true to let xterm process it,
@@ -14,12 +18,14 @@ export interface TerminalClipboardOptions {
   /** Enable OSC 52: let the remote program write the local clipboard.
    *  Reads (paste-requests) are always refused. Off by default. */
   osc52?: boolean;
+  /** Called by a paste whose clipboard holds no text, e.g. a screenshot. */
+  pasteImage?: () => Promise<void>;
 }
 
 /**
  * Wire the full terminal clipboard behavior onto a terminal + its container:
  * copy-on-select (with feedback badge), smart Ctrl+C / Ctrl+Shift+C, paste
- * (Ctrl+V / Ctrl+Shift+V / right-click), and optionally OSC 52.
+ * (Ctrl+V / Ctrl+Shift+V / right-click, text or `pasteImage`), and optionally OSC 52.
  *
  * Mouse/selection listeners are owned here; key handling is exposed via
  * `handleKeyEvent` so callers can fold it into their own key handler.
@@ -90,11 +96,31 @@ export function attachTerminalClipboard(
   // ── drag-selects-text over an app that holds the mouse ───────────────────
   const core = (term as unknown as {
     _core?: {
-      coreMouseService?: { activeProtocol: string };
+      coreService?: { triggerDataEvent(data: string, wasUserInput?: boolean): void };
+      coreMouseService?: { activeProtocol: string; triggerMouseEvent(e: { action: number }): boolean };
       _selectionService?: { disable(): void; _enabled: boolean };
     };
   })._core;
   const mouseService = core?.coreMouseService;
+
+  // xterm clears the selection on any user input, motion reports included, so an
+  // app tracking every motion (tmux, Claude Code) wipes it as soon as the mouse moves.
+  const coreService = core?.coreService;
+  const triggerMouseEvent = mouseService?.triggerMouseEvent;
+  const triggerDataEvent = coreService?.triggerDataEvent;
+  let motionReport = false;
+  if (mouseService && coreService && triggerMouseEvent && triggerDataEvent) {
+    mouseService.triggerMouseEvent = (ev) => {
+      motionReport = ev.action === MOUSE_MOVE;
+      try { return triggerMouseEvent.call(mouseService, ev); } finally { motionReport = false; }
+    };
+    coreService.triggerDataEvent = (data, wasUserInput) =>
+      triggerDataEvent.call(coreService, data, !!wasUserInput && !motionReport);
+  }
+  const restoreReporting = () => {
+    if (mouseService && triggerMouseEvent) mouseService.triggerMouseEvent = triggerMouseEvent;
+    if (coreService && triggerDataEvent) coreService.triggerDataEvent = triggerDataEvent;
+  };
 
   let parkedProtocol: string | null = null;
   let pressed: MouseEvent | null = null;
@@ -171,32 +197,37 @@ export function attachTerminalClipboard(
     const press = pressed;
     pressed = null;
     unpark();
+    if (!press && !dragging) return;
+    const sel = term.getSelection();
     if (press) {
       const moved = Math.abs(e.clientX - press.clientX) + Math.abs(e.clientY - press.clientY) >= 4;
-      if (!moved && !term.getSelection()) replayToApp(press, true);
+      if (!moved && !sel) replayToApp(press, true);
     }
     if (!dragging) return;
     dragging = false;
     // Copy-on-select is opt-out: when the "Select to Copy" toggle is off, a
     // selection must NOT touch the clipboard (#50). Explicit Ctrl+Shift+C still
     // copies regardless.
-    if (!getToggle("select-to-copy")) return;
-    setTimeout(() => {
-      const sel = term.getSelection();
-      if (sel) {
-        writeClipboard(sel);
-        showBadge(e.clientX, e.clientY);
-      }
-    }, 20);
+    if (!getToggle("select-to-copy") || !sel) return;
+    writeClipboard(sel).then(
+      () => showBadge(e.clientX, e.clientY),
+      logFailure("copy-on-select"),
+    );
   };
   container.addEventListener("mousedown", handleMouseDown, true);
   window.addEventListener("mousemove", handleMouseMove, true);
   window.addEventListener("mouseup", handleMouseUp);
   window.addEventListener("blur", unpark);
 
+  const pasteClipboard = async () => {
+    const text = await readClipboard().catch(() => "");
+    if (text) term.paste(text);
+    else await opts.pasteImage?.();
+  };
+
   const handleContextMenu = (e: MouseEvent) => {
     e.preventDefault();
-    readClipboard().then((text) => { if (text) term.paste(text); });
+    void pasteClipboard();
   };
   container.addEventListener("contextmenu", handleContextMenu);
 
@@ -225,9 +256,7 @@ export function attachTerminalClipboard(
     }
     if (e.ctrlKey && e.shiftKey && e.key === "V") {
       e.preventDefault();
-      if (e.type === "keydown") {
-        readClipboard().then((text) => { if (text) term.paste(text); });
-      }
+      if (e.type === "keydown") void pasteClipboard();
       return false;
     }
     if (e.ctrlKey && !e.shiftKey && e.key === "c") {
@@ -238,11 +267,10 @@ export function attachTerminalClipboard(
       }
       return true;
     }
-    if (e.ctrlKey && !e.shiftKey && e.key === "v") {
+    const macPaste = e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === "v" && getPlatformSync() === "macos";
+    if ((e.ctrlKey && !e.shiftKey && e.key === "v") || macPaste) {
       e.preventDefault();
-      if (e.type === "keydown") {
-        readClipboard().then((text) => { if (text) term.paste(text); });
-      }
+      if (e.type === "keydown") void pasteClipboard();
       return false;
     }
     return null;
@@ -252,6 +280,7 @@ export function attachTerminalClipboard(
     handleKeyEvent,
     dispose() {
       unpark();
+      restoreReporting();
       container.removeEventListener("mousedown", handleMouseDown, true);
       window.removeEventListener("mousemove", handleMouseMove, true);
       window.removeEventListener("mouseup", handleMouseUp);

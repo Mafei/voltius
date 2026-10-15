@@ -39,7 +39,7 @@ vi.mock("@/services/savedAccounts", () => ({
 }));
 
 const addToast = vi.fn();
-vi.mock("@/stores/notificationStore", () => ({
+vi.mock("@/stores/notificationStore", () => ({ APP_SOURCE: { kind: "app" },
   useNotificationStore: { getState: () => ({ addToast }) },
 }));
 
@@ -139,6 +139,14 @@ test("a billing link opens the account section and starts no checkout", () => {
   expect(ui.settingsSection).toBe("account");
   // The route navigates; a checkout is an action and would need a prompt.
   expect(addToast).not.toHaveBeenCalled();
+});
+
+test("a port-forwarding link opens the port forwarding page", () => {
+  useUIStore.setState({ activeNav: "hosts", homeView: true });
+  handleUnpromptedIntent({ route: "port-forwarding" });
+  const ui = useUIStore.getState();
+  expect(ui.activeNav).toBe("port-forwarding");
+  expect(ui.homeView).toBe(false);
 });
 
 test("a notification link opens the centre and carries the entry id", () => {

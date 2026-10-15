@@ -25,6 +25,7 @@ mod local;
 pub mod mcp;
 mod metrics;
 mod network_watch;
+mod passkey_loopback;
 mod port_forward;
 mod processes;
 mod proxmox;
@@ -248,6 +249,7 @@ pub fn run() {
             app.manage(KnownHostsStore::load());
             app.manage(app_lock::AppLock::load());
             app.manage(app_lock::LastActive::load());
+            app.manage(passkey_loopback::PasskeyLoopback::default());
             app.manage(Arc::new(PendingConflicts::new()));
             app.manage(PortForwardManager::new(app.handle().clone()));
             app.manage(Arc::new(mcp::McpState::new()));
@@ -280,6 +282,9 @@ pub fn run() {
             app_lock::app_lock_hide_in_recents,
             app_lock::app_lock_last_active,
             app_lock::app_lock_touch,
+            passkey_loopback::passkey_loopback_start,
+            passkey_loopback::passkey_loopback_wait,
+            passkey_loopback::passkey_loopback_stop,
             system_auth::system_auth_available,
             system_auth::system_auth_verify,
             terminal_kbd::terminal_show_keyboard,
@@ -317,6 +322,8 @@ pub fn run() {
             commands::vault::vault_status,
             commands::vault::vault_reset,
             commands::vault::config_wipe,
+            commands::vault::account_profile_swap,
+            commands::vault::account_profile_drop,
             commands::vault::get_machine_fingerprint,
             commands::crypto::derive_keys,
             commands::crypto::derive_gist_key,
@@ -325,6 +332,7 @@ pub fn run() {
             commands::crypto::unwrap_user_secrets_cmd,
             commands::crypto::generate_user_secrets_cmd,
             commands::team_crypto::derive_x25519_keypair,
+            commands::team_crypto::x25519_public_from_private,
             commands::team_crypto::generate_session_key,
             commands::team_crypto::x25519_wrap_key,
             commands::team_crypto::x25519_unwrap_key,
@@ -413,6 +421,8 @@ pub fn run() {
             commands::fs::fs_exists_home,
             commands::fs::fs_stat,
             commands::fs::fs_read_file,
+            commands::fs::fs_read_image,
+            commands::clipboard::clipboard_write_rgba,
             commands::fs::fs_write_file,
             commands::fs::fs_mkdir,
             commands::fs::fs_rename,
@@ -424,6 +434,9 @@ pub fn run() {
             commands::fs::fs_owners,
             commands::fs::fs_set_attrs,
             commands::sftp::editor::sftp_read_file,
+            commands::sftp::editor::sftp_read_image,
+            commands::sftp::paste::paste_image_read,
+            commands::sftp::paste::paste_image_upload,
             commands::sftp::editor::sftp_write_file,
             commands::sftp::sftp_cancel_transfer,
             commands::sftp::sftp_mark_resume,

@@ -9,6 +9,8 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { onSshOutput, onSshClosed, onSshCwd, onSshMuxMode, sshSetOutputPaused, sshSetTerminalColors } from "@/services/ssh";
 import { createOutputFlow, type OutputFlow } from "@/components/terminal/outputFlow";
 import { suppressTerminalQueries } from "@/components/terminal/terminalQueries";
+import { createCommandTracker, type CommandRegion, type CommandTracker } from "@/components/terminal/commandMarks";
+import { attachKeywordHighlighter, eraseRange, type KeywordHighlighter } from "@/components/terminal/keywordHighlighter";
 import { currentTerminalColors } from "@/utils/terminalColors";
 import { localReady, onLocalOutput, onLocalClosed } from "@/services/local";
 import { onSerialOutput, onSerialClosed } from "@/services/serial";
@@ -37,6 +39,7 @@ import { applyTerminalTheme, clampTerminalLineHeight, subscribeTerminalCursor, s
 import { getPlatform } from "@/utils/platform";
 import { createOutputDecoder, encodeTerminalInput, type OutputDecoder } from "@/utils/terminalEncoding";
 import i18n from "@/i18n";
+import { pasteClipboardImage } from "@/services/terminalImagePaste";
 
 interface UseTerminalOptions {
   sessionId: string;
@@ -169,6 +172,8 @@ type CacheEntry = CachedTerminal & {
   searchAddon: SearchAddon;
   search: SearchState;
   minimap: MinimapState;
+  commands: CommandTracker;
+  highlighter: KeywordHighlighter | null;
   sessionType: "ssh" | "local" | "serial";
   connectedRef: { current: boolean };
   /** The session's terminal encoding (undefined = UTF-8), for input and output alike. */
@@ -475,11 +480,17 @@ export function refitSession(sessionId: string): void {
  *  Mirrors the onData path: honors the multiplayer input gate, respects connected state,
  *  records history, encodes + sends. Does not replicate the split-pane broadcast branch
  *  (mobile sends to the active session only). */
+/** Whether typed input would reach the session now: connected, and not held by a multiplayer gate. */
+export function sessionAcceptsInput(sessionId: string): boolean {
+  const entry = terminalCache.get(sessionId);
+  if (!entry) return false;
+  if (entry.inputGateRef.current && !entry.inputGateRef.current()) return false;
+  return entry.connectedRef.current;
+}
+
 export function writeToSession(sessionId: string, data: string): void {
   const entry = terminalCache.get(sessionId);
-  if (!entry) return;
-  if (entry.inputGateRef.current && !entry.inputGateRef.current()) return;
-  if (!entry.connectedRef.current) return;
+  if (!entry || !sessionAcceptsInput(sessionId)) return;
   const sess = useSessionStore.getState().sessions.find((s) => s.id === sessionId);
   if (sess) {
     useCommandHistoryStore.getState().addInput(sessionId, sess.connectionName, sess.connectionId, data);
@@ -574,6 +585,12 @@ export function readTerminalSelection(sessionId: string): string {
 }
 
 /** Test seam: replace the module-private terminal cache. Do not use in app code. */
+/** The session's prompts and commands, oldest first, as reported by OSC 133. Empty
+ *  for shells that send no marks. */
+export function getCommandRegions(sessionId: string): CommandRegion[] {
+  return terminalCache.get(sessionId)?.commands.regions() ?? [];
+}
+
 export function __setTerminalCacheForTest(next: typeof terminalCache): void {
   terminalCache.clear();
   for (const [k, v] of next) terminalCache.set(k, v);
@@ -835,6 +852,16 @@ export function useTerminal({ sessionId, sessionType, onClosed, inputGate, encod
           subscribers: new Set(),
           frame: null,
         },
+        commands: createCommandTracker({
+          mark: (line) => {
+            const buf = term.buffer.active;
+            if (buf.type !== "normal") return null;
+            return term.registerMarker(line === undefined ? 0 : line - buf.baseY - buf.cursorY) ?? null;
+          },
+          col: () => term.buffer.active.cursorX,
+          now: Date.now,
+        }),
+        highlighter: null,
         sessionType,
         // Serial is live the moment its port opens (the store marks it
         // connected before the terminal mounts); ssh and local flip in the
@@ -1027,6 +1054,28 @@ export function useTerminal({ sessionId, sessionType, onClosed, inputGate, encod
         return true;
       });
 
+      const oscMarkDispose = term.parser.registerOscHandler(133, (data) => {
+        entry.commands.handle(data);
+        return true;
+      });
+
+      entry.highlighter = attachKeywordHighlighter({
+        term,
+        spans: (top, bottom, bufferEnd) => entry.commands.outputSpans(top, bottom, bufferEnd),
+        isVisible: () => !entry.hidden,
+      });
+
+      // Erase in Display disposes the markers on the lines it wipes, so both mark holders hear of it first.
+      const eraseDispose = term.parser.registerCsiHandler({ final: "J" }, (params) => {
+        const buf = term.buffer.active;
+        if (buf.type !== "normal") return false;
+        const mode = Number(params[0] ?? 0);
+        const cursor = buf.baseY + buf.cursorY;
+        entry.commands.erased(mode === 3 ? buf.cursorY : cursor);
+        entry.highlighter?.erasing(...eraseRange(mode, buf.baseY, cursor));
+        return false;
+      });
+
       const onDataDispose = term.onData((data) => {
         if (inputGate && !inputGate.current?.()) return;
         if (!entry.connectedRef.current) return;
@@ -1123,6 +1172,8 @@ export function useTerminal({ sessionId, sessionType, onClosed, inputGate, encod
         onDataDispose.dispose();
         onResizeDispose.dispose();
         oscCwdDispose.dispose();
+        oscMarkDispose.dispose();
+        eraseDispose.dispose();
         searchResultsDispose.dispose();
         scrollDispose.dispose();
         bufferChangeDispose.dispose();
@@ -1132,12 +1183,13 @@ export function useTerminal({ sessionId, sessionType, onClosed, inputGate, encod
         hideLinkTooltip();
         Promise.all(unlistenPromises).then((fns) => fns.forEach((fn) => fn()));
         queryGuard?.dispose();
+        entry.highlighter?.dispose();
         term.dispose();
       };
 
       return entry;
     },
-    { osc52: true },
+    { osc52: true, pasteImage: sessionType === "ssh" ? () => pasteClipboardImage(sessionId) : undefined },
     [sessionId, sessionType, encoding],
   );
 
@@ -1206,7 +1258,9 @@ export function useTerminal({ sessionId, sessionType, onClosed, inputGate, encod
 
   const setVisible = useCallback((visible: boolean) => {
     const entry = terminalCache.get(sessionId);
-    if (entry) setTerminalVisible(entry, visible);
+    if (!entry) return;
+    setTerminalVisible(entry, visible);
+    if (visible) entry.highlighter?.refresh();
   }, [sessionId]);
 
   return { attach, activate, fit, setVisible };

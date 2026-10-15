@@ -20,13 +20,19 @@ function parseHex(color: string): Rgba | null {
 
 const toHex = (rgb: number[]) => "#" + rgb.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("");
 
+export function opaqueHex(color: string): string | null {
+  const parsed = parseHex(color);
+  return parsed && toHex(parsed.rgb);
+}
+
 export function terminalColorsFor(theme: TerminalTheme): TerminalColors | null {
   const fg = parseHex(theme.foreground);
   const bg = parseHex(theme.background);
   const sel = parseHex(theme.selectionBackground);
   if (!fg || !bg || !sel) return null;
+  const selFg = (theme.selectionForeground && parseHex(theme.selectionForeground)) || fg;
   const blended = sel.rgb.map((c, i) => c * sel.alpha + bg.rgb[i] * (1 - sel.alpha));
-  return { fg: toHex(fg.rgb), bg: toHex(bg.rgb), selectionFg: toHex(fg.rgb), selectionBg: toHex(blended) };
+  return { fg: toHex(fg.rgb), bg: toHex(bg.rgb), selectionFg: toHex(selFg.rgb), selectionBg: toHex(blended) };
 }
 
 export function currentTerminalColors(): TerminalColors | null {

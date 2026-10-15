@@ -60,7 +60,24 @@
       "confirmMasterPasswordPlaceholder": "确认主密码",
       "errorPasswordRequired": "需要密码",
       "errorMinLength4": "至少 4 个字符",
-      "pleaseWait": "请稍候…"
+      "pleaseWait": "请稍候…",
+      "reauthTitle": "重新登录",
+      "reauthDesc": "此设备上的会话已结束。请输入主密码以重新连接。"
+    },
+    "twoFactor": {
+      "prompt": "请输入身份验证器应用中的 6 位验证码。",
+      "recoveryPrompt": "请输入一个恢复码。每个恢复码只能使用一次。",
+      "codePlaceholder": "6 位验证码",
+      "recoveryPlaceholder": "恢复码",
+      "useRecovery": "使用恢复码",
+      "useCode": "使用身份验证器验证码",
+      "verify": "验证",
+      "usePasskey": "使用通行密钥",
+      "passkeyOrCodePrompt": "请使用通行密钥，或输入身份验证器应用中的 6 位验证码。",
+      "passkeyOrRecoveryPrompt": "请使用通行密钥，或输入一个恢复码。",
+      "passkeyWaiting": "请在浏览器中继续，然后回到这里。",
+      "passkeyDoneTitle": "完成",
+      "passkeyDoneBody": "请返回 Voltius。您可以关闭此标签页。"
     },
     "mainPanel": {
       "noVaultSelectedTitle": "未选择保险库",
@@ -123,6 +140,9 @@
       "leaveLocalTitle": "离开此本地账户？",
       "leaveLocalMessage": "此账户的主机、密钥和代码片段仅存储在本机。切换到 {{account}} 将永久删除它们。",
       "leaveLocalConfirm": "删除并切换",
+      "removeTitle": "从此设备移除此账户？",
+      "removeMessage": "{{account}} 保存在此设备上的主机、密钥和代码片段将被删除。尚未同步的内容无法恢复。",
+      "removeConfirm": "移除",
       "autoLock": "自动锁定设置…",
       "autoLockOff": "自动锁定已关闭",
       "autoLockAfter": "{{duration}}后自动锁定",
@@ -157,6 +177,10 @@
       "enableArrow": "启用 →",
       "notConfigured": "未配置",
       "configureArrow": "配置 →",
+      "paused": "已暂停",
+      "resumeArrow": "继续 →",
+      "pause": "暂停同步",
+      "resume": "继续同步",
       "encryptedBlob": "加密数据块 · {{size}}",
       "status": {
         "syncing": "正在同步…",
@@ -165,9 +189,11 @@
         "error": "同步错误",
         "errorDetail": "同步错误：{{error}}",
         "errorDetailFrom": "同步错误 · {{source}}：{{error}}",
-        "offline": "离线",
+        "offline": "无法连接服务器",
+        "offlineDetail": "无法连接服务器：{{error}}",
         "idle": "空闲",
         "notConfigured": "同步未配置",
+        "paused": "同步已暂停",
         "default": "同步",
         "unknown": "未知"
       }

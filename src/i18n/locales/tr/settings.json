@@ -36,6 +36,20 @@
       "ignoreBracketedPaste": {
         "title": "Düz metin yapıştırma (köşeli ayraçlı yapıştırma yok)",
         "desc": "Metni \\x1b[200~ / \\x1b[201~ işaretleri olmadan düz metin olarak yapıştırır. Köşeli ayraçlı yapıştırmayı desteklemeyen sudo istemlerine veya CLI uygulamalarına yapıştırırken oluşan bozuk girdileri (örn. \"200~\") düzeltir."
+      },
+      "pasteImageAsPath": {
+        "title": "Görüntüleri dosya yolu olarak yapıştır",
+        "desc": "Pano bir görüntü içerdiğinde onu SSH sunucusuna yükler (~/.cache/voltius/pastes, yalnızca sahibi erişebilir, 7 gün sonra silinir) ve yolunu yapıştırır. Claude Code gibi sunucudaki araçların ekran görüntüsü eklemesini sağlar. Oradan başka bir sunucuya SSH ile geçerseniz yol bu ilk sunucuyu gösterir."
+      },
+      "keywordHighlight": {
+        "title": "Anahtar kelime vurgulama",
+        "desc": "Komut çıktısındaki “error” veya “warning” gibi kelimeleri renklendirir. Kabuk entegrasyonu olan oturumlarda çalışır.",
+        "addRule": "Kural ekle",
+        "deleteRule": "Kuralı sil",
+        "ruleEnabled": "Kuralı etkinleştir",
+        "color": "Renk",
+        "wordsPlaceholder": "Kelime ekle…",
+        "removeWord": "{{word}} kelimesini kaldır"
       }
     },
     "appearance": {
@@ -336,6 +350,11 @@
         "sub": "Kasanızı yeniden şifrelemeden parolanızı güncelleyin",
         "title": "Ana parolayı değiştir",
         "currentPlaceholder": "Mevcut parola",
+        "verifyWithDevice": "Unuttunuz mu? Bunun yerine {{method}} ile onaylayın",
+        "verifiedWithDevice": "Bu cihazda onaylandı",
+        "deviceReason": "Ana parolanızı değiştirmek için onaylayın",
+        "deviceFailed": "Bu cihaz kimliğinizi doğrulayamadı. Bunun yerine mevcut parolanızı girin.",
+        "deviceSignedOut": "Bu cihazın oturumu kapatıldı, büyük olasılıkla parola başka bir cihazda değiştirildi. Yeni parolayla yeniden oturum açın.",
         "newPlaceholder": "Yeni parola (en az 8 karakter)",
         "confirmPlaceholder": "Yeni parolayı doğrula",
         "errorCurrentRequired": "Mevcut parola gereklidir",
@@ -346,6 +365,53 @@
         "done": "Tamam",
         "changing": "Değiştiriliyor…",
         "changeBtn": "Parolayı değiştir"
+      },
+      "twoFactor": {
+        "label": "İki adımlı doğrulama",
+        "subOff": "Yeni bir cihazda oturum açarken kod veya geçiş anahtarı iste",
+        "subOn": "Açık. Yeni bir cihazda oturum açarken ikinci bir adım istenir",
+        "intro": "Ana parolanızdan sonra, yeni bir cihazda oturum açarken ikinci bir adım istenir. Birini seçin; diğerini sonra ekleyebilirsiniz.",
+        "introDevices": "Bunu açmak diğer cihazlarınızdaki oturumları kapatır. Yeniden oturum açmaları için güncel bir Voltius sürümü gerekir.",
+        "continue": "Devam",
+        "scan": "Bunu kimlik doğrulama uygulamanızla tarayın veya aşağıdaki anahtarı uygulamaya yazın.",
+        "qrLabel": "Kimlik doğrulama uygulamanız için QR kodu",
+        "copyKey": "Anahtarı kopyala",
+        "confirmPrompt": "Ardından uygulamanın gösterdiği 6 haneli kodu girin.",
+        "turnOn": "Aç",
+        "codesTitle": "Kurtarma kodlarınızı kaydedin",
+        "codesBody": "Kimlik doğrulama uygulamanızı veya geçiş anahtarınızı kaybederseniz her kod bir kez oturum açmanızı sağlar. Bir daha gösterilmezler.",
+        "copy": "Kopyala",
+        "copied": "Kopyalandı",
+        "save": "Dosyaya kaydet",
+        "saved": "Kaydettim",
+        "manageBody": "Yeni bir cihazda oturum açarken ana parolanızdan sonra bunlardan biri istenir.",
+        "newCodes": "Yeni kurtarma kodları",
+        "newCodesSub": "Mevcut kodlar geçersiz olur",
+        "turnOff": "Kapat",
+        "turnOffSub": "Yalnızca ana parolayla oturum aç",
+        "generate": "Oluştur",
+        "regeneratePrompt": "Kurtarma kodlarınızı değiştirmek için ikinci bir faktörle onaylayın.",
+        "disablePrompt": "İki adımlı doğrulamayı kapatmak için ana parolanızı girin ve ikinci bir faktörle onaylayın.",
+        "authenticator": "Kimlik doğrulama uygulaması",
+        "authenticatorSub": "Telefonunuzdaki bir uygulamadan 6 haneli kodlar",
+        "authenticatorOn": "Açık",
+        "authenticatorIntro": "Yeni bir cihazda oturum açarken kimlik doğrulama uygulamasından 6 haneli bir kod istenir.",
+        "passkey": "Geçiş anahtarı",
+        "passkeys": "Geçiş anahtarları",
+        "passkeySub": "Tarayıcınız üzerinden parmak izi, yüz veya güvenlik anahtarı",
+        "passkeyIntro": "Voltius, geçiş anahtarını oluşturmak için tarayıcınızı açar, sonra sizi buraya geri getirir.",
+        "passkeyName": "Ad, örneğin Dizüstü",
+        "passkeyCreate": "Tarayıcıda devam et",
+        "passkeyAdd": "Geçiş anahtarı ekle",
+        "passkeyAdded": "Eklenme: {{date}}",
+        "passkeyUsed": "son kullanım: {{date}}",
+        "passkeyRemove": "{{name}} anahtarını kaldır",
+        "remove": "Kaldır",
+        "removeAuthenticatorPrompt": "Kimlik doğrulama uygulamasını kaldırmak için ana parolanızı girin ve ikinci bir faktörle onaylayın.",
+        "removePasskeyPrompt": "“{{name}}” geçiş anahtarını kaldırmak için ana parolanızı girin ve ikinci bir faktörle onaylayın.",
+        "lastFactor": "Bu tek ikinci faktörünüz. Kaldırmak iki adımlı doğrulamayı kapatır ve diğer cihazlarınızdaki oturumları sonlandırır.",
+        "codesLeft": "Kullanılmamış kod: {{count}}",
+        "back": "Geri"
       },
       "setMasterPassword": {
         "label": "Ana parola belirle",
@@ -444,9 +510,15 @@
         "syncing": "Eşitleniyor…",
         "error": "Hata: {{error}}",
         "lastSync": "Son eşitleme: {{time}}",
-        "offline": "Çevrimdışı",
+        "offline": "Sunucuya ulaşılamıyor",
+        "offlineDetail": "Sunucuya ulaşılamıyor: {{error}}",
         "idle": "Henüz eşitlenmedi",
+        "paused": "Bu cihazda duraklatıldı",
         "syncNow": "Şimdi eşitle"
+      },
+      "pause": {
+        "label": "Bu cihazda eşitlemeyi duraklat",
+        "sub": "Sunucuyla arka plan eşitlemesini durdurur. Ekip kasaları güncellenmez ve siz sürdürene kadar açılışta yüklenmez. “Şimdi eşitle” yalnızca kendi verilerinizi eşitler."
       },
       "requiresPro": {
         "title": "Bulut eşitleme",
@@ -848,6 +920,12 @@
       },
       "ignoreBracketedPaste": {
         "label": "Düz Metin Yapıştırma (Köşeli Ayraçsız)"
+      },
+      "pasteImageAsPath": {
+        "label": "Görüntüleri Dosya Yolu Olarak Yapıştır"
+      },
+      "keywordHighlight": {
+        "label": "Anahtar Kelime Vurgulama"
       },
       "autoForward": {
         "label": "Otomatik Port Yönlendirme"

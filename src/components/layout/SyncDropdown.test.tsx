@@ -24,7 +24,7 @@ import { SyncDropdown } from "./SyncDropdown";
 const view = (over: Partial<SyncProviderView>): SyncProviderView => ({
   id: "x", label: "X", icon: "lucide:cloud", availability: "active",
   state: { ...NOT_CONFIGURED_SYNC_STATE, status: "success", configured: true },
-  syncNow: vi.fn(async () => {}), action: null, ...over,
+  syncNow: vi.fn(async () => {}), action: null, pauseToggle: null, ...over,
 });
 
 afterEach(() => { cleanup(); runAction.mockReset(); });
@@ -63,6 +63,62 @@ describe("SyncDropdown", () => {
     );
     fireEvent.click(getByText("layout.sync.syncNow"));
     expect(syncNow).toHaveBeenCalled();
+  });
+
+  test("a paused provider still syncs on demand and resumes from its row", () => {
+    const syncNow = vi.fn(async () => {});
+    const { getByText } = render(
+      <SyncDropdown anchorRef={createRef()} open onClose={() => {}} providers={[
+        view({ id: "voltius", availability: "paused", syncNow, action: { kind: "resume" } }),
+      ]} installer={installer} />,
+    );
+    expect(getByText("layout.sync.paused")).toBeTruthy();
+    fireEvent.click(getByText("layout.sync.syncNow"));
+    expect(syncNow).toHaveBeenCalled();
+    fireEvent.click(getByText("layout.sync.resumeArrow"));
+    expect(runAction).toHaveBeenCalledWith({ kind: "resume" });
+  });
+
+  test("an unreachable provider says so and shows why", () => {
+    const { getByText, queryByText } = render(
+      <SyncDropdown anchorRef={createRef()} open onClose={() => {}} providers={[
+        view({ id: "voltius", state: { ...NOT_CONFIGURED_SYNC_STATE, status: "offline", error: "connection refused", configured: true } }),
+      ]} installer={installer} />,
+    );
+    expect(getByText("layout.sync.status.offline")).toBeTruthy();
+    expect(getByText("connection refused")).toBeTruthy();
+    expect(queryByText("layout.sync.status.error")).toBeNull();
+  });
+
+  test("the pause button pauses a syncing provider and leaves the menu open", () => {
+    const onClose = vi.fn();
+    const { getByTitle } = render(
+      <SyncDropdown anchorRef={createRef()} open onClose={onClose} providers={[
+        view({ id: "voltius", pauseToggle: { kind: "pause" } }),
+      ]} installer={installer} />,
+    );
+    fireEvent.click(getByTitle("layout.sync.pause"));
+    expect(runAction).toHaveBeenCalledWith({ kind: "pause" });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  test("the same button resumes a paused provider", () => {
+    const { getByTitle, queryByTitle } = render(
+      <SyncDropdown anchorRef={createRef()} open onClose={() => {}} providers={[
+        view({ id: "voltius", availability: "paused", action: { kind: "resume" }, pauseToggle: { kind: "resume" } }),
+      ]} installer={installer} />,
+    );
+    expect(queryByTitle("layout.sync.pause")).toBeNull();
+    fireEvent.click(getByTitle("layout.sync.resume"));
+    expect(runAction).toHaveBeenCalledWith({ kind: "resume" });
+  });
+
+  test("a provider that cannot be paused shows no pause button", () => {
+    const { queryByTitle } = render(
+      <SyncDropdown anchorRef={createRef()} open onClose={() => {}} providers={[view({ id: "plugin-gist-sync" })]} installer={installer} />,
+    );
+    expect(queryByTitle("layout.sync.pause")).toBeNull();
+    expect(queryByTitle("layout.sync.resume")).toBeNull();
   });
 
   test("lists uninstalled catalogue providers and installs through the shared installer", () => {

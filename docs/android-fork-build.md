@@ -66,6 +66,35 @@ runtime behavior. CI artifacts preserve LICENSE and the upstream NOTICE.md.
 
 ## Daily candidate and maintenance branches
 
+The 2026-10-15 candidate starts from retained PR #6 commit
+`dcda1eb46f58a93354b37152677402aba321c450` and merges fixed upstream `main`/`dev`
+commit `b461cac8a86df0ce5a57f868380cd027d7022dba` (version 0.57.0).
+Maintenance remains at `4e83ff5e685285b59f865d31526c4a1b66fd90c9` until the
+exact candidate passes every required validation. PR #6's zsh installation,
+shell suite and assertions remain. All selected native suites now record their
+own exit code and run to completion, with any failure making the CI job fail.
+An APK that compiles is statically checked and preserved even when native
+regressions fail; this supplies evidence and does not authorize promotion.
+Additional host suites cover account profile storage, editor/image paste and
+SSH execution changes with synthetic fixtures. Device runtime remains untested.
+
+Upstream 0.57.0 declares Android foreground-service/special-use and notification
+permissions for mobile SSH tunnels. This build does not install the app or grant
+device permissions; the declarations remain visible in the candidate source and
+APK manifest for review. No account/cloud permission or signing credential is
+added by this workflow.
+
+The 2026-10-12 candidate starts from validated maintenance commit
+`4e83ff5e685285b59f865d31526c4a1b66fd90c9` and merges the fixed upstream
+`main`/`dev` commit `035b9aeb3a0b32b5ec819c065e4dc629ce36fa7b` (version 0.55.0).
+Both upstream branches pointed to that same release commit at the check.
+Existing Android adaptations and history remain. CI also runs upstream's new
+passkey-loopback and updated shell-integration tests on the Linux host; zsh is
+installed so its command-mark regression executes rather than returning early.
+The full frontend suite covers account/two-factor/passkey/deep-link and sync
+changes with synthetic fixtures. No user account, security key or phone is used;
+these tests do not establish Android browser/passkey or terminal runtime behavior.
+
 The 2026-10-11 candidate starts from validated maintenance commit
 `47a009190e9c3cb4bf2678f37d8dfe26a59ec113` and merges the fixed upstream `dev`
 commit `c8f330bdc9ed4daee5945eac8474dca4a7554dcc` (version 0.53.0). This includes

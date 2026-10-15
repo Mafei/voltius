@@ -64,7 +64,9 @@
       "undoFailed": "Vrácení zpět se nezdařilo: {{error}}",
       "redoFailed": "Opakování se nezdařilo: {{error}}",
       "fileSaved": "Uloženo do {{path}}",
-      "fileSaveFailed": "Soubor se nepodařilo uložit: {{error}}"
+      "fileSaveFailed": "Soubor se nepodařilo uložit: {{error}}",
+      "sessionRevoked": "Toto zařízení bylo odhlášeno z vašeho účtu Voltius. Přihlaste se znovu, aby synchronizace pokračovala.",
+      "signInAgain": "Přihlásit se"
     },
     "error": {
       "identityPickUnavailable": "Vaše identita pro {{host}} není k dispozici",
@@ -170,6 +172,8 @@
       "secretsUploadPending": "Přesunuto, ale přihlašovací údaje se zatím nepodařilo nahrát. Zůstávají na tomto zařízení a pokus o nahrání se zopakuje při příštím načtení trezoru: {{error}}",
       "failedToSaveTeamSecret": "Týmové tajemství se nepodařilo uložit: {{status}}",
       "serverLacksTeamSecretType": "Tento server Voltius je příliš starý na to, aby toto uložil do týmového trezoru. Požádejte jeho správce o aktualizaci serveru a pak uložte znovu.",
+      "teamSecretRefused": "Týmový trezor tuto hodnotu nepřijal, takže nebyla uložena: {{error}}",
+      "teamSecretUploadPending": "Zatím nenahráno do týmového trezoru. Hodnota zůstane uložena do zavření aplikace Voltius a pokus o nahrání se zopakuje při příštím načtení trezoru: {{error}}",
       "failedToLoadServerCapabilities": "Nepodařilo se ověřit, co server podporuje ({{status}})",
       "keyFetchFailed": "Načtení klíče se nezdařilo: {{error}}",
       "failedToUploadVaultKeys": "Klíče trezoru se nepodařilo nahrát: {{status}}",
@@ -203,7 +207,16 @@
       "inviteCodeMalformed": "Tento kód nemá správný formát",
       "inviteCodeNotFound": "Platnost kódu vypršela nebo je nesprávný",
       "inviteCodeTooManyAttempts": "Příliš mnoho pokusů — chvíli počkejte a zkuste to znovu",
-      "businessPlanRequired": "To vyžaduje týmový tarif Business."
+      "businessPlanRequired": "To vyžaduje týmový tarif Business.",
+      "twoFactorRequired": "Potvrďte druhým faktorem: kódem, přístupovým klíčem nebo záložním kódem.",
+      "twoFactorInvalid": "Nesprávný kód. Zkuste další, který aplikace zobrazí.",
+      "twoFactorLocked": "Příliš mnoho nesprávných kódů. Zkuste to znovu za 15 minut.",
+      "twoFactorUnavailable": "Tento server teď nemůže ověřovat kódy z ověřovací aplikace. Použijte záložní kód.",
+      "twoFactorAlreadyEnabled": "Dvoufázové ověření je už zapnuté.",
+      "twoFactorNotEnabled": "Dvoufázové ověření není zapnuté.",
+      "twoFactorExpired": "Přihlášení trvalo příliš dlouho. Začněte znovu.",
+      "passkeyIncomplete": "Krok s přístupovým klíčem nebyl dokončen. Zkuste to znovu.",
+      "passkeyLimit": "Tento účet už má nejvyšší možný počet přístupových klíčů."
     },
     "clipboard": {
       "cut_one": "Vyjmuta {{count}} položka",

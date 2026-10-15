@@ -6,6 +6,7 @@ import { CardActionButton, CardMenuButton, CardMenuContext, CardPinButton } from
 import { ContextMenu, useContextMenu, type ContextMenuItem } from "@/components/shared/ContextMenu";
 import { clipboardMenuItems } from "@/utils/clipboardMenuItems";
 import { buildFolderMenuItems } from "@/utils/folderMenuItems";
+import { isPlainClick } from "@/utils/cardInteraction";
 import { useInlineRename } from "@/hooks/useInlineRename";
 import { folderIcon } from "./folderAppearance";
 import { useFolderPin } from "./useFolderPin";
@@ -118,8 +119,12 @@ export function FolderCard({
             ? { backdropFilter: "blur(12px) saturate(1.5)", WebkitBackdropFilter: "blur(12px) saturate(1.5)" }
             : {}),
         }}
-        onClick={(e) => { e.stopPropagation(); if (!rename.editor) onSelect?.(folder.id, e); }}
-        onDoubleClick={() => { if (!rename.editor) onOpen(); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (rename.editor) return;
+          if (isPlainClick(e)) onOpen();
+          else onSelect?.(folder.id, e);
+        }}
         onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); if (!isSelected) onSelect?.(folder.id, e); openCtx(e); }}
         onPointerDown={onPointerDown}
         onMouseEnter={(e) => {

@@ -1,6 +1,6 @@
 [package]
 name = "voltius"
-version = "0.53.0"
+version = "0.57.0"
 description = "Open-Source SSH & SFTP Client"
 authors = ["Voltius Contributors"]
 edition = "2021"
@@ -20,6 +20,8 @@ url = "2"
 quick-xml = "0.39"
 httpdate = "1"
 percent-encoding = "2"
+infer = "0.19"
+png = "0.17"
 tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-shell = "2"
 tauri-plugin-opener = "2"

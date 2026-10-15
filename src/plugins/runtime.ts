@@ -51,10 +51,10 @@ import { addKeyToHost } from "@/services/keyExport";
 import { isValidSshPublicKey } from "@/services/sshPublicKey";
 import type { Connection, TerminalSession } from "@/types";
 import { storePluginSecret, getPluginSecret, deletePluginSecret, storeSecret, deleteLocalSecret } from "@/services/vault";
-import { keepCachedOnUploadFailure } from "@/services/secretRouting";
+import { reportUploadFailure } from "@/services/secretRouting";
 import { appFetch } from "@/services/http";
 import { sseFetch } from "@/services/sseFetch";
-import { registerLxcExecSession } from "@/services/proxmox";
+import { registerExecSession } from "@/services/execSession";
 import { PLUGIN_AUDIT_ACTIONS } from "@/services/auditContext";
 import { auditContextForVaultId } from "@/services/auditContextResolver";
 import { reportPluginAuditEvent } from "@/services/auditReporter";
@@ -1019,8 +1019,8 @@ function createPluginAPI(manifest: PluginManifest): PluginAPI {
           throw new Error("publicKey is not a valid SSH public key");
         }
         const key = await keyService.saveKey({ name: data.name, key_type: data.key_type, tags: data.tags ?? [] });
-        await storeSecret(`key:${key.id}:private`, privateKey).catch(keepCachedOnUploadFailure("plugin: keys.create"));
-        if (publicKey) await storeSecret(`key:${key.id}:public`, publicKey).catch(keepCachedOnUploadFailure("plugin: keys.create"));
+        await storeSecret(`key:${key.id}:private`, privateKey).catch(reportUploadFailure("plugin: keys.create"));
+        if (publicKey) await storeSecret(`key:${key.id}:public`, publicKey).catch(reportUploadFailure("plugin: keys.create"));
         return key as PluginKey;
       },
       async delete(keyId) {
@@ -2023,18 +2023,11 @@ function createPluginAPI(manifest: PluginManifest): PluginAPI {
         // (sessions:write only covers connecting *saved connections*), so this lives
         // here rather than in the pure domains/proxmox.ts invoke wrapper. The mobile
         // Proxmox screen calls this same api.proxmox.lxc.openShell — see
-        // @/services/proxmox.ts's registerLxcExecSession for the shared bookkeeping.
+        // @/services/execSession.ts's registerExecSession for the shared bookkeeping.
         openShell: async (sessionId, vmid, vmName) => {
           requireGated("proxmox:manage");
           const execSessionId = await proxmoxApi.lxc.openShell(sessionId, vmid);
-          const parent = useSessionStore.getState().sessions.find((s) => s.id === sessionId);
-          await registerLxcExecSession({
-            execSessionId,
-            parentSessionId: sessionId,
-            connectionId: parent?.connectionId ?? "",
-            vmid,
-            vmName,
-          });
+          await registerExecSession(execSessionId, `pct: ${vmName ?? vmid}`, { kind: "lxc", vmid, parentSessionId: sessionId });
           return execSessionId;
         },
         snapshots: {
@@ -2135,28 +2128,7 @@ function createPluginAPI(manifest: PluginManifest): PluginAPI {
 
           if (target.isRemote) {
             const execSessionId = await dockerApi.exec.open(target, containerId);
-            const parent = useSessionStore.getState().sessions.find((s) => s.id === target.sessionId);
-            useSessionStore.setState((s) => ({
-              sessions: [
-                ...s.sessions,
-                {
-                  id: execSessionId,
-                  connectionId: parent?.connectionId ?? "",
-                  connectionName: label,
-                  status: "connecting" as const,
-                  type: "ssh" as const,
-                  containerExec: { kind: "docker" as const, containerId, parentSessionId: target.sessionId },
-                  connectedUsername: parent?.connectedUsername,
-                },
-              ],
-              activeSessionId: execSessionId,
-            }));
-            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-            useSessionStore.setState((s) => ({
-              sessions: s.sessions.map((sess) =>
-                sess.id === execSessionId ? { ...sess, status: "connected" as const } : sess,
-              ),
-            }));
+            await registerExecSession(execSessionId, label, { kind: "docker", containerId, parentSessionId: target.sessionId });
             return execSessionId;
           }
 

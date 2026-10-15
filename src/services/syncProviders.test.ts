@@ -31,6 +31,7 @@ function inputs(over: Partial<SyncProviderInputs> = {}): SyncProviderInputs {
       state: { status: "success", lastSync: new Date("2026-09-01T09:00:00Z"), error: null, blobSizeBytes: null },
       accountMode: "server",
       isPro: true,
+      paused: false,
       syncNow: vi.fn(async () => {}),
     },
     plugins: [],
@@ -65,6 +66,36 @@ describe("buildSyncProviders", () => {
     const [pro] = buildSyncProviders(inputs());
     expect(pro).toMatchObject({ availability: "active", action: null });
     expect(pro.state.configured).toBe(true);
+  });
+
+  test("only a Voltius provider that is syncing or paused can be switched", () => {
+    const [active] = buildSyncProviders(inputs());
+    expect(active.pauseToggle).toEqual({ kind: "pause" });
+    const [paused] = buildSyncProviders(inputs({ voltius: { ...inputs().voltius, paused: true } }));
+    expect(paused.pauseToggle).toEqual({ kind: "resume" });
+    const [signedOut] = buildSyncProviders(inputs({ voltius: { ...inputs().voltius, accountMode: "local" } }));
+    expect(signedOut.pauseToggle).toBeNull();
+    const [free] = buildSyncProviders(inputs({ voltius: { ...inputs().voltius, isPro: false } }));
+    expect(free.pauseToggle).toBeNull();
+    const [, gist] = buildSyncProviders(inputs({ plugins: [plugin({ manifest: manifest("plugin-gist-sync", "GitHub Gist Sync") })] }));
+    expect(gist.pauseToggle).toBeNull();
+  });
+
+  test("a paused Voltius provider keeps Sync now and offers to resume", () => {
+    const [paused] = buildSyncProviders(inputs({ voltius: { ...inputs().voltius, paused: true } }));
+    expect(paused).toMatchObject({ availability: "paused", action: { kind: "resume" } });
+    expect(paused.syncNow).not.toBeNull();
+    expect(paused.state.configured).toBe(false);
+  });
+
+  test("a signed-out account is asked to sign in even if this device is paused", () => {
+    const [signedOut] = buildSyncProviders(inputs({ voltius: { ...inputs().voltius, accountMode: "local", paused: true } }));
+    expect(signedOut.availability).toBe("locked");
+  });
+
+  test("a pause set before a downgrade stays visible so it can still be lifted", () => {
+    const [free] = buildSyncProviders(inputs({ voltius: { ...inputs().voltius, isPro: false, paused: true } }));
+    expect(free).toMatchObject({ availability: "paused", action: { kind: "resume" } });
   });
 
   test("plugin availability: disabled, not configured, never published, active", () => {
@@ -127,6 +158,11 @@ describe("aggregateSyncStatus", () => {
     expect(effective).toMatchObject({ configured: true, status: "error", error: "Sync token is invalid or expired", errorSource: "P1" });
   });
 
+  test("an unreachable provider keeps its reason but is not named as a failing source", () => {
+    const effective = aggregateSyncStatus(providersWith({ status: "success" }, { status: "offline", error: "connection refused" }));
+    expect(effective).toMatchObject({ status: "offline", error: "connection refused", errorSource: null });
+  });
+
   test("rank order is error > offline > syncing > success > idle", () => {
     expect(aggregateSyncStatus(providersWith({ status: "syncing" }, { status: "offline" })).status).toBe("offline");
     expect(aggregateSyncStatus(providersWith({ status: "success" }, { status: "syncing" })).status).toBe("syncing");
@@ -151,7 +187,22 @@ describe("aggregateSyncStatus", () => {
 
   test("with no active provider it falls back to the Voltius state, unconfigured", () => {
     const providers = buildSyncProviders(inputs({ voltius: { ...inputs().voltius, accountMode: "local", state: { status: "idle", lastSync: null, error: null, blobSizeBytes: null } } }));
-    expect(aggregateSyncStatus(providers)).toEqual({ configured: false, status: "idle", lastSync: null, error: null, errorSource: null });
+    expect(aggregateSyncStatus(providers)).toEqual({ configured: false, paused: false, status: "idle", lastSync: null, error: null, errorSource: null });
+  });
+
+  test("a paused Voltius provider is left out of the status and reported as paused", () => {
+    const providers = buildSyncProviders(inputs({
+      voltius: { ...inputs().voltius, paused: true, state: { status: "error", lastSync: null, error: "unreachable", blobSizeBytes: null } },
+    }));
+    expect(aggregateSyncStatus(providers)).toMatchObject({ configured: false, paused: true });
+  });
+
+  test("an active plugin provider still drives the status while Voltius is paused", () => {
+    const providers = buildSyncProviders(inputs({
+      voltius: { ...inputs().voltius, paused: true },
+      plugins: [plugin({ manifest: manifest("p", "P") })],
+    }));
+    expect(aggregateSyncStatus(providers)).toMatchObject({ configured: true, paused: false, status: "success" });
   });
 
   test("when Voltius and a plugin both fail, the first provider in the list wins the tie", () => {

@@ -1535,8 +1535,12 @@ mod tests {
         if !has_zsh {
             return;
         }
+        // Test these hooks, not /etc/zsh/zshrc. Ubuntu's global rc runs compinit;
+        // an insecure completion directory makes it abort with status 1 when
+        // stdin is a pipe, poisoning the first prompt before any command ran.
+        // -d skips global rc files while still loading our ZDOTDIR/.zshenv.
         let marks = prompt_marks(
-            r#"ZDOTDIR="$RC_DIR" zsh -i"#,
+            r#"ZDOTDIR="$RC_DIR" zsh -d -i"#,
             zsh_hooks!("file://%s%s", "${HOST}"),
             ".zshenv",
         );

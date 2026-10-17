@@ -8,3 +8,4 @@ pub mod session;
 pub mod test_docker;
 #[cfg(test)]
 pub mod test_proc_server;
+pub mod tmux;

@@ -10,11 +10,18 @@ use crate::ssh::{
 use std::sync::Arc;
 use tauri::AppHandle;
 
+#[derive(serde::Serialize)]
+pub struct SshConnectResult {
+    pub tmux_listing: Option<crate::ssh::tmux::TmuxListing>,
+    pub tmux_session: Option<crate::ssh::tmux::TmuxSession>,
+}
+
 #[tauri::command]
 pub async fn ssh_connect(
     app: AppHandle,
     state: tauri::State<'_, SessionManager>,
     pf: tauri::State<'_, PortForwardManager>,
+    pickers: tauri::State<'_, crate::ssh::tmux::TmuxPickers>,
     known_hosts: tauri::State<'_, Arc<KnownHostsStore>>,
     pending_conflicts: tauri::State<'_, Arc<PendingConflicts>>,
     session_id: String,
@@ -43,36 +50,81 @@ pub async fn ssh_connect(
     proxy: Option<ProxySpec>,
     terminal_colors: Option<crate::ssh::control_mode::TerminalColors>,
     knock: Option<KnockSpec>,
-) -> Result<(), AppError> {
-    let connected = client::connect(
+    prepare_tmux: Option<bool>,
+    prepared_id: Option<String>,
+    tmux: Option<crate::ssh::tmux::TmuxChoice>,
+) -> Result<SshConnectResult, AppError> {
+    let authenticated = if let Some(id) = prepared_id {
+        pickers.take(&id, &host, port, &username).await?
+    } else {
+        client::authenticate_connection(
+            app.clone(),
+            session_id.clone(),
+            &host,
+            port,
+            &username,
+            password.as_deref(),
+            private_key.as_deref(),
+            passphrase.as_deref(),
+            jump_hosts.unwrap_or_default(),
+            agent_forwarding,
+            Arc::clone(&*known_hosts),
+            Arc::clone(&*pending_conflicts),
+            keepalive_interval_secs.unwrap_or(3),
+            keepalive_max.unwrap_or(3),
+            legacy_algorithms.unwrap_or(false),
+            HopRoute { proxy, knock },
+        )
+        .await?
+    };
+    if prepare_tmux.unwrap_or(false) {
+        let listing = match crate::ssh::tmux::list(&authenticated).await {
+            Ok(listing) => listing,
+            Err(error) => {
+                crate::ssh::tmux::disconnect(&authenticated).await;
+                return Err(error.into());
+            }
+        };
+        pickers
+            .insert(session_id, host, port, username, authenticated)
+            .await?;
+        return Ok(SshConnectResult {
+            tmux_listing: Some(listing),
+            tmux_session: None,
+        });
+    }
+    let cleanup_handle = Arc::clone(&authenticated.handle);
+    let cleanup_jumps = authenticated.jump_handles.clone();
+    let connected = match client::connect(
         app,
         session_id.clone(),
-        &host,
-        port,
-        &username,
-        password.as_deref(),
-        private_key.as_deref(),
-        passphrase.as_deref(),
-        jump_hosts.unwrap_or_default(),
+        authenticated,
         env_vars.unwrap_or_default(),
         agent_forwarding,
         pre_command,
         shell_integration.unwrap_or(true),
-        Arc::clone(&*known_hosts),
-        Arc::clone(&*pending_conflicts),
-        keepalive_interval_secs.unwrap_or(3),
-        keepalive_max.unwrap_or(3),
         persist.unwrap_or(true),
         restore.unwrap_or(false),
         attach_only.unwrap_or(false),
         cols.filter(|c| *c > 0).unwrap_or(80),
         rows.filter(|r| *r > 0).unwrap_or(24),
-        legacy_algorithms.unwrap_or(false),
         initial_cwd,
-        HopRoute { proxy, knock },
         terminal_colors,
+        tmux,
     )
-    .await?;
+    .await
+    {
+        Ok(connected) => connected,
+        Err(error) => {
+            for handle in std::iter::once(&cleanup_handle).chain(cleanup_jumps.iter()) {
+                let _ = handle
+                    .disconnect(russh::Disconnect::ByApplication, "Connect failed", "en")
+                    .await;
+            }
+            return Err(error);
+        }
+    };
+    let tmux_session = connected.user_tmux.clone();
 
     state.add(session_id.clone(), connected).await;
 
@@ -97,6 +149,20 @@ pub async fn ssh_connect(
         let _ = pf.set_auto_detect(&session_id, auto_forward, handle).await;
     }
 
+    Ok(SshConnectResult {
+        tmux_listing: None,
+        tmux_session,
+    })
+}
+
+#[tauri::command]
+pub async fn ssh_tmux_cancel(
+    pickers: tauri::State<'_, crate::ssh::tmux::TmuxPickers>,
+    pending_conflicts: tauri::State<'_, Arc<PendingConflicts>>,
+    prepared_id: String,
+) -> Result<(), String> {
+    pending_conflicts.cancel(&prepared_id).await;
+    pickers.cancel(&prepared_id).await;
     Ok(())
 }
 

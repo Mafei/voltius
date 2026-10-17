@@ -237,6 +237,25 @@
         "newVault": "新建保险库",
         "namePlaceholder": "保险库名称"
       }
+    },
+    "tmux": {
+      "title": "选择终端会话",
+      "scope": "列出当前 SSH 用户默认 tmux 服务中的会话。关闭 Tab 只断开本客户端。",
+      "connecting": "正在连接鉴权并检查 tmux…",
+      "opening": "正在打开会话…",
+      "missing": "此主机未安装或不支持 tmux。可以打开普通 SSH；应用不会自动安装软件。",
+      "empty": "目前没有 tmux 会话。可在下方新建，或打开普通 SSH。",
+      "details": "{{windows}} 个窗口 · {{attached}} 个已连接客户端",
+      "newName": "新 tmux 会话名称",
+      "nameHint": "名称必须唯一，最多 128 个 UTF-8 字节，不含点、冒号或控制字符，且不能以短横线开头。重名会报错。",
+      "create": "新建会话",
+      "refresh": "刷新会话 / 重试",
+      "plain": "打开普通 SSH",
+      "duplicate": "同名 tmux 会话已经存在。请刷新列表后选择它，或使用其他名称。",
+      "expired": "列表已过期或远端会话已改变。请刷新后再选择。",
+      "invalidName": "会话名称无效，请检查下方命名规则。",
+      "timeout": "tmux 操作超时。请先刷新确认是否已完成，避免重复新建。",
+      "identityChanged": "主机或 SSH 用户已改变，请从 Hosts 重新选择 tmux 会话。"
     }
   }
 }

@@ -28,6 +28,9 @@ export interface SnapshotSession {
   title?: string;
   /** Whether persistence (tmux/screen) was active when it connected. */
   persist: boolean;
+  sshMode?: { kind: "plain" } | { kind: "tmux"; session: {
+    id: string; name: string; created: number; server_pid: number; windows: number; attached: number;
+  }; username: string; endpoint: string };
   cwd?: string;
   localShell?: string;
   serialConfig?: SnapshotSerialConfig;
@@ -63,6 +66,7 @@ export interface SessionInput {
   connectionName: string;
   title?: string;
   persist?: boolean;
+  sshMode?: SnapshotSession["sshMode"];
   encoding?: string;
   localShell?: string;
   serialConfig?: SnapshotSerialConfig;
@@ -96,7 +100,8 @@ export function buildSnapshot(input: {
       connectionId: s.connectionId,
       connectionName: s.connectionName,
       title: s.title,
-      persist: s.persist ?? false,
+      persist: s.sshMode ? false : s.persist ?? false,
+      sshMode: s.sshMode,
       cwd: input.cwds[s.id],
       localShell: s.localShell,
       serialConfig: s.serialConfig,
@@ -122,12 +127,23 @@ export function buildSnapshot(input: {
 function isValidSession(x: unknown): x is SnapshotSession {
   if (!x || typeof x !== "object") return false;
   const s = x as SnapshotSession;
+  const mode = s.sshMode;
+  if (mode !== undefined && (!mode || typeof mode !== "object" ||
+    (mode.kind !== "plain" && !(mode.kind === "tmux" && validTmuxMode(mode))))) return false;
   return (
     typeof s.id === "string" &&
     typeof s.connectionId === "string" &&
     typeof s.connectionName === "string" &&
     (s.type === "ssh" || s.type === "local" || s.type === "serial")
   );
+}
+
+function validTmuxMode(mode: Extract<NonNullable<SnapshotSession["sshMode"]>, { kind: "tmux" }>): boolean {
+  const tmux = mode.session;
+  return typeof mode.username === "string" && !!mode.username && typeof mode.endpoint === "string" && !!mode.endpoint && !!tmux && typeof tmux.name === "string" && !!tmux.name &&
+    typeof tmux.id === "string" && /^\$\d+$/.test(tmux.id) &&
+    Number.isSafeInteger(tmux.created) && tmux.created >= 0 &&
+    Number.isSafeInteger(tmux.server_pid) && tmux.server_pid > 0;
 }
 
 /** Validate a raw (rehydrated) snapshot. Returns null when the whole
@@ -160,7 +176,8 @@ export function parseSnapshot(raw: unknown): WorkspaceSnapshot | null {
     sessions: s.sessions.filter(isValidSession).map((x) => ({
       ...x,
       title: typeof x.title === "string" ? x.title : undefined,
-      persist: x.persist === true,
+      persist: x.sshMode ? false : x.persist === true,
+      sshMode: x.sshMode,
       scrollLinesFromBottom:
         typeof x.scrollLinesFromBottom === "number" && x.scrollLinesFromBottom > 0
           ? Math.floor(x.scrollLinesFromBottom)

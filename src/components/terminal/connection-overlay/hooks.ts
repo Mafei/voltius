@@ -74,9 +74,11 @@ export function useHostKeyConflict({
   conflict: HostKeyConflictEvent | null;
   resolving: boolean;
   resolveConflict: (action: HostKeyConflictAction) => Promise<void>;
+  listening: boolean;
 } {
   const [conflict, setConflict] = useState<HostKeyConflictEvent | null>(null);
   const [resolving, setResolving] = useState(false);
+  const [boundEvent, setBoundEvent] = useState<string | null>(null);
 
   useEffect(() => {
     if (!conflictEventName) return;
@@ -86,6 +88,7 @@ export function useHostKeyConflict({
       if (cancelled || event.payload.session_id !== sessionId) return;
       setConflict(event.payload);
     });
+    void unlisten.then(() => { if (!cancelled) setBoundEvent(conflictEventName); });
 
     return () => {
       cancelled = true;
@@ -110,5 +113,5 @@ export function useHostKeyConflict({
     }
   }
 
-  return { conflict, resolving, resolveConflict };
+  return { conflict, resolving, resolveConflict, listening: boundEvent === conflictEventName };
 }

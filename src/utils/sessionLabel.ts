@@ -18,13 +18,13 @@ export function normalizeTabTitle(raw: string | null | undefined): string | unde
  * it, else the connection it opened. Renaming the connection upstream therefore
  * only moves the fallback — a custom title always wins.
  */
-export function sessionLabel(session: Pick<TerminalSession, "connectionName" | "title">): string {
-  return session.title ?? session.connectionName;
+export function sessionLabel(session: Pick<TerminalSession, "connectionName" | "title" | "sshMode">): string {
+  return session.sshMode?.kind === "tmux" ? session.sshMode.session.name : session.title ?? session.connectionName;
 }
 
 /** Search matches the tab name and the connection name, so a renamed tab stays findable by host. */
-export function sessionMatchesQuery(session: Pick<TerminalSession, "connectionName" | "title">, query: string): boolean {
-  return searchMatcher(query)(session.title, session.connectionName);
+export function sessionMatchesQuery(session: Pick<TerminalSession, "connectionName" | "title" | "sshMode">, query: string): boolean {
+  return searchMatcher(query)(sessionLabel(session), session.title, session.connectionName);
 }
 
 /**
@@ -33,7 +33,7 @@ export function sessionMatchesQuery(session: Pick<TerminalSession, "connectionNa
  */
 export function splitTabLabel(
   tab: Pick<SplitTab, "name">,
-  activeSession: Pick<TerminalSession, "connectionName" | "title"> | undefined,
+  activeSession: Pick<TerminalSession, "connectionName" | "title" | "sshMode"> | undefined,
   fallback: string,
 ): string {
   return tab.name ?? (activeSession ? sessionLabel(activeSession) : fallback);

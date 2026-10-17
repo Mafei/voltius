@@ -218,6 +218,16 @@ fn listing_result(result: super::exec::Captured) -> Result<TmuxListing, String> 
     }
 }
 
+fn tmux_name_argument(name: &str) -> String {
+    // -s is format-expanded, and tmux's argv parser treats a final ';' as a command separator.
+    // Shell quoting alone protects neither layer; preserve names as data in both parsers.
+    let mut argument = name.replace('#', "##");
+    if argument.ends_with(';') {
+        argument.insert(argument.len() - 1, '\\');
+    }
+    argument
+}
+
 fn choice_command(choice: &TmuxChoice) -> Result<String, String> {
     let format = super::exec::shell_quote(SESSION_FORMAT);
     let (command, argument) = match choice {
@@ -227,7 +237,7 @@ fn choice_command(choice: &TmuxChoice) -> Result<String, String> {
             }
             (
                 format!("tmux display-message -p -t \"$1\" {format}"),
-                id.as_str(),
+                id.clone(),
             )
         }
         TmuxChoice::Create { name } => {
@@ -235,13 +245,13 @@ fn choice_command(choice: &TmuxChoice) -> Result<String, String> {
             // tmux performs the unique-name check atomically. Never use new-session -A.
             (
                 format!("tmux new-session -d -P -F {format} -s \"$1\""),
-                name.as_str(),
+                tmux_name_argument(name),
             )
         }
     };
     Ok(sh_c(
         &format!("unset TMUX TMUX_PANE; {command}"),
-        &[argument],
+        &[argument.as_str()],
     ))
 }
 
@@ -316,6 +326,11 @@ mod tests {
 
     #[test]
     fn names_are_quoted_as_data_and_never_create_or_attach_by_accident() {
+        assert_eq!(
+            tmux_name_argument("工作 #S #{pid} #(printf BAD);"),
+            "工作 ##S ##{pid} ##(printf BAD)\\;"
+        );
+        assert_eq!(tmux_name_argument("backslash\\;"), "backslash\\\\;");
         let name = "work ' $(touch /tmp/SHOULD_NOT_EXIST); 测试";
         let cmd = choice_command(&TmuxChoice::Create { name: name.into() }).unwrap();
         assert!(cmd.contains("new-session -d -P"));
@@ -375,7 +390,10 @@ mod tests {
             std::path::Path::new(&binary).exists(),
             "Install tmux in the isolated test runner"
         );
-        let directory = tempfile::tempdir().unwrap();
+        let directory = tempfile::Builder::new()
+            .prefix("voltius-tmux-")
+            .tempdir()
+            .unwrap();
         let socket = directory.path().join("tmux.sock");
         let launcher = directory.path().join("tmux");
         std::fs::write(
@@ -411,8 +429,12 @@ mod tests {
                 .output()
                 .unwrap()
         };
-        let name = "工作 ' $(printf BAD); session";
-        let create = choice_command(&TmuxChoice::Create { name: name.into() }).unwrap();
+        let marker = directory.path().join("name-evaluated");
+        let name = format!(
+            "工作 #{{session_name}} #(touch {}) ' $(printf BAD);",
+            marker.display()
+        );
+        let create = choice_command(&TmuxChoice::Create { name: name.clone() }).unwrap();
         let first = run(&create);
         assert!(
             first.status.success(),
@@ -423,6 +445,10 @@ mod tests {
             .unwrap()
             .remove(0);
         assert_eq!(created.name, name);
+        assert!(
+            !marker.exists(),
+            "a name must never execute a tmux format job"
+        );
         let duplicate = run(&create);
         assert!(
             !duplicate.status.success(),
@@ -446,5 +472,6 @@ mod tests {
             parse_listing(std::str::from_utf8(&check.stdout).unwrap()).unwrap()[0].name,
             name
         );
+        assert!(!marker.exists());
     }
 }

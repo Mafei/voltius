@@ -128,7 +128,7 @@ pub async fn list(
 pub struct Launch {
     pub command: String,
     pub session: Option<RemoteSession>,
-    pub pending_zellij: Option<(String, String)>,
+    pub pending_zellij: Option<zellij::PendingCreation>,
 }
 
 pub async fn resolve(

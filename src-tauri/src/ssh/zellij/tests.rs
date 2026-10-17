@@ -140,11 +140,18 @@ impl Fixture {
         // Exercise session/PTY behavior without unrelated default plugin startup or release UI.
         let layout = root.join("config/zellij/fixture.kdl");
         std::fs::write(&layout, "layout { pane; }\n").unwrap();
+        let shell = root.join("bin/fixture-shell");
+        std::fs::write(
+            &shell,
+            "#!/bin/sh\nprintf 'VOLTIUS_FIXTURE_READY\\n'\nexec /bin/sh\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&shell, std::fs::Permissions::from_mode(0o700)).unwrap();
         std::fs::write(
             root.join("config/zellij/config.kdl"),
             format!(
-                "session_serialization true\non_force_close \"quit\"\ndefault_shell \"/bin/sh\"\nshow_release_notes false\nload_plugins {{}}\ndefault_layout \"{}\"\n",
-                layout.display()
+                "session_serialization true\non_force_close \"quit\"\ndefault_shell \"{}\"\nshow_release_notes false\nshow_startup_tips false\nload_plugins {{}}\ndefault_layout \"{}\"\n",
+                shell.display(), layout.display()
             ),
         )
         .unwrap();
@@ -182,9 +189,10 @@ impl Fixture {
             ("TMPDIR".into(), root.join("tmp").display().to_string()),
         ]);
         if !default_scope {
+            std::os::unix::fs::symlink(root.join("sockets"), root.join("socket-alias")).unwrap();
             env.insert(
                 "ZELLIJ_SOCKET_DIR".into(),
-                root.join("sockets").display().to_string(),
+                root.join("socket-alias").display().to_string(),
             );
         }
         let script = std::env::var_os("VOLTIUS_ZELLIJ_FIXTURE")
@@ -297,9 +305,50 @@ impl Fixture {
             parse_sockets(&scope, std::str::from_utf8(&output.stdout).unwrap(), &names).unwrap()
         };
         Scan {
+            socket_dir: scope,
             names: records.into_iter().map(|(name, _)| name).collect(),
             sessions,
         }
+    }
+    fn create_ready(&mut self, name: &str) -> (u64, ZellijSession) {
+        let scope = self.scan().socket_dir;
+        let pid = self.start(&create_command(name).unwrap());
+        let end = Instant::now() + StdDuration::from_secs(12);
+        // Socket discovery during startup uses stat only, exactly as production does.
+        // Do not IPC-probe a half-initialized Zellij server with list-sessions.
+        let names = vec![name.to_string()];
+        let mut socket_seen = false;
+        while Instant::now() < end {
+            let canonical = self.run(&canonical_scope_command(&scope));
+            if canonical.status.success() {
+                let canonical = String::from_utf8(canonical.stdout).unwrap();
+                let canonical = canonical.trim_end_matches('\n');
+                let result = self.run(&socket_command(canonical, &names));
+                if result.status.success() {
+                    let created = parse_sockets(
+                        canonical,
+                        std::str::from_utf8(&result.stdout).unwrap(),
+                        &names,
+                    )
+                    .unwrap();
+                    assert!(created[0].socket_dir.starts_with('/'));
+                    assert!(!created[0].socket_dir.contains("socket-alias"));
+                    socket_seen = true;
+                }
+            }
+            let state = self.state(pid);
+            assert!(state["status"].is_null(), "new client exited: {state}");
+            if socket_seen
+                && state["output"]
+                    .as_str()
+                    .unwrap()
+                    .contains("VOLTIUS_FIXTURE_READY")
+            {
+                return (pid, self.wait_session(name));
+            }
+            std::thread::sleep(StdDuration::from_millis(50));
+        }
+        panic!("pane did not acknowledge readiness: {}", self.state(pid));
     }
     fn wait_session(&mut self, name: &str) -> ZellijSession {
         let end = Instant::now() + StdDuration::from_secs(12);
@@ -355,8 +404,7 @@ fn real_zellij_sessions_bind_exactly_and_never_resurrect_or_steal_clients() {
     for binary in binaries {
         let mut fixture = Fixture::new(&binary, false);
         let name = "中文 ' $(touch PWN);";
-        let first = fixture.start(&create_command(name).unwrap());
-        let session = fixture.wait_session(name);
+        let (first, session) = fixture.create_ready(name);
         assert!(!fixture.directory.path().join("PWN").exists());
         let duplicate = fixture.start(&create_command(name).unwrap());
         let result = fixture.wait_exit(duplicate);
@@ -397,10 +445,8 @@ fn real_zellij_sessions_bind_exactly_and_never_resurrect_or_steal_clients() {
         );
 
         // Literal New is an ordinary name in the backend, never the UI's creation sentinel.
-        let exact = fixture.start(&create_command("New").unwrap());
-        let target = fixture.wait_session("New");
-        let prefix = fixture.start(&create_command("New-longer").unwrap());
-        fixture.wait_session("New-longer");
+        let (exact, target) = fixture.create_ready("New");
+        let (prefix, _) = fixture.create_ready("New-longer");
         // Seed a real layout dumped by this synthetic live session. Serialization's
         // background timing is deliberately not used as a test synchronization clock.
         let dumped = fixture.run(&sh_c(
@@ -459,8 +505,7 @@ fn real_zellij_default_runtime_scope_matches_the_cli() {
     let binary =
         PathBuf::from(std::env::var("VOLTIUS_TEST_ZELLIJ").expect("isolated Zellij test binary"));
     let mut fixture = Fixture::new(&binary, true);
-    let pid = fixture.start(&create_command("default-scope").unwrap());
-    let session = fixture.wait_session("default-scope");
+    let (pid, session) = fixture.create_ready("default-scope");
     assert!(session.socket_dir.contains("runtime/zellij/"));
     let joined = fixture.start(&attach_command(&session).unwrap());
     std::thread::sleep(StdDuration::from_millis(500));

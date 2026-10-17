@@ -92,6 +92,8 @@ never used.
 
 Official sources inspected:
 
+- [0.45.1 session-list IPC probes](https://github.com/zellij-org/zellij/blob/v0.45.1/zellij-utils/src/sessions.rs#L143)
+- [0.45.1 server client-removal initialization race](https://github.com/zellij-org/zellij/blob/v0.45.1/zellij-server/src/lib.rs#L1437)
 - [Session resurrection](https://zellij.dev/documentation/session-resurrection)
 - [0.45.1 CLI and session matching](https://github.com/zellij-org/zellij/blob/v0.45.1/src/commands.rs)
 - [0.45.1 listing and cached sessions](https://github.com/zellij-org/zellij/blob/v0.45.1/zellij-utils/src/sessions.rs)
@@ -112,8 +114,19 @@ The real tests use private runtime/socket/cache/config directories and an explic
 test config file. This matters because Zellij's config lookup can prefer the home
 config even with XDG_CONFIG_HOME set; a newer default config contains actions an
 older binary cannot parse. No HOME is changed and no user's SSH/config is used.
-The synthetic config uses a single shell pane, no background plugins and no
-release-notes UI, so unrelated plugin startup cannot race session assertions.
+The synthetic config uses a single shell pane and disables background plugins,
+release notes and startup tips. A marker from the actual pane acknowledges server
+initialization before list/attach/duplicate assertions; there is no fixed startup
+sleep or weakened assertion. Both root and unprivileged UID 1001 runs are checked.
+
+Zellij 0.45.1 can panic in `RemoveClient` when `list-sessions` IPC-probes a socket
+before the server has processed its first client's initialization. New-session
+confirmation therefore discovers the newly created canonical directory and reads
+only socket metadata with `stat`; it never lists/probes that initializing server.
+The original PTY client owns initialization and reports a launch failure. Tests
+exercise this metadata-only startup path, including a symlinked socket root,
+before waiting for the pane marker. Existing running-session listing still uses
+the official CLI; this does not fix races caused by external clients.
 
 The tests cover true create/duplicate rejection, Unicode and shell punctuation,
 literal New, original inode attachment, concurrent clients, detach/cleanup even

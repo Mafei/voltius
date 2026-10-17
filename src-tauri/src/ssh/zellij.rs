@@ -21,8 +21,14 @@ pub enum ZellijChoice {
 }
 
 pub struct Scan {
+    pub socket_dir: String,
     pub names: Vec<String>,
     pub sessions: Vec<ZellijSession>,
+}
+
+pub struct PendingCreation {
+    pub name: String,
+    pub socket_dir: String,
 }
 
 pub fn validate_name(name: &str) -> Result<(), String> {
@@ -142,6 +148,10 @@ done"#,
     )
 }
 
+fn canonical_scope_command(scope: &str) -> String {
+    sh_c("cd \"$1\" && pwd -P", &[scope])
+}
+
 fn valid_socket_id(id: &str) -> bool {
     let parts: Vec<_> = id.split(':').collect();
     parts.len() == 2
@@ -204,6 +214,7 @@ pub async fn scan(
         parse_sockets(&scope, &result.stdout_text(), &running)?
     };
     Ok(Scan {
+        socket_dir: scope,
         names: records.into_iter().map(|(name, _)| name).collect(),
         sessions,
     })
@@ -294,7 +305,10 @@ pub async fn resolve(
             Ok(Launch {
                 command: create_command(&name)?,
                 session: None,
-                pending_zellij: Some((name, version)),
+                pending_zellij: Some(PendingCreation {
+                    name,
+                    socket_dir: listing.socket_dir,
+                }),
             })
         }
     }
@@ -302,14 +316,29 @@ pub async fn resolve(
 
 pub async fn wait_created(
     handle: &russh::client::Handle<SshClient>,
-    name: &str,
-    version: &str,
+    pending: &PendingCreation,
 ) -> Result<RemoteSession, String> {
     tokio::time::timeout(Duration::from_secs(10), async {
+        let names = vec![pending.name.clone()];
         for _ in 0..25 {
-            let listing = scan(handle, version).await?;
-            if let Some(session) = listing.sessions.into_iter().find(|s| s.name == name) {
-                return Ok(RemoteSession::Zellij(session));
+            // list-sessions opens an IPC connection to every socket. In 0.45.1 that
+            // probe can crash an initializing server before FirstClientConnected.
+            // Confirm only the exact new socket's metadata; the original PTY client
+            // stays responsible for initialization and reports any launch failure.
+            let canonical =
+                multiplexer::run(handle, &canonical_scope_command(&pending.socket_dir)).await?;
+            if canonical.code != Some(0) {
+                sleep(Duration::from_millis(200)).await;
+                continue;
+            }
+            let scope = canonical.stdout_text().trim_end_matches('\n').to_string();
+            if !scope.starts_with('/') || scope.chars().any(char::is_control) {
+                return Err("ZELLIJ_INVALID_SOCKET_IDENTITY".into());
+            }
+            let result = multiplexer::run(handle, &socket_command(&scope, &names)).await?;
+            if result.code == Some(0) {
+                let mut sessions = parse_sockets(&scope, &result.stdout_text(), &names)?;
+                return Ok(RemoteSession::Zellij(sessions.remove(0)));
             }
             sleep(Duration::from_millis(200)).await;
         }

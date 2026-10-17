@@ -229,7 +229,7 @@ pub struct ConnectedSession {
     /// True when the remote shell was wrapped in a persistent multiplexer
     /// (tmux/screen). A user-initiated disconnect kills that session.
     pub persist: bool,
-    /// A user-owned tmux session on the default socket; disconnect only detaches.
+    /// A user-owned multiplexer session; disconnect only detaches.
     pub user_session: Option<crate::ssh::multiplexer::RemoteSession>,
     /// Keeps intermediate jump-host SSH handles alive for the lifetime of this session.
     pub _jump_handles: Vec<Arc<client::Handle<SshClient>>>,
@@ -1351,8 +1351,8 @@ pub async fn connect(
     }
 
     let user_session = if let Some(launch) = user_launch.take() {
-        if let Some((name, version)) = launch.pending_zellij {
-            let session = crate::ssh::zellij::wait_created(&handle, &name, &version).await?;
+        if let Some(pending) = launch.pending_zellij {
+            let session = crate::ssh::zellij::wait_created(&handle, &pending).await?;
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
             if io.input_tx.is_closed() {
                 return Err("ZELLIJ_START_FAILED_REFRESH_LIST".into());

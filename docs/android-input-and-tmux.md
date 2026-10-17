@@ -92,8 +92,10 @@ Native Linux tests require the existing desktop development libraries; the tmux
 fixture also requires tmux in the **isolated test runner**, not on a user's host.
 Its socket, server and shell are temporary and are cleaned up after the test.
 The candidate Actions workflow runs the full frontend and existing native gate,
-these tmux/auth tests, Robolectric API 24/35 contracts, ARM64 build and APK static
-checks. APK evidence is retained independently of gate failure, with development
+the complete default native workspace suite, these tmux/auth tests, Robolectric
+API 24/35 contracts, ARM64 build and APK static checks. Upstream's explicitly
+ignored Docker/external-service tests remain ignored by Cargo's default policy;
+no new ignore or skip is added. APK evidence is retained independently of gate failure, with development
 signing only. No release is published.
 
 The old `zsh_hooks_mark_each_command` failure was in the first prompt before any

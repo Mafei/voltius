@@ -127,6 +127,10 @@ jobs:
           REGRESSIONS
           exit "$regressions_failed"
 
+      - name: Run the complete native workspace suite
+        if: ${{ !cancelled() && steps.android_build.outcome == 'success' }}
+        run: cargo test --locked --workspace 2>&1 | tee android-ci-artifacts/native-workspace-tests.log
+
       - name: Verify and collect APK evidence
         if: ${{ !cancelled() && steps.android_build.outcome == 'success' }}
         run: |

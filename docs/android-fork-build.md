@@ -66,6 +66,23 @@ runtime behavior. CI artifacts preserve LICENSE and the upstream NOTICE.md.
 
 ## Daily candidate and maintenance branches
 
+The 2026-10-17 candidate starts from retained PR #7 commit
+`25034ef9c59c6062452c15e9078c00c376f82aab` and merges fixed upstream `main`/`dev`
+commit `7a64f0b25a4d3adf56d4fb1fd8f76db26d41fa85` (version 0.58.0).
+The prior zsh test, its assertions, zsh installation and failure gate remain.
+Maintenance stays at `4e83ff5e685285b59f865d31526c4a1b66fd90c9` until the exact
+candidate passes every required validation. Native coverage also includes
+OpenSSH config import, key parsing and atomic secret writes using upstream's
+temporary synthetic fixtures; no personal SSH config or private business data
+is used. Test fixtures generate temporary keys and remove them when dropped;
+no persistent user/signing credential is created or uploaded.
+
+Upstream 0.58.0 retires the SSH Config Sync plugin in favor of core import and
+opt-in sync, so its seeded-plugin checks now require five built-ins. The fork's
+Android SDK/pnpm and 16 KiB linker adaptations remain intact. APK metadata and
+static signature/alignment evidence are retained after a successful build even
+if a native regression fails; failed CI still prevents maintenance promotion.
+
 The 2026-10-15 candidate starts from retained PR #6 commit
 `dcda1eb46f58a93354b37152677402aba321c450` and merges fixed upstream `main`/`dev`
 commit `b461cac8a86df0ce5a57f868380cd027d7022dba` (version 0.57.0).

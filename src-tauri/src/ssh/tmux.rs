@@ -397,10 +397,15 @@ mod tests {
             }
         }
         let _stop = Stop(&launcher);
+        // Our tmux wrapper wins resolution, while sh_c and the login shell still need sh/tools.
+        let path = std::env::join_paths(std::iter::once(directory.path().to_path_buf()).chain(
+            std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()),
+        ))
+        .unwrap();
         let run = |command: &str| {
             std::process::Command::new("/bin/sh")
                 .args(["-c", command])
-                .env("PATH", directory.path())
+                .env("PATH", &path)
                 .env_remove("TMUX")
                 .env_remove("TMUX_PANE")
                 .output()

@@ -4,11 +4,11 @@ import { Icon } from "@iconify/react";
 import { useTranslation } from "react-i18next";
 import { formatLocalShellTitle } from "@/utils/localShellTitle";
 import { sessionLabel } from "@/utils/sessionLabel";
-import { ConnectionAvatar } from "./ConnectionAvatar";
-import { HostRow } from "./HostPickerPanel";
+import { ConnectionHostRow, HostRow } from "./HostPickerPanel";
 import { PickerSectionLabel } from "./pickerParts";
+import { RecentHostsGroup } from "./HostPickerTree";
 import { useSnippetTargetPicker } from "@/hooks/useSnippetTargetPicker";
-import { connectionDisplayName } from "@/utils/connectionDisplayName";
+import type { Connection } from "@/types";
 
 interface Props {
   mode: "insert" | "execute";
@@ -32,6 +32,10 @@ export function SessionPickerPanel({ mode, onConfirm, onClose }: Props) {
   const confirmLabel = mode === "insert"
     ? t("shared.sessionPicker.insertConfirm", { count: picker.totalSelected })
     : t("shared.sessionPicker.executeConfirm", { count: picker.totalSelected });
+
+  const hostRow = (c: Connection) => (
+    <ConnectionHostRow key={c.id} connection={c} isSelected={picker.selectedConnectionIds.has(c.id)} onClick={() => picker.toggleConnection(c.id)} multiSelect />
+  );
 
   return createPortal(
     <>
@@ -125,35 +129,24 @@ export function SessionPickerPanel({ mode, onConfirm, onClose }: Props) {
             );
           })}
 
-          {!picker.search && picker.filteredHosts.length > 0 && (
+          {!picker.search && picker.hasHosts && (
             <div className="mx-2 my-1.5 border-t border-(--t-bg-terminal)" />
           )}
 
-          {picker.filteredHosts.length === 0 && !picker.search && (
+          {!picker.hasHosts && !picker.search && (
             <p className="px-3 py-4 text-xs text-center text-(--t-text-muted)">{t("shared.sessionPicker.noRemoteHostsFound")}</p>
           )}
-          {picker.filteredHosts.length === 0 && picker.search && (
+          {!picker.hasHosts && picker.search && (
             <p className="px-3 py-4 text-xs text-center text-(--t-text-muted)">{t("shared.sessionPicker.noHostsFound")}</p>
           )}
 
-          {picker.filteredHosts.map((c) => (
-            <HostRow
-              key={c.id}
-              avatar={
-                picker.selectedConnectionIds.has(c.id)
-                  ? (
-                    <div className="rounded-lg flex items-center justify-center shrink-0 w-[1.867rem] h-[1.867rem]" style={{ background: "var(--t-accent)" }}>
-                      <Icon icon="lucide:check" width={13} className="text-white" />
-                    </div>
-                  )
-                  : <ConnectionAvatar connection={c} size={28} />
-              }
-              name={connectionDisplayName(c)}
-              sub={`${c.username}@${c.host}:${c.port}`}
-              isSelected={picker.selectedConnectionIds.has(c.id)}
-              onClick={() => picker.toggleConnection(c.id)}
-            />
-          ))}
+          <RecentHostsGroup
+            recent={picker.recentHosts}
+            renderHost={hostRow}
+            heading={(label) => <PickerSectionLabel>{label}</PickerSectionLabel>}
+            restHeading={picker.filteredHosts.length > 0}
+          />
+          {picker.filteredHosts.map(hostRow)}
         </div>
 
         {picker.totalSelected > 0 && (

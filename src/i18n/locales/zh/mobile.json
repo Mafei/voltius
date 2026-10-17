@@ -256,6 +256,32 @@
       "invalidName": "会话名称无效，请检查下方命名规则。",
       "timeout": "tmux 操作超时。请先刷新确认是否已完成，避免重复新建。",
       "identityChanged": "主机或 SSH 用户已改变，请从 Hosts 重新选择 tmux 会话。"
+    },
+    "session": {
+      "title": "连接主机",
+      "type": "会话类型",
+      "list": "会话列表",
+      "name": "会话名称",
+      "connect": "连接",
+      "opening": "连接中…",
+      "noneHint": "常规 SSH，不枚举或创建复用器会话。",
+      "refresh": "刷新会话列表 / 重试",
+      "loading": "正在加载会话…",
+      "choose": "选择会话",
+      "existing": "已有会话",
+      "running": "运行中",
+      "runningOnly": "仅连接运行中的会话；不会恢复已退出的缓存布局。",
+      "empty": "没有运行中的会话；选择 New 可新建。",
+      "missing": "主机未安装或不支持 {{backend}}，可选择 None 使用常规 SSH；不会自动安装软件。",
+      "duplicate": "此名称已被占用，请选择已有会话或更换名称。",
+      "changed": "所选会话已结束或身份发生变化，请刷新后重新选择。",
+      "notRunning": "此 Zellij 会话已停止运行；重新连接不会恢复缓存布局。",
+      "unsupportedVersion": "不支持的 Zellij 版本：{{version}}。支持 Linux 0.43.1 至 0.45.1。",
+      "zellijPlatform": "此主机无法安全连接所选 Zellij 会话，目前需要 Linux。可选择 None 或刷新列表。",
+      "zellijNameHint": "新名称最多 48 个 UTF-8 字节；不含斜线、控制字符，不以短横线开头，不是单独的点，且不能重名。",
+      "invalidName": "会话名称无效，请检查名称规则。",
+      "timeout": "操作超时，请先刷新确认结果；新会话可能已经创建。",
+      "identityChanged": "主机或 SSH 登录用户已变化，请从主机列表重新选择原会话。"
     }
   }
 }

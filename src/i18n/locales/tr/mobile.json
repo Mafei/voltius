@@ -256,6 +256,32 @@
       "invalidName": "The session name is invalid. Check the name rules below.",
       "timeout": "The tmux operation timed out. Refresh to check whether it completed before trying again.",
       "identityChanged": "The host or SSH login changed. Select the tmux session again from Hosts."
+    },
+    "session": {
+      "title": "Connect to host",
+      "type": "Session Type",
+      "list": "Session List",
+      "name": "Session Name",
+      "connect": "Connect",
+      "opening": "Connecting…",
+      "noneHint": "Regular SSH. No multiplexer session is listed or created.",
+      "refresh": "Refresh session list / retry",
+      "loading": "Loading sessions…",
+      "choose": "Select a session",
+      "existing": "Existing sessions",
+      "running": "Running",
+      "runningOnly": "Running sessions only. Exited layouts are not resurrected.",
+      "empty": "No running sessions. Choose New to create one.",
+      "missing": "{{backend}} is not installed or supported on this host. Choose None for regular SSH. Nothing is installed automatically.",
+      "duplicate": "This name is already reserved. Select the existing session or choose another name.",
+      "changed": "The selected session ended or changed. Refresh and select it again.",
+      "notRunning": "This Zellij session is no longer running. Reconnect does not resurrect saved layouts.",
+      "unsupportedVersion": "Unsupported Zellij version: {{version}}. Supported Linux versions: 0.43.1 through 0.45.1.",
+      "zellijPlatform": "This host cannot safely attach to the selected Zellij session. Linux is required. Choose None or refresh the list.",
+      "zellijNameHint": "New names: up to 48 UTF-8 bytes; no slash, control characters, leading dash, dot-only names or duplicates.",
+      "invalidName": "The session name is invalid. Check the name rules.",
+      "timeout": "The operation timed out. Refresh before retrying; creation may already have completed.",
+      "identityChanged": "The host or SSH login changed. Select the original session again from Hosts."
     }
   }
 }

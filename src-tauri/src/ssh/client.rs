@@ -229,8 +229,8 @@ pub struct ConnectedSession {
     /// True when the remote shell was wrapped in a persistent multiplexer
     /// (tmux/screen). A user-initiated disconnect kills that session.
     pub persist: bool,
-    /// A user-owned tmux session on the default socket; disconnect only detaches.
-    pub user_tmux: Option<crate::ssh::tmux::TmuxSession>,
+    /// A user-owned multiplexer session; disconnect only detaches.
+    pub user_session: Option<crate::ssh::multiplexer::RemoteSession>,
     /// Keeps intermediate jump-host SSH handles alive for the lifetime of this session.
     pub _jump_handles: Vec<Arc<client::Handle<SshClient>>>,
     /// Shared remote-forward route table for this session.
@@ -1070,7 +1070,7 @@ pub async fn connect(
     pty_rows: u32,
     initial_cwd: Option<String>,
     terminal_colors: Option<crate::ssh::control_mode::TerminalColors>,
-    tmux: Option<crate::ssh::tmux::TmuxChoice>,
+    session_choice: Option<crate::ssh::multiplexer::SessionChoice>,
 ) -> Result<ConnectedSession, AppError> {
     let terminal_colors =
         terminal_colors.filter(crate::ssh::control_mode::TerminalColors::is_valid);
@@ -1080,8 +1080,8 @@ pub async fn connect(
         remote_routes: final_routes,
         remote_is_windows,
     } = authenticated;
-    let shell_integration = shell_integration && !remote_is_windows && tmux.is_none();
-    let persist = persist && !remote_is_windows && tmux.is_none();
+    let shell_integration = shell_integration && !remote_is_windows && session_choice.is_none();
+    let persist = persist && !remote_is_windows && session_choice.is_none();
     let restore = restore && !remote_is_windows;
 
     // Attach-only (reconnect/join): verify the multiplexer session still exists
@@ -1116,10 +1116,11 @@ pub async fn connect(
 
     // Creation is an explicit, atomic new-session operation, never new-session -A.
     // A failed/missing choice fails before a terminal is marked connected.
-    let user_tmux = match tmux {
-        Some(choice) => Some(crate::ssh::tmux::resolve_choice(&handle, choice).await?),
+    let mut user_launch = match session_choice {
+        Some(choice) => Some(crate::ssh::multiplexer::resolve(&handle, choice).await?),
         None => None,
     };
+    let user_owned = user_launch.is_some();
 
     if agent_forwarding {
         channel
@@ -1182,8 +1183,8 @@ pub async fn connect(
     // remote $SHELL and execs into it with OSC 7 emission already hooked
     // (writes a temp rcfile under /tmp). Falling back to request_shell keeps
     // the historical behavior available via the setting.
-    let exec_cmd = if let Some(id) = &user_tmux {
-        Some(crate::ssh::tmux::attach_command(&id.id)?)
+    let exec_cmd = if let Some(launch) = &user_launch {
+        Some(launch.command.clone())
     } else if shell_integration {
         let inner = crate::shell_integration::ssh_exec_command(&cd_prefix);
         Some(if persist {
@@ -1220,6 +1221,13 @@ pub async fn connect(
     // string passes its 9000-byte MAX_STRING_LEN, which reads as a hang right
     // after authentication rather than an error (#85). Servers that small are
     // better served by a plain shell than by a session that never opens.
+    if user_owned
+        && exec_cmd
+            .as_ref()
+            .is_some_and(|c| c.len() > crate::shell_integration::MAX_EXEC_COMMAND_LEN)
+    {
+        return Err("SESSION_COMMAND_TOO_LONG".into());
+    }
     let exec_cmd = exec_cmd.filter(|c| c.len() <= crate::shell_integration::MAX_EXEC_COMMAND_LEN);
     // A plain `request_shell` has nowhere to carry the prefix, so it goes in over
     // stdin below instead.
@@ -1227,7 +1235,7 @@ pub async fn connect(
     let wrapped = persist && exec_cmd.is_some();
     match exec_cmd {
         Some(cmd) => channel
-            .exec(false, cmd.as_bytes())
+            .exec(user_owned, cmd.as_bytes())
             .await
             .map_err(|e| format!("Shell exec failed: {}", e))?,
         None => channel
@@ -1241,7 +1249,7 @@ pub async fn connect(
     // `export KEY=val` is POSIX syntax; on a Windows cmd.exe/PowerShell shell it
     // would just echo errors, so skip it there (see `remote_is_windows`).
     let mut startup = String::new();
-    if !remote_is_windows && user_tmux.is_none() {
+    if !remote_is_windows && !user_owned {
         for (key, value) in &env_vars {
             startup.push_str(&format!("export {}={}\n", key, shell_escape(value)));
         }
@@ -1250,7 +1258,7 @@ pub async fn connect(
             startup.push_str(&format!("{}\n", cd_prefix.trim_end()));
         }
     }
-    if user_tmux.is_none() {
+    if !user_owned {
         if let Some(cmd) = pre_command {
             startup.push_str(&format!("{}\n", cmd));
         }
@@ -1342,13 +1350,28 @@ pub async fn connect(
             .await;
     }
 
+    let user_session = if let Some(launch) = user_launch.take() {
+        if let Some(pending) = launch.pending_zellij {
+            let session = crate::ssh::zellij::wait_created(&handle, &pending).await?;
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            if io.input_tx.is_closed() {
+                return Err("ZELLIJ_START_FAILED_REFRESH_LIST".into());
+            }
+            Some(session)
+        } else {
+            launch.session
+        }
+    } else {
+        None
+    };
+
     Ok(ConnectedSession {
         handle,
         input_tx: io.input_tx,
         shutdown_tx: io.shutdown_tx,
         channel_only: false,
         persist,
-        user_tmux,
+        user_session,
         _jump_handles: jump_handles,
         remote_routes: final_routes,
         machine: None,

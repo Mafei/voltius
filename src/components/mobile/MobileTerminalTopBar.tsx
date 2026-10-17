@@ -69,7 +69,7 @@ export default function MobileTerminalTopBar() {
               <StatusDot tone={sessionStatusTone(s.status)} size="sm" />
               <button onClick={() => setActive(s.id)} className="flex flex-col text-left" aria-label={`${sessionLabel(s)} · ${s.connectionName}`}>
                 <span>{sessionLabel(s)}</span>
-                {s.sshMode?.kind === "tmux" && <span className="text-[10px] opacity-75">{s.connectionName} · {s.sshMode.username}@{s.sshMode.endpoint}</span>}
+                {(s.sshMode?.kind === "tmux" || s.sshMode?.kind === "zellij") && <span className="text-[10px] opacity-75">{s.sshMode.kind === "tmux" ? "Tmux" : "Zellij"} · {s.connectionName} · {s.sshMode.username}@{s.sshMode.endpoint}</span>}
               </button>
               <button data-mobile-session-close={s.id} onClick={() => void disconnect(s.id)} className="opacity-70">
                 <Icon icon="lucide:x" width={12} />

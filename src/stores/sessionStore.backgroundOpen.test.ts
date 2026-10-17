@@ -54,16 +54,30 @@ beforeEach(() => {
 
 test("explicit tmux connect and reconnect preserve identity/name without injecting host commands", async () => {
   const target = tmuxSession();
-  vi.mocked(sshConnect).mockResolvedValueOnce({ tmux_session: target } as never);
+  vi.mocked(sshConnect).mockResolvedValueOnce({ session: { backend: "tmux", session: target } } as never);
   const id = await useSessionStore.getState().connect("c1", { sshLaunch: {
-    preparedId: "picker-token", choice: { kind: "attach", id: target.id, created: target.created, serverPid: target.server_pid }, session: target, username: "root",
+    preparedId: "picker-token", choice: { backend: "tmux", choice: { kind: "attach", id: target.id, created: target.created, serverPid: target.server_pid } }, session: { backend: "tmux", session: target }, username: "root",
   } });
   expect(useSessionStore.getState().sessions[0]).toMatchObject({ persist: false, sshMode: { kind: "tmux", session: target, username: "root", endpoint: "h1:22" } });
   expect(runHostCommand).not.toHaveBeenCalled();
-  vi.mocked(sshConnect).mockResolvedValueOnce({ tmux_session: { ...target, name: "远端重命名" } } as never);
+  vi.mocked(sshConnect).mockResolvedValueOnce({ session: { backend: "tmux", session: { ...target, name: "远端重命名" } } } as never);
   await useSessionStore.getState().reconnect(id);
-  expect(vi.mocked(sshConnect).mock.lastCall?.[0]).toMatchObject({ persist: false, tmux: { kind: "attach", id: target.id }, preCommand: undefined });
+  expect(vi.mocked(sshConnect).mock.lastCall?.[0]).toMatchObject({ persist: false, sessionChoice: { backend: "tmux", choice: { kind: "attach", id: target.id } }, preCommand: undefined });
   expect(useSessionStore.getState().sessions[0].sshMode).toMatchObject({ session: { name: "远端重命名" } });
+  expect(runHostCommand).not.toHaveBeenCalled();
+});
+
+test("Zellij retries keep its original socket identity and a missing target stays an error tab", async () => {
+  const remote = { backend: "zellij" as const, session: { name: "New", socket_dir: "/tmp/original/contract_version_1", socket_id: "10:20" } };
+  vi.mocked(sshConnect).mockResolvedValueOnce({ session: remote } as never);
+  const id = await useSessionStore.getState().connect("c1", { sshLaunch: {
+    preparedId: "zellij-picker", choice: { backend: "zellij", choice: { kind: "attach", session: remote.session } }, session: remote, username: "root",
+  } });
+  expect(useSessionStore.getState().sessions[0].sshMode).toMatchObject({ kind: "zellij", session: remote.session });
+  vi.mocked(sshConnect).mockRejectedValueOnce(new Error("ZELLIJ_SESSION_NOT_RUNNING"));
+  await useSessionStore.getState().reconnect(id);
+  expect(vi.mocked(sshConnect).mock.lastCall?.[0]).toMatchObject({ sessionChoice: { backend: "zellij", choice: { kind: "attach", session: remote.session } }, persist: false, preCommand: undefined });
+  expect(useSessionStore.getState().sessions[0]).toMatchObject({ id, status: "error", sshMode: { kind: "zellij", session: remote.session } });
   expect(runHostCommand).not.toHaveBeenCalled();
 });
 

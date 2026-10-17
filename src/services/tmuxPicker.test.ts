@@ -8,7 +8,7 @@ const h = vi.hoisted(() => ({
   sessions: [] as TerminalSession[],
 }));
 vi.mock("./credentials", () => ({ resolveConnectionCredentials: h.credentials }));
-vi.mock("./ssh", () => ({ sshConnect: h.prepare, sshTmuxCancel: h.cancel, sshDisconnect: h.drop }));
+vi.mock("./ssh", () => ({ sshConnect: h.prepare, sshSessionCancel: h.cancel, sshDisconnect: h.drop }));
 vi.mock("@/stores/sessionStore", () => ({
   buildSshConnectOptions: async () => ({ keepaliveIntervalSecs: 3, keepaliveMax: 3 }),
   useSessionStore: {
@@ -16,7 +16,10 @@ vi.mock("@/stores/sessionStore", () => ({
     setState: (update: (s: { sessions: TerminalSession[] }) => { sessions: TerminalSession[] }) => { h.sessions = update({ sessions: h.sessions }).sessions; },
   },
 }));
-import { createTmuxPicker } from "./tmuxPicker";
+import { createTmuxPicker, createSessionPicker } from "./tmuxPicker";
+
+const remote = (session = tmuxSession()) => ({ backend: "tmux" as const, session });
+const listed = () => ({ backend: "tmux" as const, installed: true, version: "tmux 3.4", sessions: [remote()], reserved_names: [tmuxSession().name] });
 
 const connection = { id: "host-a", host: "example.test", port: 22, username: "alice" } as Connection;
 function deferred<T>() { let resolve!: (value: T) => void; let reject!: (error: unknown) => void;
@@ -25,7 +28,7 @@ function deferred<T>() { let resolve!: (value: T) => void; let reject!: (error: 
 beforeEach(() => {
   vi.clearAllMocks(); h.sessions = [];
   h.credentials.mockResolvedValue({ username: "alice", password: "synthetic-test-password" });
-  h.prepare.mockResolvedValue({ tmux_listing: { installed: true, sessions: [tmuxSession()] }, tmux_session: null });
+  h.prepare.mockResolvedValue({ session_listing: listed(), session: null });
   h.connect.mockImplementation(async (_connection: string, options: { sessionId: string }) => options.sessionId);
 });
 
@@ -33,7 +36,7 @@ for (const status of ["connected", "connecting", "disconnected", "error"] as con
   test(`selecting an existing ${status} tab activates it without a new terminal connection`, async () => {
     h.sessions = [tmuxTab({ status })];
     const picker = createTmuxPicker(connection); await picker.ready;
-    expect(await picker.attach(tmuxSession({ name: "renamed 中文" }))).toBe("tab-1");
+    expect(await picker.attach(remote(tmuxSession({ name: "renamed 中文" })))).toBe("tab-1");
     expect(h.active).toHaveBeenCalledWith("tab-1"); expect(h.connect).not.toHaveBeenCalled();
     expect(h.drop).not.toHaveBeenCalled(); expect(h.remove).not.toHaveBeenCalled();
     expect(h.cancel).toHaveBeenCalled(); picker.close();
@@ -43,7 +46,7 @@ for (const status of ["connected", "connecting", "disconnected", "error"] as con
 test("rapid repeat taps share one open and preserve its confirmed choice", async () => {
   const gate = deferred<string>(); h.connect.mockReturnValue(gate.promise);
   const picker = createTmuxPicker(connection); await picker.ready;
-  const first = picker.attach(tmuxSession()); const second = picker.attach(tmuxSession());
+  const first = picker.attach(remote()); const second = picker.attach(remote());
   expect(first).toBe(second); await Promise.resolve();
   expect(h.connect).toHaveBeenCalledTimes(1);
   const opts = h.connect.mock.calls[0][1]; gate.resolve(opts.sessionId);
@@ -52,25 +55,25 @@ test("rapid repeat taps share one open and preserve its confirmed choice", async
 });
 
 test("cancel during authentication closes a late prepared connection and never opens a tab", async () => {
-  const gate = deferred<{ tmux_listing: { installed: boolean; sessions: [] } }>(); h.prepare.mockReturnValue(gate.promise);
+  const gate = deferred<{ session_listing: ReturnType<typeof listed> }>(); h.prepare.mockReturnValue(gate.promise);
   const picker = createTmuxPicker(connection); await Promise.resolve(); await Promise.resolve();
-  picker.close(); gate.resolve({ tmux_listing: { installed: true, sessions: [] } }); await picker.ready;
+  picker.close(); gate.resolve({ session_listing: listed() }); await picker.ready;
   await Promise.resolve(); expect(h.cancel).toHaveBeenCalled(); expect(h.connect).not.toHaveBeenCalled();
 });
 
 test("cancel before credentials finish does not even start an SSH probe", async () => {
   const gate = deferred<{ username: string }>(); h.credentials.mockReturnValue(gate.promise);
   const picker = createTmuxPicker(connection); picker.close(); gate.resolve({ username: "alice" });
-  await expect(picker.ready).rejects.toThrow("TMUX_PICKER_CLOSED"); expect(h.prepare).not.toHaveBeenCalled();
+  await expect(picker.ready).rejects.toThrow("SESSION_PICKER_CLOSED"); expect(h.prepare).not.toHaveBeenCalled();
 });
 
 test("cancel while opening cleans up only the newly owned tab", async () => {
   h.sessions = [tmuxTab({ id: "keep-existing", connectionId: "host-b" })];
   const gate = deferred<string>(); h.connect.mockReturnValue(gate.promise);
   const picker = createTmuxPicker(connection); await picker.ready;
-  const pending = picker.attach(tmuxSession()); await Promise.resolve();
+  const pending = picker.attach(remote()); await Promise.resolve();
   const id = h.connect.mock.calls[0][1].sessionId; picker.close(); gate.resolve(id);
-  await expect(pending).rejects.toThrow("TMUX_PICKER_CLOSED");
+  await expect(pending).rejects.toThrow("SESSION_PICKER_CLOSED");
   expect(h.drop).toHaveBeenCalledWith(id, undefined, false, false); expect(h.remove).toHaveBeenCalledWith(id);
   expect(h.drop).not.toHaveBeenCalledWith("keep-existing");
 });
@@ -80,4 +83,34 @@ test("ordinary SSH remains available when the tmux probe fails", async () => {
   const picker = createTmuxPicker(connection); await expect(picker.ready).rejects.toThrow("probe denied");
   await picker.open(); expect(h.connect.mock.calls[0][1]).toMatchObject({ keepFailedSession: true, sshLaunch: { preparedId: undefined, choice: undefined } });
   picker.close();
+});
+
+test("None opens ordinary SSH without resolving a picker credential or probing either backend", async () => {
+  const picker = createSessionPicker(connection, null); expect(await picker.ready).toBeNull();
+  expect(h.prepare).not.toHaveBeenCalled(); expect(h.credentials).not.toHaveBeenCalled();
+  await picker.open();
+  expect(h.connect.mock.calls[0][1]).toMatchObject({ sshLaunch: { preparedId: undefined, choice: undefined } });
+  picker.close(); expect(h.cancel).not.toHaveBeenCalled();
+});
+
+for (const status of ["connected", "connecting", "disconnected", "error"] as const) {
+  test(`Zellij ${status} tab is reused by original socket identity and refreshed real name`, async () => {
+    const session = { name: "New", socket_dir: "/tmp/z/contract_version_1", socket_id: "10:20" };
+    const selected = { backend: "zellij" as const, session: { ...session, name: "renamed 中文" } };
+    h.sessions = [tmuxTab({ status, sshMode: { kind: "zellij", session, username: "alice", endpoint: "example.test:22" } })];
+    h.prepare.mockResolvedValue({ session_listing: { backend: "zellij", installed: true, version: "zellij 0.45.1", sessions: [selected], reserved_names: [selected.session.name] } });
+    const picker = createSessionPicker(connection, "zellij"); await picker.ready;
+    expect(await picker.attach(selected)).toBe("tab-1"); expect(h.connect).not.toHaveBeenCalled();
+    expect(h.sessions[0].sshMode).toMatchObject({ kind: "zellij", session: selected.session });
+    picker.close();
+  });
+}
+
+test("a same-name tmux tab cannot consume a Zellij selection or a mismatched backend choice", async () => {
+  h.sessions = [tmuxTab()];
+  const selected = { backend: "zellij" as const, session: { name: tmuxSession().name, socket_dir: "/tmp/z/contract_version_1", socket_id: "10:20" } };
+  h.prepare.mockResolvedValue({ session_listing: { backend: "zellij", installed: true, version: "zellij 0.45.1", sessions: [selected], reserved_names: [selected.session.name] } });
+  const picker = createSessionPicker(connection, "zellij"); await picker.ready;
+  await expect(picker.open({ backend: "tmux", choice: { kind: "create", name: "work" } })).rejects.toThrow("SESSION_BACKEND_CHANGED");
+  await picker.attach(selected); expect(h.connect).toHaveBeenCalledTimes(1); picker.close();
 });

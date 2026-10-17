@@ -209,7 +209,7 @@ export default function MobileHostsScreen() {
         ))}
       </div>
 
-      {tmuxHost && <TmuxSessionSheet connection={tmuxHost} onClose={() => setTmuxHost(null)}
+      {tmuxHost && <TmuxSessionSheet key={tmuxHost.id} connection={tmuxHost} onClose={() => setTmuxHost(null)}
         onOpened={() => { setTmuxHost(null); setTab("terminal"); }} />}
       {addMode === "menu" && (
         <AddChoiceSheet

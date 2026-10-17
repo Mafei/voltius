@@ -28,9 +28,7 @@ export interface SnapshotSession {
   title?: string;
   /** Whether persistence (tmux/screen) was active when it connected. */
   persist: boolean;
-  sshMode?: { kind: "plain" } | { kind: "tmux"; session: {
-    id: string; name: string; created: number; server_pid: number; windows: number; attached: number;
-  }; username: string; endpoint: string };
+  sshMode?: import("@/services/ssh").SshMode;
   cwd?: string;
   localShell?: string;
   serialConfig?: SnapshotSerialConfig;
@@ -129,7 +127,7 @@ function isValidSession(x: unknown): x is SnapshotSession {
   const s = x as SnapshotSession;
   const mode = s.sshMode;
   if (mode !== undefined && (!mode || typeof mode !== "object" ||
-    (mode.kind !== "plain" && !(mode.kind === "tmux" && validTmuxMode(mode))))) return false;
+    (mode.kind !== "plain" && !(mode.kind === "tmux" && validTmuxMode(mode)) && !(mode.kind === "zellij" && validZellijMode(mode))))) return false;
   return (
     typeof s.id === "string" &&
     typeof s.connectionId === "string" &&
@@ -144,6 +142,14 @@ function validTmuxMode(mode: Extract<NonNullable<SnapshotSession["sshMode"]>, { 
     typeof tmux.id === "string" && /^\$\d+$/.test(tmux.id) &&
     Number.isSafeInteger(tmux.created) && tmux.created >= 0 &&
     Number.isSafeInteger(tmux.server_pid) && tmux.server_pid > 0;
+}
+
+function validZellijMode(mode: Extract<NonNullable<SnapshotSession["sshMode"]>, { kind: "zellij" }>): boolean {
+  const session = mode.session;
+  return typeof mode.username === "string" && !!mode.username && typeof mode.endpoint === "string" && !!mode.endpoint && !!session &&
+    typeof session.name === "string" && !!session.name.trim() && !/[\p{Cc}/]/u.test(session.name) && !session.name.startsWith("-") &&
+    typeof session.socket_dir === "string" && session.socket_dir.startsWith("/") && !/[\p{Cc}]/u.test(session.socket_dir) &&
+    typeof session.socket_id === "string" && /^\d+:\d+$/.test(session.socket_id);
 }
 
 /** Validate a raw (rehydrated) snapshot. Returns null when the whole

@@ -265,7 +265,7 @@ pub fn run() {
         .manage(MetricsStreamManager::new())
         .manage(ProcessStreamManager::new())
         .manage(SessionManager::new())
-        .manage(ssh::tmux::TmuxPickers::default())
+        .manage(ssh::multiplexer::SessionPickers::default())
         .manage(LocalSessionManager::new())
         .manage(terminal_output::TerminalOutputs::default())
         .manage(SecretsStore::new())
@@ -381,7 +381,7 @@ pub fn run() {
             commands::sync::ssh_config_state_save,
             commands::sync::device_hostname,
             commands::ssh::ssh_connect,
-            commands::ssh::ssh_tmux_cancel,
+            commands::ssh::ssh_session_cancel,
             commands::ssh::ssh_disconnect,
             commands::ssh::ssh_send_input,
             commands::ssh::ssh_resize,

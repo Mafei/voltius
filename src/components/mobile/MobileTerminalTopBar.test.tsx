@@ -46,3 +46,14 @@ test("tmux chips distinguish sessions on one host and the same name across hosts
   expect(container.querySelector('[data-mobile-session-chip="other-host"]')!.textContent).toContain("服务器 B");
   expect(container.textContent).not.toContain("shell must not overwrite");
 });
+
+test("same session name on tmux and Zellij keeps a visible backend and the real title", async () => {
+  useSessionStore.setState({ sessions: [tmuxTab({ title: "ignored" }), tmuxTab({ id: "zellij",
+    sshMode: { kind: "zellij", session: { name: tmuxSession().name, socket_dir: "/tmp/original/contract_version_1", socket_id: "10:20" }, username: "alice", endpoint: "example.test:22" } })], activeSessionId: "zellij" });
+  const { default: MobileTerminalTopBar } = await import("./MobileTerminalTopBar");
+  const { container } = render(<MobileTerminalTopBar />);
+  expect(container.querySelector('[data-mobile-session-chip="tab-1"]')!.textContent).toContain("Tmux");
+  expect(container.querySelector('[data-mobile-session-chip="zellij"]')!.textContent).toContain("Zellij");
+  expect(container.querySelector('[data-mobile-session-chip="zellij"]')!.textContent).toContain(tmuxSession().name);
+  expect(container.textContent).not.toContain("ignored");
+});

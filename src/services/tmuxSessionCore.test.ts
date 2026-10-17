@@ -1,5 +1,5 @@
 import { test, expect } from "vitest";
-import { findTmuxTab, sameTmux, tmuxAttachChoice } from "./tmuxSessionCore";
+import { findTmuxTab, sameTmux, tmuxAttachChoice, findSessionTab, modeForSession, sameRemoteSession, sessionAttachChoice } from "./tmuxSessionCore";
 import { tmuxSession, tmuxTab } from "./__fixtures__/tmux";
 import { sessionLabel, sessionMatchesQuery } from "@/utils/sessionLabel";
 import { buildSnapshot, parseSnapshot } from "@/stores/workspaceSnapshotCore";
@@ -38,5 +38,32 @@ test("tmux identity, Chinese/special names and login survive snapshot round trip
   expect(sessionLabel(restored.sessions[0])).toBe(tmuxSession().name);
   const bad = JSON.parse(JSON.stringify(snapshot));
   bad.sessions[0].sshMode.session.id = "$0; kill-server";
+  expect(parseSnapshot(bad)!.sessions).toEqual([]);
+});
+
+test("backend, endpoint, login and original Zellij socket separate same-name sessions", () => {
+  const remote = { backend: "zellij" as const, session: { name: tmuxSession().name, socket_dir: "/tmp/original/contract_version_1", socket_id: "10:20" } };
+  const tab = tmuxTab({ id: "zellij", sshMode: modeForSession(remote, "alice", "example.test:22") });
+  const all = [tmuxTab(), tab];
+  expect(findSessionTab(all, "host-a", "alice", remote, "example.test:22")?.id).toBe("zellij");
+  for (const [host, login, endpoint] of [["host-b","alice","example.test:22"],["host-a","bob","example.test:22"],["host-a","alice","other.test:22"]]) {
+    expect(findSessionTab(all, host, login, remote, endpoint)).toBeUndefined();
+  }
+  expect(sameRemoteSession(remote, { backend: "tmux", session: tmuxSession() })).toBe(false);
+  expect(sameRemoteSession(remote, { ...remote, session: { ...remote.session, socket_id: "10:21" } })).toBe(false);
+  expect(sameRemoteSession(remote, { ...remote, session: { ...remote.session, socket_dir: "/tmp/another/contract_version_1" } })).toBe(false);
+  expect(sameRemoteSession(remote, { ...remote, session: { ...remote.session, name: "renamed" } })).toBe(true);
+});
+
+test("Zellij snapshot restores the bound running target and never requests creation or resurrection", () => {
+  const remote = { backend: "zellij" as const, session: { name: "New", socket_dir: "/tmp/original/contract_version_1", socket_id: "10:20" } };
+  const tab = tmuxTab({ sshMode: modeForSession(remote,"alice","example.test:22") });
+  const snapshot = buildSnapshot({ sessions: [tab], cwds: {}, activeSessionId: tab.id,
+    layout: { splitTabs: [], activeSplitTabId: null, splitTabActive: false, titlebarOrder: [] } });
+  const restored = parseSnapshot(JSON.parse(JSON.stringify(snapshot)))!;
+  expect(restored.sessions[0].sshMode).toEqual(tab.sshMode);
+  expect(sessionLabel(restored.sessions[0])).toBe("New");
+  expect(sessionAttachChoice(remote)).toEqual({ backend: "zellij", choice: { kind: "attach", session: remote.session } });
+  const bad = JSON.parse(JSON.stringify(snapshot)); delete bad.sessions[0].sshMode.session.socket_id;
   expect(parseSnapshot(bad)!.sessions).toEqual([]);
 });

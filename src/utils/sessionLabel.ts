@@ -19,7 +19,7 @@ export function normalizeTabTitle(raw: string | null | undefined): string | unde
  * only moves the fallback — a custom title always wins.
  */
 export function sessionLabel(session: Pick<TerminalSession, "connectionName" | "title" | "sshMode">): string {
-  return session.sshMode?.kind === "tmux" ? session.sshMode.session.name : session.title ?? session.connectionName;
+  return session.sshMode?.kind === "tmux" || session.sshMode?.kind === "zellij" ? session.sshMode.session.name : session.title ?? session.connectionName;
 }
 
 /** Search matches the tab name and the connection name, so a renamed tab stays findable by host. */

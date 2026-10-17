@@ -229,6 +229,8 @@ pub struct ConnectedSession {
     /// True when the remote shell was wrapped in a persistent multiplexer
     /// (tmux/screen). A user-initiated disconnect kills that session.
     pub persist: bool,
+    /// A user-owned tmux session on the default socket; disconnect only detaches.
+    pub user_tmux: Option<crate::ssh::tmux::TmuxSession>,
     /// Keeps intermediate jump-host SSH handles alive for the lifetime of this session.
     pub _jump_handles: Vec<Arc<client::Handle<SshClient>>>,
     /// Shared remote-forward route table for this session.
@@ -869,7 +871,17 @@ impl JumpHostConnect {
     }
 }
 
-pub async fn connect(
+/// Authenticates through the same known-host, proxy, jump-host and interactive-auth path.
+/// It opens no PTY and starts no remote shell.
+pub struct AuthenticatedConnection {
+    pub handle: Arc<client::Handle<SshClient>>,
+    pub jump_handles: Vec<Arc<client::Handle<SshClient>>>,
+    pub remote_routes: RemoteRouteMap,
+    pub remote_is_windows: bool,
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn authenticate_connection(
     app: AppHandle,
     session_id: String,
     host: &str,
@@ -879,26 +891,14 @@ pub async fn connect(
     private_key: Option<&str>,
     passphrase: Option<&str>,
     jump_hosts: Vec<JumpHostConnect>,
-    env_vars: Vec<(String, String)>,
     agent_forwarding: bool,
-    pre_command: Option<String>,
-    shell_integration: bool,
     known_hosts: Arc<KnownHostsStore>,
     pending_conflicts: Arc<PendingConflicts>,
     keepalive_interval_secs: u64,
     keepalive_max: usize,
-    persist: bool,
-    restore: bool,
-    attach_only: bool,
-    pty_cols: u32,
-    pty_rows: u32,
     legacy_algorithms: bool,
-    initial_cwd: Option<String>,
     route: HopRoute,
-    terminal_colors: Option<crate::ssh::control_mode::TerminalColors>,
-) -> Result<ConnectedSession, AppError> {
-    let terminal_colors =
-        terminal_colors.filter(crate::ssh::control_mode::TerminalColors::is_valid);
+) -> Result<AuthenticatedConnection, AppError> {
     let config = Arc::new(client_config(
         keepalive_interval_secs,
         keepalive_max,
@@ -1008,14 +1008,33 @@ pub async fn connect(
         SshStep::Authenticating,
         format!("as {}", username),
     );
-    authenticate_handle(
+    if let Err(error) = authenticate_handle(
         &mut final_handle,
         username,
         password,
         private_key,
         passphrase,
     )
-    .await?;
+    .await
+    {
+        let _ = final_handle
+            .disconnect(
+                russh::Disconnect::ByApplication,
+                "Authentication failed",
+                "en",
+            )
+            .await;
+        for handle in &jump_handles {
+            let _ = handle
+                .disconnect(
+                    russh::Disconnect::ByApplication,
+                    "Authentication failed",
+                    "en",
+                )
+                .await;
+        }
+        return Err(error);
+    }
 
     // Windows OpenSSH has no POSIX `sh`/`base64`/`tmux`, so the shell-integration
     // and persistence exec bootstraps (and the `export` env injection below) can't
@@ -1028,8 +1047,41 @@ pub async fn connect(
         .as_deref()
         .map(is_windows_sshid)
         .unwrap_or(false);
-    let shell_integration = shell_integration && !remote_is_windows;
-    let persist = persist && !remote_is_windows;
+    Ok(AuthenticatedConnection {
+        handle: Arc::new(final_handle),
+        jump_handles,
+        remote_routes: final_routes,
+        remote_is_windows,
+    })
+}
+
+pub async fn connect(
+    app: AppHandle,
+    session_id: String,
+    authenticated: AuthenticatedConnection,
+    env_vars: Vec<(String, String)>,
+    agent_forwarding: bool,
+    pre_command: Option<String>,
+    shell_integration: bool,
+    persist: bool,
+    restore: bool,
+    attach_only: bool,
+    pty_cols: u32,
+    pty_rows: u32,
+    initial_cwd: Option<String>,
+    terminal_colors: Option<crate::ssh::control_mode::TerminalColors>,
+    tmux: Option<crate::ssh::tmux::TmuxChoice>,
+) -> Result<ConnectedSession, AppError> {
+    let terminal_colors =
+        terminal_colors.filter(crate::ssh::control_mode::TerminalColors::is_valid);
+    let AuthenticatedConnection {
+        handle,
+        jump_handles,
+        remote_routes: final_routes,
+        remote_is_windows,
+    } = authenticated;
+    let shell_integration = shell_integration && !remote_is_windows && tmux.is_none();
+    let persist = persist && !remote_is_windows && tmux.is_none();
     let restore = restore && !remote_is_windows;
 
     // Attach-only (reconnect/join): verify the multiplexer session still exists
@@ -1040,7 +1092,7 @@ pub async fn connect(
     let mut attach_only = attach_only;
     if persist && attach_only {
         let key = crate::shell_integration::tmux_session_key(&session_id);
-        match persistent_session_state(&final_handle, &key).await {
+        match persistent_session_state(&handle, &key).await {
             Some(PersistentSession::Gone) => return Err("SESSION_ENDED".into()),
             // A host without tmux/screen never had anything to attach to: reconnect
             // with a fresh shell, as a non-persistent session does.
@@ -1052,7 +1104,7 @@ pub async fn connect(
     // Open channel + shell
     emit_step(&app, &session_id, SshStep::OpeningShell, "Requesting PTY");
 
-    let channel = final_handle
+    let channel = handle
         .channel_open_session()
         .await
         .map_err(|e| format!("Failed to open channel: {}", e))?;
@@ -1061,6 +1113,13 @@ pub async fn connect(
         .request_pty(false, "xterm-256color", pty_cols, pty_rows, 0, 0, &[])
         .await
         .map_err(|e| format!("PTY request failed: {}", e))?;
+
+    // Creation is an explicit, atomic new-session operation, never new-session -A.
+    // A failed/missing choice fails before a terminal is marked connected.
+    let user_tmux = match tmux {
+        Some(choice) => Some(crate::ssh::tmux::resolve_choice(&handle, choice).await?),
+        None => None,
+    };
 
     if agent_forwarding {
         channel
@@ -1078,7 +1137,7 @@ pub async fn connect(
     if restore && persist {
         let key = crate::shell_integration::tmux_session_key(&session_id);
         let capture = crate::shell_integration::capture_history_command(&key, pty_rows);
-        if let Ok(cap_channel) = final_handle.channel_open_session().await {
+        if let Ok(cap_channel) = handle.channel_open_session().await {
             if let Some((history, _)) =
                 exec_collect(cap_channel, &capture, std::time::Duration::from_secs(5)).await
             {
@@ -1123,7 +1182,9 @@ pub async fn connect(
     // remote $SHELL and execs into it with OSC 7 emission already hooked
     // (writes a temp rcfile under /tmp). Falling back to request_shell keeps
     // the historical behavior available via the setting.
-    let exec_cmd = if shell_integration {
+    let exec_cmd = if let Some(id) = &user_tmux {
+        Some(crate::ssh::tmux::attach_command(&id.id)?)
+    } else if shell_integration {
         let inner = crate::shell_integration::ssh_exec_command(&cd_prefix);
         Some(if persist {
             let key = crate::shell_integration::tmux_session_key(&session_id);
@@ -1180,7 +1241,7 @@ pub async fn connect(
     // `export KEY=val` is POSIX syntax; on a Windows cmd.exe/PowerShell shell it
     // would just echo errors, so skip it there (see `remote_is_windows`).
     let mut startup = String::new();
-    if !remote_is_windows {
+    if !remote_is_windows && user_tmux.is_none() {
         for (key, value) in &env_vars {
             startup.push_str(&format!("export {}={}\n", key, shell_escape(value)));
         }
@@ -1189,11 +1250,11 @@ pub async fn connect(
             startup.push_str(&format!("{}\n", cd_prefix.trim_end()));
         }
     }
-    if let Some(cmd) = pre_command {
-        startup.push_str(&format!("{}\n", cmd));
+    if user_tmux.is_none() {
+        if let Some(cmd) = pre_command {
+            startup.push_str(&format!("{}\n", cmd));
+        }
     }
-
-    let handle = Arc::new(final_handle);
 
     let control = if wrapped {
         crate::ssh::control_mode::ControlSession::new(
@@ -1287,6 +1348,7 @@ pub async fn connect(
         shutdown_tx: io.shutdown_tx,
         channel_only: false,
         persist,
+        user_tmux,
         _jump_handles: jump_handles,
         remote_routes: final_routes,
         machine: None,

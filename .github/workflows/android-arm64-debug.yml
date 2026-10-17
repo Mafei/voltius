@@ -72,10 +72,17 @@ jobs:
         id: android_build
         run: pnpm tauri android build --target aarch64 --apk --debug 2>&1 | tee android-ci-artifacts/android-build.log
 
+      - name: Check Android IME composition contracts
+        if: ${{ !cancelled() && steps.android_build.outcome == 'success' }}
+        run: |
+          (cd src-tauri/gen/android && ./gradlew :app:testUniversalDebugUnitTest --tests com.voltius.app.TerminalKeyboardTest --console=plain) 2>&1 | tee android-ci-artifacts/android-ime-tests.log
+          cp src-tauri/gen/android/app/build/test-results/testUniversalDebugUnitTest/*.xml android-ci-artifacts/
+
       - name: Check transfer safety regressions on the Linux host
+        if: ${{ !cancelled() && steps.android_build.outcome == 'success' }}
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libsoup-3.0-dev libsecret-1-dev openssh-sftp-server zsh
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libsoup-3.0-dev libsecret-1-dev openssh-sftp-server zsh tmux
           regressions_failed=0
           printf 'module\texit_code\n' > android-ci-artifacts/native-regression-results.tsv
           while read -r module log_name; do
@@ -100,6 +107,8 @@ jobs:
           commands::sftp::editor:: sftp-editor-tests.log
           commands::sftp::paste:: sftp-paste-tests.log
           ssh::exec:: ssh-exec-tests.log
+          ssh::tmux:: tmux-session-tests.log
+          ssh::client::tests ssh-client-auth-tests.log
           commands::openssh:: openssh-config-tests.log
           commands::keygen:: keygen-tests.log
           storage::secrets:: storage-secrets-tests.log
@@ -112,6 +121,7 @@ jobs:
           python3 scripts/verify-android-apk.py src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk android-ci-artifacts
           cp LICENSE NOTICE.md android-ci-artifacts/
           cp docs/android-fork-build.md android-ci-artifacts/BUILD-NOTICE.md
+          cp docs/android-input-and-tmux.md android-ci-artifacts/INPUT-AND-TMUX-NOTICE.md
 
       - name: Preserve APK and build evidence
         if: always()

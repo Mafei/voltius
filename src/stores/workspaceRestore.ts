@@ -24,6 +24,7 @@ function toTerminalSession(s: SnapshotSession): TerminalSession {
     title: s.title,
     status: "connecting",
     persist: s.persist,
+    sshMode: s.sshMode,
     // Snapshot sessions existed on the host: reconnects must attach, not create.
     everConnected: true,
     type: s.type,

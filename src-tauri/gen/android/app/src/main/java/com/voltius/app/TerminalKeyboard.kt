@@ -3,6 +3,9 @@ package com.voltius.app
 import android.annotation.SuppressLint
 import android.content.Context
 import android.text.InputType
+import android.text.Editable
+import android.text.Selection
+import android.text.SpannableStringBuilder
 import android.util.Log
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -23,7 +26,7 @@ import org.json.JSONObject
  * (reordered/duplicated chars, deletes that reinsert composed text — issue #34). We can't
  * override the WebView's InputConnection (Wry's RustWebView is final and regenerated), so we
  * own the IME ourselves: a transparent, focusable overlay that becomes the sole input target,
- * advertises a composition-free EditorInfo, and translates each IME operation into clean
+ * advertises an ordinary text editor, and translates committed IME text into clean
  * terminal bytes forwarded to JS (`window.__voltiusTermInput` / `__voltiusTermKey`).
  *
  * Touches fall through to the WebView (see [TerminalInputView.onTouchEvent]) so xterm keeps
@@ -50,7 +53,7 @@ object TerminalKeyboard {
   /** JS asked to raise the keyboard for the active terminal. Runs on the UI thread.
    *  While the terminal keyboard is up the WebView is made non-focusable so it can't win
    *  Android focus (and rebind the IME to xterm's textarea, which would restore Gboard's
-   *  suggestion/composition path — issue #34). Touches still reach the WebView for
+   *  DOM composition path — issue #34). Touches still reach the WebView for
    *  selection/scroll; DOM focus (cursor) is unaffected. hide() restores focusability so the
    *  rest of the app's text inputs keep working. */
   @JvmStatic
@@ -70,6 +73,7 @@ object TerminalKeyboard {
   fun hide() {
     val view = inputView ?: return
     view.post {
+      view.resetInput()
       val imm = view.context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
       imm?.hideSoftInputFromWindow(view.windowToken, 0)
       view.clearFocus()
@@ -97,11 +101,13 @@ object TerminalKeyboard {
 
 /**
  * Transparent overlay that owns the Android IME on behalf of the terminal. It reports itself as
- * a text editor with a composition-free EditorInfo and returns a [TerminalInputConnection] that
- * emits terminal bytes instead of mutating an editable buffer.
+ * an ordinary text editor. Only the current IME composition is buffered locally; confirmed
+ * text is forwarded to the terminal. This is not a password field or a custom keyboard.
  */
 @SuppressLint("ViewConstructor", "ClickableViewAccessibility")
 class TerminalInputView(context: Context) : View(context) {
+  private var connection: TerminalInputConnection? = null
+
   init {
     isFocusable = true
     isFocusableInTouchMode = true
@@ -115,66 +121,133 @@ class TerminalInputView(context: Context) : View(context) {
   override fun onTouchEvent(event: MotionEvent?): Boolean = false
 
   override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection {
-    // VISIBLE_PASSWORD + NO_SUGGESTIONS disables autocorrect, predictions and (on Gboard)
-    // composition, so the IME commits raw characters. NO_EXTRACT_UI / NO_FULLSCREEN keep the
-    // terminal visible in landscape; NO_PERSONALIZED_LEARNING avoids leaking commands to the IME.
-    outAttrs.inputType = InputType.TYPE_CLASS_TEXT or
-      InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or
-      InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+    resetInput()
+    // A password variation can make OEMs replace the selected IME with a security keyboard.
+    // Do not suppress candidates: Chinese/Japanese IMEs need composition to enter text.
+    // Leave AUTO_CORRECT unset for commands, and keep the existing privacy/layout hints.
+    outAttrs.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
     outAttrs.imeOptions = EditorInfo.IME_ACTION_NONE or
       EditorInfo.IME_FLAG_NO_EXTRACT_UI or
       EditorInfo.IME_FLAG_NO_FULLSCREEN or
       EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
-    return TerminalInputConnection(this)
+    outAttrs.initialSelStart = 0
+    outAttrs.initialSelEnd = 0
+    return TerminalInputConnection(this).also { connection = it }
+  }
+
+  /** Focus/connection loss cancels unconfirmed text rather than sending it to another session. */
+  internal fun resetInput() {
+    connection?.closeConnection()
+    connection = null
+  }
+
+  override fun onFocusChanged(gainFocus: Boolean, direction: Int, previouslyFocusedRect: android.graphics.Rect?) {
+    super.onFocusChanged(gainFocus, direction, previouslyFocusedRect)
+    if (!gainFocus) resetInput()
   }
 }
 
 /**
- * Translates IME operations into terminal input. Holds no editable text: the terminal (via the
- * remote shell) is the source of truth. A composition tracker collapses the rare IME that still
- * composes (setComposingText → commit) into incremental writes without duplication.
+ * A full InputConnection for the pending composition, not a mirror of the remote shell line.
+ * BaseInputConnection owns Android's composing spans, selection and surrounding-text queries.
+ * Preedit must never reach the PTY: replacing pinyin with a candidate must not send a sequence
+ * of guesses and Backspaces to a remote program. Only commit/finish emits text, exactly once.
  */
-private class TerminalInputConnection(view: View) : BaseInputConnection(view, false) {
-  /** Text the IME currently considers "composing" and that we've already written to the shell. */
-  private var composing = ""
+internal class TerminalInputConnection(
+  private val view: View,
+  private val emitText: (String) -> Unit = TerminalKeyboard::feedText,
+  private val emitKey: (String) -> Unit = TerminalKeyboard::feedKey,
+) : BaseInputConnection(view, true) {
+  private val pending = SpannableStringBuilder().also { Selection.setSelection(it, 0) }
+  private var batchDepth = 0
+  private var closed = false
 
-  /** Reconcile the on-screen composing region with [next]: backspace the diverging tail, write
-   *  the new suffix. No-op when unchanged, so repeated setComposingText calls don't duplicate. */
-  private fun setComposing(next: String) {
-    if (next == composing) return
-    var common = 0
-    val max = minOf(composing.length, next.length)
-    while (common < max && composing[common] == next[common]) common++
-    repeat(composing.length - common) { TerminalKeyboard.feedKey("Backspace") }
-    if (next.length > common) TerminalKeyboard.feedText(next.substring(common))
-    composing = next
-  }
+  override fun getEditable(): Editable = pending
 
-  override fun setComposingText(text: CharSequence, newCursorPosition: Int): Boolean {
-    setComposing(text.toString())
+  override fun beginBatchEdit(): Boolean {
+    if (closed) return false
+    batchDepth++
     return true
   }
 
-  override fun finishComposingText(): Boolean {
-    composing = ""
+  override fun endBatchEdit(): Boolean {
+    if (batchDepth == 0) return false
+    batchDepth--
+    if (batchDepth == 0 && !closed) {
+      val imm = view.context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+      imm?.updateSelection(view, Selection.getSelectionStart(pending), Selection.getSelectionEnd(pending),
+        getComposingSpanStart(pending), getComposingSpanEnd(pending))
+    }
+    return batchDepth > 0
+  }
+
+  private inline fun edit(operation: () -> Boolean): Boolean {
+    if (!beginBatchEdit()) return false
+    return try { operation() } finally { endBatchEdit() }
+  }
+
+  private fun clearPending() {
+    pending.clear()
+    pending.clearSpans()
+    Selection.setSelection(pending, 0)
+  }
+
+  private fun flushCommitted() {
+    val text = pending.toString()
+    clearPending()
+    if (text.isNotEmpty()) emitText(text)
+  }
+
+  override fun setComposingText(text: CharSequence, newCursorPosition: Int): Boolean = edit {
+    super.setComposingText(text, newCursorPosition)
+  }
+
+  override fun setComposingRegion(start: Int, end: Int): Boolean = edit {
+    super.setComposingRegion(start, end)
+  }
+
+  override fun setSelection(start: Int, end: Int): Boolean = edit {
+    super.setSelection(start, end)
+  }
+
+  override fun finishComposingText(): Boolean = edit {
+    super.finishComposingText()
+    flushCommitted()
+    true
+  }
+
+  override fun commitText(text: CharSequence, newCursorPosition: Int): Boolean = edit {
+    super.commitText(text, newCursorPosition)
+    flushCommitted()
+    true
+  }
+
+  private fun deleteFromTerminal(beforeLength: Int, afterLength: Int): Boolean {
+    if (beforeLength < 0 || afterLength < 0) return false
+    repeat(beforeLength) { emitKey("Backspace") }
+    repeat(afterLength) { emitKey("Delete") }
     return true
   }
 
-  override fun commitText(text: CharSequence, newCursorPosition: Int): Boolean {
-    // Fold any active composition into this commit, then send whatever the commit adds beyond it.
-    setComposing(text.toString())
-    composing = ""
-    return true
+  override fun deleteSurroundingText(beforeLength: Int, afterLength: Int): Boolean = edit {
+    if (pending.isNotEmpty()) super.deleteSurroundingText(beforeLength, afterLength)
+    else deleteFromTerminal(beforeLength, afterLength)
   }
 
-  override fun deleteSurroundingText(beforeLength: Int, afterLength: Int): Boolean {
-    if (composing.isNotEmpty()) return super.deleteSurroundingText(beforeLength, afterLength)
-    repeat(beforeLength) { TerminalKeyboard.feedKey("Backspace") }
-    repeat(afterLength) { TerminalKeyboard.feedKey("Delete") }
-    return true
+  override fun deleteSurroundingTextInCodePoints(beforeLength: Int, afterLength: Int): Boolean = edit {
+    if (pending.isNotEmpty()) super.deleteSurroundingTextInCodePoints(beforeLength, afterLength)
+    else deleteFromTerminal(beforeLength, afterLength)
+  }
+
+  override fun closeConnection() {
+    closed = true
+    clearPending()
+    // Base calls finishComposingText; closed prevents it from emitting cancelled input.
+    super.closeConnection()
   }
 
   override fun sendKeyEvent(event: KeyEvent): Boolean {
+    if (closed) return false
     if (event.action != KeyEvent.ACTION_DOWN) return true
     val name = when (event.keyCode) {
       KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> "Enter"
@@ -193,13 +266,29 @@ private class TerminalInputConnection(view: View) : BaseInputConnection(view, fa
       else -> null
     }
     if (name != null) {
-      TerminalKeyboard.feedKey(name)
+      if (pending.isNotEmpty() && (name == "Backspace" || name == "Delete")) {
+        // Hardware-style deletion during preedit edits only the local buffer, by code point.
+        return edit {
+          val start = minOf(Selection.getSelectionStart(pending), Selection.getSelectionEnd(pending))
+          val end = maxOf(Selection.getSelectionStart(pending), Selection.getSelectionEnd(pending))
+          val from = if (start == end && name == "Backspace" && start > 0)
+            Character.offsetByCodePoints(pending, start, -1) else start
+          val to = if (start == end && name == "Delete" && end < pending.length)
+            Character.offsetByCodePoints(pending, end, 1) else end
+          pending.delete(from, to)
+          Selection.setSelection(pending, from)
+          true
+        }
+      }
+      finishComposingText()
+      emitKey(name)
       return true
     }
     // Physical/bluetooth keyboard producing a printable char (soft-keys arrive via commitText).
     val ch = event.unicodeChar
-    if (ch != 0) {
-      TerminalKeyboard.feedText(ch.toChar().toString())
+    if (ch != 0 && Character.isValidCodePoint(ch)) {
+      finishComposingText()
+      emitText(String(Character.toChars(ch)))
       return true
     }
     return true

@@ -257,6 +257,8 @@ export interface TerminalSession {
   status: "connecting" | "connected" | "disconnected" | "error";
   /** SSH only: persistence (remote tmux/screen) was active at connect time. */
   persist?: boolean;
+  /** Explicit host-picker mode. User-owned tmux sessions are never killed on close. */
+  sshMode?: { kind: "plain" } | { kind: "tmux"; session: import("@/services/ssh").TmuxSession; username: string; endpoint: string };
   /** The multiplexer session exists on the host (a connect succeeded, or the
    * session came from restore/join). Reconnects then attach-only — they must
    * never recreate a dead session; only a fresh initial connect creates. */

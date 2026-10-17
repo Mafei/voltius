@@ -1,6 +1,7 @@
 import { describe, test, expect, afterEach, vi } from "vitest";
 import { render, cleanup } from "@testing-library/react";
 import { useSessionStore } from "@/stores/sessionStore";
+import { tmuxSession, tmuxTab } from "@/services/__fixtures__/tmux";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => undefined) }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn(async () => () => {}) }));
@@ -32,4 +33,16 @@ test("a session chip carries the name the tab was given, not the connection", as
   const { container } = render(<MobileTerminalTopBar />);
 
   expect(container.querySelector('[data-mobile-session-chip="s1"]')!.textContent).toContain("deploy");
+});
+
+test("tmux chips distinguish sessions on one host and the same name across hosts", async () => {
+  useSessionStore.setState({ sessions: [tmuxTab({ title: "shell must not overwrite" }),
+    tmuxTab({ id: "second", sshMode: { kind: "tmux", session: tmuxSession({ id: "$1", name: "部署" }), username: "alice", endpoint: "example.test:22" } }),
+    tmuxTab({ id: "other-host", connectionId: "host-b", connectionName: "服务器 B" })], activeSessionId: "tab-1" });
+  const { default: MobileTerminalTopBar } = await import("./MobileTerminalTopBar");
+  const { container } = render(<MobileTerminalTopBar />);
+  expect(container.querySelector('[data-mobile-session-chip="tab-1"]')!.textContent).toContain(tmuxSession().name);
+  expect(container.querySelector('[data-mobile-session-chip="second"]')!.textContent).toContain("部署");
+  expect(container.querySelector('[data-mobile-session-chip="other-host"]')!.textContent).toContain("服务器 B");
+  expect(container.textContent).not.toContain("shell must not overwrite");
 });

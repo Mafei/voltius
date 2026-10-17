@@ -43,10 +43,28 @@ vi.mock("@/services/auditReporter", () => ({ reportAuditClientEvent: vi.fn() }))
 vi.mock("@/services/auditContextResolver", () => ({ auditContextForVaultId: vi.fn(() => ({})) }));
 
 import { useSessionStore } from "./sessionStore";
+import { sshConnect } from "@/services/ssh";
+import { runHostCommand } from "@/services/hostCommandRun";
+import { tmuxSession } from "@/services/__fixtures__/tmux";
 
 beforeEach(() => {
   vi.clearAllMocks();
   useSessionStore.setState({ sessions: [], activeSessionId: null });
+});
+
+test("explicit tmux connect and reconnect preserve identity/name without injecting host commands", async () => {
+  const target = tmuxSession();
+  vi.mocked(sshConnect).mockResolvedValueOnce({ tmux_session: target } as never);
+  const id = await useSessionStore.getState().connect("c1", { sshLaunch: {
+    preparedId: "picker-token", choice: { kind: "attach", id: target.id, created: target.created, serverPid: target.server_pid }, session: target, username: "root",
+  } });
+  expect(useSessionStore.getState().sessions[0]).toMatchObject({ persist: false, sshMode: { kind: "tmux", session: target, username: "root", endpoint: "h1:22" } });
+  expect(runHostCommand).not.toHaveBeenCalled();
+  vi.mocked(sshConnect).mockResolvedValueOnce({ tmux_session: { ...target, name: "远端重命名" } } as never);
+  await useSessionStore.getState().reconnect(id);
+  expect(vi.mocked(sshConnect).mock.lastCall?.[0]).toMatchObject({ persist: false, tmux: { kind: "attach", id: target.id }, preCommand: undefined });
+  expect(useSessionStore.getState().sessions[0].sshMode).toMatchObject({ session: { name: "远端重命名" } });
+  expect(runHostCommand).not.toHaveBeenCalled();
 });
 
 describe("background open", () => {

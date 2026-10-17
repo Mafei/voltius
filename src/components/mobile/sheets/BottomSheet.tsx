@@ -9,8 +9,10 @@ import { useBackInterceptor } from "@/hooks/useBackInterceptor";
  * through requestClose, which plays the slide-out animation and then calls
  * onClose on transition end (so the parent unmounts after the exit, not before).
  */
-export default function BottomSheet({ onClose, children, title, registerBack = true }: {
+export default function BottomSheet({ onClose, onDismissStart, children, title, registerBack = true }: {
   onClose: () => void;
+  /** Cancel owned async work before the exit animation, so late taps cannot start it. */
+  onDismissStart?: () => void;
   children: ReactNode;
   title?: string;
   /** Close on Android hardware-back. Set false for nav-store-driven sheets that
@@ -37,6 +39,7 @@ export default function BottomSheet({ onClose, children, title, registerBack = t
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestClose = () => {
     if (closing) return;
+    onDismissStart?.();
     setDragging(false);
     setExitY((panelRef.current?.offsetHeight ?? 400) + 40);
     setClosing(true);

@@ -237,6 +237,25 @@
         "newVault": "New vault",
         "namePlaceholder": "Vault name"
       }
+    },
+    "tmux": {
+      "title": "Choose terminal session",
+      "scope": "Your SSH user's default tmux server. Closing a tab only detaches this client.",
+      "connecting": "Connecting and checking tmux…",
+      "opening": "Opening session…",
+      "missing": "tmux is not installed or supported on this host. You can open ordinary SSH; nothing is installed automatically.",
+      "empty": "No tmux sessions yet. Create one below or open ordinary SSH.",
+      "details": "{{windows}} windows · {{attached}} attached",
+      "newName": "New tmux session name",
+      "nameHint": "Names must be unique, at most 128 UTF-8 bytes, with no dots, colons or control characters, and cannot start with a dash. A duplicate is an error.",
+      "create": "Create new session",
+      "refresh": "Refresh sessions / retry",
+      "plain": "Open ordinary SSH",
+      "duplicate": "A tmux session with that name already exists. Refresh the list to select it or choose another name.",
+      "expired": "This selection expired or the remote session changed. Refresh the list before opening it.",
+      "invalidName": "The session name is invalid. Check the name rules below.",
+      "timeout": "The tmux operation timed out. Refresh to check whether it completed before trying again.",
+      "identityChanged": "The host or SSH login changed. Select the tmux session again from Hosts."
     }
   }
 }

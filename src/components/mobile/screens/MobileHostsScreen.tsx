@@ -31,6 +31,7 @@ import { compareStrings } from "@/utils/localeFormat";
 import { searchMatcher } from "@/utils/search";
 import { isFileOnlyProtocol } from "@/utils/connectionType";
 import { ManagedBadge } from "@/components/sshConfig/ManagedHost";
+import TmuxSessionSheet from "../sheets/TmuxSessionSheet";
 
 function MobileHostRow({
   c,
@@ -117,6 +118,7 @@ export default function MobileHostsScreen() {
 
   const [addMode, setAddMode] = useState<AddMode>(null);
   const [folderSheet, setFolderSheet] = useState<Folder | null>(null);
+  const [tmuxHost, setTmuxHost] = useState<Connection | null>(null);
 
   const subFolders = useMemo(
     () => [...nav.visibleFolders].sort((a, b) => compareStrings(a.name, b.name)),
@@ -142,6 +144,10 @@ export default function MobileHostsScreen() {
     const c = connections.find((x) => x.id === id);
     if (c && isFileOnlyProtocol(c)) {
       push({ kind: "panel-sftp", connectionId: id });
+      return;
+    }
+    if (c && c.connection_type !== "serial") {
+      setTmuxHost((current) => current ?? c);
       return;
     }
     void connect(id).catch(console.error);
@@ -203,6 +209,8 @@ export default function MobileHostsScreen() {
         ))}
       </div>
 
+      {tmuxHost && <TmuxSessionSheet connection={tmuxHost} onClose={() => setTmuxHost(null)}
+        onOpened={() => { setTmuxHost(null); setTab("terminal"); }} />}
       {addMode === "menu" && (
         <AddChoiceSheet
           items={canCreateHost ? [{ slug: "item", icon: "lucide:server", label: t("mobile.host.newTitle"), onTap: () => { setAddMode(null); push({ kind: "host-edit" }); } }] : []}

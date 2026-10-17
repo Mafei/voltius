@@ -14,7 +14,12 @@ export interface JumpHostConnect {
   passphrase?: string;
 }
 
-export async function sshConnect(params: {
+export type TmuxChoice = { kind: "attach"; id: string; created: number; serverPid: number } | { kind: "create"; name: string };
+export interface TmuxSession { id: string; name: string; windows: number; attached: number; created: number; server_pid: number }
+export interface TmuxListing { installed: boolean; sessions: TmuxSession[] }
+export interface SshConnectResult { tmux_listing: TmuxListing | null; tmux_session: TmuxSession | null }
+
+export interface SshConnectParams {
   sessionId: string;
   host: string;
   port: number;
@@ -44,8 +49,16 @@ export async function sshConnect(params: {
   initialCwd?: string;
   proxy?: ProxySpec | null;
   knock?: KnockSpec | null;
-}): Promise<void> {
+  prepareTmux?: boolean;
+  preparedId?: string;
+  tmux?: TmuxChoice;
+}
+
+export async function sshConnect(params: SshConnectParams): Promise<SshConnectResult> {
   return invoke("ssh_connect", {
+    prepareTmux: params.prepareTmux ?? false,
+    preparedId: params.preparedId ?? null,
+    tmux: params.tmux ?? null,
     sessionId: params.sessionId,
     host: params.host,
     port: params.port,
@@ -225,4 +238,9 @@ export async function onSshCwd(
   return listen<string>(`ssh-cwd-${sessionId}`, (event) => {
     callback(event.payload);
   });
+}
+
+/** Cancels only a tabless picker connection, never an existing terminal. */
+export function sshTmuxCancel(preparedId: string): Promise<void> {
+  return invoke("ssh_tmux_cancel", { preparedId });
 }

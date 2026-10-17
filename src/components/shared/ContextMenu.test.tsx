@@ -2,7 +2,7 @@ import { useState } from "react";
 import { test, expect, afterEach, vi } from "vitest";
 import { act } from "react";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
-import { ContextMenu, fitWithin, submenuLeft, useContextMenu } from "./ContextMenu";
+import { ContextMenu, fitWithin, isInMenuPortal, submenuLeft, useContextMenu } from "./ContextMenu";
 
 // vitest.config.ts sets no `globals: true`, so testing-library's automatic
 // cleanup never registers; unmount explicitly between tests.
@@ -87,6 +87,24 @@ test("a root menu opened near the right edge renders inside the window", () => {
   }
 });
 
+test.each([
+  ["a menu opened low in the window is shifted up instead of squeezed", "down", 560, 292],
+  ["an upward menu ends at the pointer when there is room above", "up", 560, 260],
+  ["an upward menu opened high in the window is pushed down instead of squeezed", "up", 120, 8],
+] as const)("%s", (_label, direction, y, expected) => {
+  const height = window.innerHeight;
+  window.innerHeight = 600;
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ width: 190, height: 300 } as DOMRect);
+  try {
+    render(<ContextMenu items={[{ label: "Edit", onClick: () => {} }]} pos={{ x: 40, y }} onClose={() => {}} direction={direction} />);
+    const menu = screen.getByText("Edit").closest("[data-menu-portal]") as HTMLElement;
+    expect(menu.style.top).toBe(`${expected}px`);
+    expect(menu.style.maxHeight).toBe("584px");
+  } finally {
+    window.innerHeight = height;
+  }
+});
+
 test("labels and hints never wrap, so the measured width is the final width", () => {
   render(<ContextMenu items={[{ label: "A long label", hint: "a hint", onClick: () => {} }]} pos={{ x: 0, y: 0 }} onClose={() => {}} />);
   expect(screen.getByText("A long label").className).toContain("whitespace-nowrap");
@@ -114,6 +132,14 @@ test("a root menu is re-clamped when it grows after the first measurement", () =
   } finally {
     window.innerWidth = width;
   }
+});
+
+test("a click opens a submenu without hovering, for touch and keyboard", () => {
+  const onClick = vi.fn();
+  render(<ContextMenu items={[{ label: "Parent", children: [{ label: "Child", onClick }] }]} pos={{ x: 0, y: 10 }} onClose={() => {}} />);
+  fireEvent.click(screen.getByText("Parent"));
+  fireEvent.click(screen.getByText("Child"));
+  expect(onClick).toHaveBeenCalled();
 });
 
 test("a submenu opened low in the window is shifted up to stay inside it", () => {
@@ -156,4 +182,14 @@ test("a flipped submenu wider than its old fixed estimate does not cover its par
   } finally {
     window.innerWidth = width;
   }
+});
+
+test("isInMenuPortal accepts any event target", () => {
+  const portal = document.createElement("div");
+  portal.setAttribute("data-menu-portal", "");
+  const row = portal.appendChild(document.createElement("button"));
+  expect(isInMenuPortal(row)).toBe(true);
+  expect(isInMenuPortal(document.createElement("div"))).toBe(false);
+  expect(isInMenuPortal(window)).toBe(false);
+  expect(isInMenuPortal(null)).toBe(false);
 });

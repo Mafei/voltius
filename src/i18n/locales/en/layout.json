@@ -60,7 +60,24 @@
       "confirmMasterPasswordPlaceholder": "Confirm master password",
       "errorPasswordRequired": "Password required",
       "errorMinLength4": "At least 4 characters",
-      "pleaseWait": "Please wait…"
+      "pleaseWait": "Please wait…",
+      "reauthTitle": "Sign in again",
+      "reauthDesc": "Your session on this device has ended. Enter your master password to reconnect."
+    },
+    "twoFactor": {
+      "prompt": "Enter the 6-digit code from your authenticator app.",
+      "recoveryPrompt": "Enter one of your recovery codes. Each one works once.",
+      "codePlaceholder": "6-digit code",
+      "recoveryPlaceholder": "Recovery code",
+      "useRecovery": "Use a recovery code",
+      "useCode": "Use an authenticator code",
+      "verify": "Verify",
+      "usePasskey": "Use a passkey",
+      "passkeyOrCodePrompt": "Use your passkey, or enter the 6-digit code from your authenticator app.",
+      "passkeyOrRecoveryPrompt": "Use your passkey, or enter one of your recovery codes.",
+      "passkeyWaiting": "Continue in your browser, then come back here.",
+      "passkeyDoneTitle": "Done",
+      "passkeyDoneBody": "Go back to Voltius. You can close this tab."
     },
     "mainPanel": {
       "noVaultSelectedTitle": "No vaults selected",
@@ -123,6 +140,9 @@
       "leaveLocalTitle": "Leave this local account?",
       "leaveLocalMessage": "This account's hosts, keys and snippets are stored only on this machine. Switching to {{account}} erases them and they cannot be recovered.",
       "leaveLocalConfirm": "Erase and switch",
+      "removeTitle": "Remove this account from this device?",
+      "removeMessage": "{{account}}'s hosts, keys and snippets saved on this device are deleted. Anything that was not synced cannot be recovered.",
+      "removeConfirm": "Remove",
       "autoLock": "Auto-lock settings…",
       "autoLockOff": "Auto-lock off",
       "autoLockAfter": "Auto-locks after {{duration}}",
@@ -157,6 +177,10 @@
       "enableArrow": "Enable →",
       "notConfigured": "Not configured",
       "configureArrow": "Configure →",
+      "paused": "Paused",
+      "resumeArrow": "Resume →",
+      "pause": "Pause sync",
+      "resume": "Resume sync",
       "encryptedBlob": "Encrypted blob · {{size}}",
       "status": {
         "syncing": "Syncing…",
@@ -165,9 +189,11 @@
         "error": "Sync error",
         "errorDetail": "Sync error: {{error}}",
         "errorDetailFrom": "Sync error · {{source}}: {{error}}",
-        "offline": "Offline",
+        "offline": "Can't reach server",
+        "offlineDetail": "Can't reach server: {{error}}",
         "idle": "Idle",
         "notConfigured": "Sync not configured",
+        "paused": "Sync paused",
         "default": "Sync",
         "unknown": "unknown"
       }

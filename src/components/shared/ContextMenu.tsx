@@ -3,6 +3,9 @@ import { createPortal } from "react-dom";
 import { Icon } from "@iconify/react";
 import { useUIStore } from "@/stores/uiStore";
 
+export const isInMenuPortal = (target: EventTarget | null): boolean =>
+  target instanceof Element && target.closest("[data-menu-portal]") !== null;
+
 export interface ContextMenuItem {
   label: string;
   icon?: string;
@@ -60,7 +63,11 @@ export function MenuItemList({
               <div className="my-1 mx-1 h-px bg-(--t-border)" />
             )}
             <button
-              onClick={item.children ? undefined : () => { item.onClick?.(); onClose(); }}
+              onClick={(e) => {
+                if (item.children) return openSub(i, e.currentTarget);
+                item.onClick?.();
+                onClose();
+              }}
               className="flex items-center gap-2.5 p-3 rounded-lg transition-colors w-full"
               style={{
                 background: isSubActive ? "var(--t-bg-card-hover)" : "transparent",
@@ -139,14 +146,20 @@ function useMeasuredSize(
   return size;
 }
 
+function viewportMaxHeight(scale = 1): number {
+  return (window.innerHeight - 2 * VIEWPORT_MARGIN) / scale;
+}
+
 function useFittedStart(
   ref: React.RefObject<HTMLElement | null>,
-  start: number,
+  anchor: number,
   axis: "width" | "height",
   deps: unknown[],
+  endsAtAnchor = false,
 ): number {
   const size = useMeasuredSize(ref, axis, deps);
-  if (size === null) return start;
+  if (size === null) return anchor;
+  const start = endsAtAnchor ? Math.max(VIEWPORT_MARGIN, anchor - size) : anchor;
   return fitWithin(start, size, axis === "width" ? window.innerWidth : window.innerHeight);
 }
 
@@ -176,7 +189,7 @@ function SubmenuPanel({ row, onMouseEnter, onMouseLeave, children }: {
       // PickerSurface treats this marker as inside-click; z-index keeps a flipped submenu above its parent.
       data-menu-portal=""
       className="surface-float fixed z-10000 p-1.5 flex flex-col min-w-[12.667rem] overflow-y-auto"
-      style={{ left, top, maxHeight: window.innerHeight - 2 * VIEWPORT_MARGIN }}
+      style={{ left, top, maxHeight: viewportMaxHeight() }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
@@ -196,6 +209,7 @@ export function ContextMenu({ items, pos, onClose, direction = "down" }: Context
   const uiScale = useUIStore((s) => s.uiScale);
   const menuRef = useRef<HTMLDivElement>(null);
   const left = useFittedStart(menuRef, pos.x, "width", [uiScale, items]);
+  const top = useFittedStart(menuRef, pos.y, "height", [uiScale, items], direction === "up");
 
   // Closing from window capture rather than behind a full-screen backdrop: the
   // backdrop swallowed the next right-click, so with one menu open, right-
@@ -204,8 +218,7 @@ export function ContextMenu({ items, pos, onClose, direction = "down" }: Context
   // is under the pointer and that target opens its own menu in the same event.
   useEffect(() => {
     const onOutside = (e: MouseEvent) => {
-      const target = e.target;
-      if (target instanceof Element && (menuRef.current?.contains(target) || target.closest("[data-menu-portal]"))) return;
+      if (isInMenuPortal(e.target)) return;
       onClose();
     };
     window.addEventListener("mousedown", onOutside, true);
@@ -216,12 +229,6 @@ export function ContextMenu({ items, pos, onClose, direction = "down" }: Context
     };
   }, [onClose]);
 
-  const maxHeight = direction === "up" ? pos.y - 8 : window.innerHeight - pos.y - 8;
-
-  const placement = direction === "up"
-    ? { bottom: window.innerHeight - pos.y, transformOrigin: "bottom left" }
-    : { top: pos.y, transformOrigin: "top left" };
-
   return createPortal(
     <div
       ref={menuRef}
@@ -229,9 +236,11 @@ export function ContextMenu({ items, pos, onClose, direction = "down" }: Context
       className="surface-float fixed z-100 p-1.5 flex flex-col min-w-[12.667rem] overflow-y-auto"
       style={{
         left,
-        maxHeight,
+        top,
+        maxHeight: viewportMaxHeight(uiScale),
+        // The measured size is the scaled one, so the fitted top only holds from this origin.
         transform: `scale(${uiScale})`,
-        ...placement,
+        transformOrigin: "top left",
       }}
     >
       <MenuItemList items={items} onClose={onClose} />

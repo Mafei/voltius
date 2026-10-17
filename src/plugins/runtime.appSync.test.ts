@@ -14,6 +14,8 @@ vi.mock("@/services/sync", () => ({
   getExcludedObjectIds: () => [],
   getSyncState: () => MOCK_SYNC_STATE,
   onSyncStateChange: () => () => {},
+  isSyncPaused: () => false,
+  getDeviceId: () => "dev",
   ENTITY_FILES: [],
 }));
 

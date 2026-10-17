@@ -4,11 +4,12 @@ import { importPluginModule, pluginRegisterOf, type PluginModule } from "./impor
 import { usePluginRegistryStore } from "@/stores/pluginRegistryStore";
 import { useSeededTombstoneStore } from "@/stores/seededTombstoneStore";
 import { useMarketplaceStore } from "@/stores/marketplaceStore";
-import { useNotificationStore } from "@/stores/notificationStore";
+import { APP_SOURCE, useNotificationStore } from "@/stores/notificationStore";
 import { useUIStore } from "@/stores/uiStore";
 import { log } from "@/lib/logger";
 import i18n from "@/i18n";
 import type { PluginManifest } from "./api";
+import { isRetiredPlugin } from "./retired";
 
 /**
  * Load plugins shipped inside the app bundle. They run through the same external
@@ -39,7 +40,7 @@ export async function loadSeededPlugins(): Promise<void> {
       const manifest = JSON.parse(manifestText) as PluginManifest;
       // The manifest id (e.g. "plugin-docker") is what tombstones and installedMeta
       // key on, not the seeded folder name (e.g. "docker") used to read files above.
-      if (isRemoved(manifest.id) || installedIds.has(manifest.id)) continue;
+      if (isRemoved(manifest.id) || installedIds.has(manifest.id) || isRetiredPlugin(manifest.id)) continue;
       const jsText = await invoke<string>("plugin_seeded_read", { id, filename: "index.js" });
       let css: string | undefined;
       try {
@@ -67,7 +68,7 @@ export async function loadSeededPlugins(): Promise<void> {
   if (loaded === 0 && failed > 0) {
     log.error(`[seeded] no built-in plugin loaded (${failed} failed)`, String(firstError));
     useNotificationStore.getState().addBanner({
-      source: { kind: "plugin", id: "core", name: "Voltius" },
+      source: APP_SOURCE,
       message: i18n.t("notifications.seededPluginsFailed.message"),
       severity: "error",
       dismissable: true,

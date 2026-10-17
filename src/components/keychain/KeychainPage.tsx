@@ -43,7 +43,7 @@ import type { Folder, Identity, IdentityFormData, SshKey, SshKeyFormData } from 
 import { SidePanelLayout } from "@/components/shared/SidePanelLayout";
 import { useSyncedFormKey } from "@/hooks/useSyncedFormKey";
 import { buildTeamVaultTransferPlan, type TransferOperation } from "@/services/teamVaultPermissions";
-import { keepCachedOnUploadFailure } from "@/services/secretRouting";
+import { reportUploadFailure } from "@/services/secretRouting";
 import { moveKeyToVault, moveIdentityToVault } from "@/services/vaultObjectSecrets";
 import { usePageClipboard } from "@/hooks/usePageClipboard";
 import { vaultClipboardBase } from "@/utils/vaultClipboardBase";
@@ -461,8 +461,9 @@ export default function KeychainPage() {
 
   const handleKeySubmit = async (data: SshKeyFormData, privateKey: string | null, publicKey: string | null, passphrase: string | null) => {
     try {
-      const key = await saveKeyFromForm(editingKey, data, privateKey, publicKey, passphrase, selectedVaultIds[0] ?? "personal");
-      if (!editingKey) setEditingKeyId(key.id);
+      await saveKeyFromForm(
+        editingKey, data, privateKey, publicKey, passphrase, selectedVaultIds[0] ?? "personal", (created) => setEditingKeyId(created.id),
+      );
     } catch (err) {
       reportSaveError(err);
     }
@@ -474,10 +475,10 @@ export default function KeychainPage() {
     inlineKeyMaterial?: { label?: string; privateKey: string; publicKey: string },
   ) => {
     try {
-      const identity = await saveIdentityFromForm(
+      await saveIdentityFromForm(
         editingIdentity, data, password, inlineKeyMaterial, inlineKeyIdRef, selectedVaultIds[0] ?? "personal",
+        (created) => setEditingIdentityId(created.id),
       );
-      if (!editingIdentity) setEditingIdentityId(identity.id);
     } catch (err) {
       reportSaveError(err);
     }
@@ -558,9 +559,9 @@ export default function KeychainPage() {
         getSecret(`key:${key.id}:public`),
         getSecret(`key:${key.id}:passphrase`),
       ]);
-      if (priv) await storeSecret(`key:${newKey.id}:private`, priv).catch(keepCachedOnUploadFailure("KeychainPage: copy key to vault"));
-      if (pub) await storeSecret(`key:${newKey.id}:public`, pub).catch(keepCachedOnUploadFailure("KeychainPage: copy key to vault"));
-      if (pass) await storeSecret(`key:${newKey.id}:passphrase`, pass).catch(keepCachedOnUploadFailure("KeychainPage: copy key to vault"));
+      if (priv) await storeSecret(`key:${newKey.id}:private`, priv).catch(reportUploadFailure("KeychainPage: copy key to vault"));
+      if (pub) await storeSecret(`key:${newKey.id}:public`, pub).catch(reportUploadFailure("KeychainPage: copy key to vault"));
+      if (pass) await storeSecret(`key:${newKey.id}:passphrase`, pass).catch(reportUploadFailure("KeychainPage: copy key to vault"));
     } catch (err) { setError(describeError(err, t)); }
   };
 
@@ -608,14 +609,14 @@ export default function KeychainPage() {
               getSecret(`key:${key.id}:private`),
               getSecret(`key:${key.id}:public`),
             ]);
-            if (priv) await storeSecret(`key:${newKey.id}:private`, priv).catch(keepCachedOnUploadFailure("KeychainPage: copy identity's key to vault"));
-            if (pub) await storeSecret(`key:${newKey.id}:public`, pub).catch(keepCachedOnUploadFailure("KeychainPage: copy identity's key to vault"));
+            if (priv) await storeSecret(`key:${newKey.id}:private`, priv).catch(reportUploadFailure("KeychainPage: copy identity's key to vault"));
+            if (pub) await storeSecret(`key:${newKey.id}:public`, pub).catch(reportUploadFailure("KeychainPage: copy identity's key to vault"));
             newKeyId = newKey.id;
           }
 
           const newIdentity = await saveIdentity(copyingRulesOf({ name: identity.name, username: identity.username, key_id: newKeyId, tags: identity.tags, vault_id: vaultId }, identity.id));
           const pwd = await getSecret(`identity:${identity.id}:password`);
-          if (pwd) await storeSecret(`identity:${newIdentity.id}:password`, pwd).catch(keepCachedOnUploadFailure("KeychainPage: copy identity to vault"));
+          if (pwd) await storeSecret(`identity:${newIdentity.id}:password`, pwd).catch(reportUploadFailure("KeychainPage: copy identity to vault"));
         } catch (err) { setError(describeError(err, t)); }
       },
     });
@@ -700,15 +701,15 @@ export default function KeychainPage() {
               getSecret(`key:${key.id}:private`),
               getSecret(`key:${key.id}:public`),
             ]);
-            if (priv) await storeSecret(`key:${newKey.id}:private`, priv).catch(keepCachedOnUploadFailure("KeychainPage: copy folder key"));
-            if (pub) await storeSecret(`key:${newKey.id}:public`, pub).catch(keepCachedOnUploadFailure("KeychainPage: copy folder key"));
+            if (priv) await storeSecret(`key:${newKey.id}:private`, priv).catch(reportUploadFailure("KeychainPage: copy folder key"));
+            if (pub) await storeSecret(`key:${newKey.id}:public`, pub).catch(reportUploadFailure("KeychainPage: copy folder key"));
             keyIdMap.set(key.id, newKey.id);
           }
           for (const identity of treeIdentities) {
             const newKeyId = identity.key_id ? (keyIdMap.get(identity.key_id) ?? identity.key_id) : undefined;
             const newIdentity = await useIdentityStore.getState().saveIdentity(copyingRulesOf({ name: identity.name, username: identity.username, key_id: newKeyId, tags: identity.tags, vault_id: vaultId }, identity.id));
             const pwd = await getSecret(`identity:${identity.id}:password`);
-            if (pwd) await storeSecret(`identity:${newIdentity.id}:password`, pwd).catch(keepCachedOnUploadFailure("KeychainPage: copy folder identity"));
+            if (pwd) await storeSecret(`identity:${newIdentity.id}:password`, pwd).catch(reportUploadFailure("KeychainPage: copy folder identity"));
           }
         } catch (err) { setError(describeError(err, t)); }
       },
@@ -741,7 +742,7 @@ export default function KeychainPage() {
       const value = await getSecret(`key:${key.id}:${part}`);
       if (!value) continue;
       const localKey = `key:${newKey.id}:${part}`;
-      await storeSecret(localKey, value).catch(keepCachedOnUploadFailure("duplicateKeyInto"));
+      await storeSecret(localKey, value).catch(reportUploadFailure("duplicateKeyInto"));
     }
     return newKey;
   }
@@ -765,7 +766,7 @@ export default function KeychainPage() {
     const pwd = await getSecret(`identity:${identity.id}:password`);
     if (pwd) {
       const localKey = `identity:${newIdentity.id}:password`;
-      await storeSecret(localKey, pwd).catch(keepCachedOnUploadFailure("duplicateIdentityInto"));
+      await storeSecret(localKey, pwd).catch(reportUploadFailure("duplicateIdentityInto"));
     }
     return newIdentity;
   }

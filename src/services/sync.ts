@@ -2,7 +2,7 @@ import { invoke } from "@/lib/invoke";
 import i18n from "@/i18n";
 import { logFailure } from "@/lib/logger";
 import { useSubscriptionStore } from "@/stores/subscriptionStore";
-import { getJwt, getServerUrl, isJwtExpiredOrExpiring } from "@/services/authTokens";
+import { getJwt, getServerUrl, isJwtExpiredOrExpiring, refreshAccessToken } from "@/services/authTokens";
 import { fetchAuthRateLimited } from "@/services/authFetch";
 import { getVaultKey, unlockVaultIfNeeded } from "@/services/vault";
 import { buildUserDataBundle, mergeUserDataBundle, applyUserDataBundle } from "@/services/user-data/registry";
@@ -28,12 +28,16 @@ import { initTeamVaultKey } from "@/services/teamVaultSync";
 import { onTeamLogin } from "@/services/teamDataManager";
 import { handleMembershipChangedEvent, parseMembershipChangedEvent } from "@/services/teamMembershipEvents";
 import * as teamService from "@/services/teamService";
-import { appFetch } from "@/services/http";
 import { SseDataLineParser } from "@/services/realtimeSseEvents";
 import { connectNativeSse } from "@/services/nativeSseStream";
+import { sseRetryDelay } from "@/services/syncRetry";
+import { isUnreachable, reachableFetch } from "@/services/reachability";
+import { createWakeableSleeps } from "@/lib/wakeableSleep";
+import { onForeground, onNetworkBack } from "@/lib/networkSignals";
 import { useCrossDeviceSessionsStore } from "@/stores/crossDeviceSessionsStore";
 import { parseUsingEvent } from "@/services/presenceEvent";
 import { bytesToBase64, base64ToByteArray } from "@/services/teamVaultSyncCore";
+import { applyRemoteSshConfigState } from "@/services/sshConfig/state";
 
 export interface BlobPayload {
   files: Record<string, string>;
@@ -69,8 +73,17 @@ let _syncInFlight = false;
 const SYNC_HOLD_MS = 600;
 let _lastSync: Date | null = null;
 let _error: string | null = null;
+// Set while the session's local data is being swapped out: a late sync step must not write into the next account's files.
+let _halted = false;
+
+function assertNotHalted(): void {
+  if (_halted) throw new Error("Sync is halted");
+}
 let _cloudActive = false;
 let _blobSizeBytes: number | null = null;
+// A local change, or the launch sync, that an unreachable server left undone.
+let _pushOwed = false;
+let _loginSyncOwed = false;
 const _listeners = new Set<() => void>();
 
 export function getSyncState() {
@@ -89,6 +102,17 @@ function setState(status: SyncStatus, error?: string) {
   _listeners.forEach((fn) => fn());
 }
 
+function reportFailure(e: unknown): void {
+  const msg = e instanceof Error ? e.message : String(e);
+  if (!isUnreachable(e)) {
+    setState("error", msg);
+    return;
+  }
+  setState("offline", msg);
+  // The stream cannot be healthy if a request just failed to reach the server.
+  _dropStream?.();
+}
+
 async function applyRemoteSettings(remotePayload: BlobPayload): Promise<void> {
   try {
     const remoteRaw = remotePayload.files["settings.json"];
@@ -98,6 +122,7 @@ async function applyRemoteSettings(remotePayload: BlobPayload): Promise<void> {
     // Live stores, not settings.json: that file lags until the push that follows this pull.
     const { merged, updatedKeys } = mergeUserDataBundle(outgoingSettings(), filterIncoming(remote));
     if (updatedKeys.length === 0) return;
+    assertNotHalted();
     await invoke("settings_save", { state: JSON.stringify(merged) });
     // settings.json keeps the merge result; the stores get this device's
     // held-back values back on top of it. Writing the restored bundle to disk
@@ -124,21 +149,9 @@ export { getServerUrl };
 
 /** Try to refresh the access token using the stored refresh_token. Returns new JWT or null. */
 async function tryRefreshJwt(): Promise<string | null> {
-  const [refreshToken, serverUrl] = await Promise.all([
-    invoke<string | null>("keychain_get", { key: "refresh_token" }),
-    getServerUrl(),
-  ]);
-  if (!refreshToken || !serverUrl) return null;
-
-  const res = await appFetch(`${serverUrl}/v1/auth/refresh`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh_token: refreshToken }),
-  });
-  if (!res.ok) return null;
-
-  const { jwt_token } = await res.json();
-  await invoke("keychain_set", { key: "jwt", value: jwt_token });
+  const outcome = await refreshAccessToken({ fetchImpl: reachableFetch });
+  if (typeof outcome === "string") return null;
+  const jwt_token = outcome.jwt;
 
   const wasProBefore = useSubscriptionStore.getState().isPro;
   const wasTeamsBefore = useSubscriptionStore.getState().isTeams;
@@ -152,10 +165,10 @@ async function tryRefreshJwt(): Promise<string | null> {
   }
 
   if (wasProBefore && !isProNow) {
-    const { useNotificationStore } = await import("@/stores/notificationStore");
+    const { APP_SOURCE, useNotificationStore } = await import("@/stores/notificationStore");
     const { useUIStore } = await import("@/stores/uiStore");
     useNotificationStore.getState().addToast({
-      source: { kind: "plugin", id: "system", name: "Voltius" },
+      source: APP_SOURCE,
       type: "toast",
       message: i18n.t("common.toast.proSubscriptionEnded"),
       severity: "warning",
@@ -199,7 +212,7 @@ async function loadTeamsForCurrentUser(): Promise<boolean> {
  * name; the implementation is the shared one in `authFetch`.
  */
 export function fetchWithAuth(url: string, init: RequestInit): Promise<Response> {
-  return fetchAuthRateLimited(url, init);
+  return fetchAuthRateLimited(url, init, reachableFetch);
 }
 
 let _deviceId: string | null = null;
@@ -214,7 +227,7 @@ let _deviceId: string | null = null;
  * share the ID, which means one won't receive live SSE nudges from itself — a
  * minor degradation that's acceptable vs. unbounded blob accumulation.
  */
-async function getDeviceId(): Promise<string> {
+export async function getDeviceId(): Promise<string> {
   if (_deviceId) return _deviceId;
   let id = localStorage.getItem("voltius.device_id");
   if (!id) {
@@ -375,6 +388,7 @@ export async function writeFilteredSettings(): Promise<void> {
   // this call's outcome, so a hidden failure here would upload the
   // pre-toggle, unfiltered file. A failed sync round is strictly better than
   // uploading held-back data — let this throw and abort the round.
+  assertNotHalted();
   await invoke("settings_save", { state: JSON.stringify(outgoingSettings()) });
 }
 
@@ -384,7 +398,8 @@ function outgoingSettings(): UserDataBundle {
 }
 
 /** Export local data and upload to server. */
-export async function push(): Promise<void> {
+export async function push({ signal }: { signal?: AbortSignal } = {}): Promise<void> {
+  assertNotHalted();
   const encKey = await getEncKey();
   const [serverUrl, deviceId, accountId] = await Promise.all([
     getServerUrl(),
@@ -414,6 +429,7 @@ export async function push(): Promise<void> {
       blob: bytesToBase64(blob),
       metadata: { device_id: deviceId, synced_at: new Date().toISOString() },
     }),
+    signal,
   });
 
   if (!res.ok) throw new Error(i18n.t("common.error.serverError", { status: res.status }));
@@ -444,6 +460,15 @@ async function reloadAllStores(): Promise<void> {
     useSnippetFolderStore.getState().loadFolders(),
     usePortForwardingStore.getState().loadRules(),
   ]);
+}
+
+async function settleVault(): Promise<void> {
+  try {
+    const { settleVaultOnDek } = await import("@/services/account");
+    await settleVaultOnDek();
+  } catch (e) {
+    logFailure("settle vault on dek")(e);
+  }
 }
 
 async function completeTeamLoginSetup(): Promise<void> {
@@ -516,6 +541,7 @@ export function mergeBlobPayload(base: BlobPayload, remote: BlobPayload): { payl
 }
 
 export async function importMergedPayload(merged: BlobPayload): Promise<void> {
+  assertNotHalted();
   await invoke("state_import", { files: merged.files, secrets: merged.secrets, secretClocks: merged.secret_clocks ?? {} });
 }
 
@@ -543,6 +569,8 @@ async function pullRemotePayload(serverUrl: string, remoteDeviceId: string): Pro
   applyRemoteLiveSessions(remoteDeviceId, remotePayload);
   return remotePayload;
 }
+
+const applyRemoteSshConfig = (payload: BlobPayload) => applyRemoteSshConfigState(payload.files["ssh-config.json"]).catch(() => {});
 
 /** Run `step` per remote blob source; a failing source is skipped and returned, never thrown. */
 export async function forEachRemoteBlob<T>(
@@ -578,10 +606,9 @@ async function pullAndMerge(remoteDeviceId: string): Promise<boolean> {
   if (!remotePayload) return false;
 
   const { payload, changed } = mergeBlobPayload(await invoke<BlobPayload>("state_export_raw"), remotePayload);
-  if (!changed) return false;
-
-  await importMergedPayload(payload);
-  return true;
+  if (changed) await importMergedPayload(payload);
+  await applyRemoteSshConfig(remotePayload);
+  return changed;
 }
 
 /**
@@ -593,12 +620,13 @@ async function pullAndMerge(remoteDeviceId: string): Promise<boolean> {
  *                   data actually changed local state, preventing infinite loops.
  */
 export async function syncNow(forcePush = false): Promise<void> {
-  if (_syncInFlight) return;
+  if (_syncInFlight || _halted) return;
 
   // Personal blob sync is a Pro feature — free-tier accounts have no blob quota.
   if (!useSubscriptionStore.getState().isPro) return;
 
   _syncInFlight = true;
+  const mustPush = forcePush || _pushOwed;
   const holdUntil = Date.now() + SYNC_HOLD_MS;
   setState("syncing");
 
@@ -626,10 +654,11 @@ export async function syncNow(forcePush = false): Promise<void> {
 
     // Only push personal blob if forced (local mutation) or remote had new data.
     // Skipping push when nothing changed breaks the push→SSE→pull→push→… loop.
-    if (forcePush || anyPersonalChanged) {
+    if (mustPush || anyPersonalChanged) {
       await push();
     }
 
+    _pushOwed = false;
     setState("success");
   } catch (e) {
     if (isPaymentRequired(e) && await loadTeamsForCurrentUser()) {
@@ -637,8 +666,8 @@ export async function syncNow(forcePush = false): Promise<void> {
       setState("success");
       return;
     }
-    const msg = e instanceof Error ? e.message : String(e);
-    setState(navigator.onLine === false ? "offline" : "error", msg);
+    _pushOwed = mustPush;
+    reportFailure(e);
     throw e;
   } finally {
     const wait = holdUntil - Date.now();
@@ -668,6 +697,7 @@ async function readDeviceSecrets(): Promise<SecretMaps> {
  * For new cloud accounts (linkToCloud), use syncOnLogin instead.
  */
 export async function syncOnLoginReplace(): Promise<void> {
+  await settleVault();
   try {
     await unlockVaultIfNeeded();
 
@@ -688,12 +718,16 @@ export async function syncOnLoginReplace(): Promise<void> {
       ...(await readDeviceSecrets()),
     };
 
+    const pulled: BlobPayload[] = [];
     await forEachRemoteBlob(devices, deviceLabel, async (device) => {
       const remotePayload = await pullRemotePayload(serverUrl, device.device_id);
-      if (remotePayload) merged = mergeBlobPayload(merged, remotePayload).payload;
+      if (!remotePayload) return;
+      merged = mergeBlobPayload(merged, remotePayload).payload;
+      pulled.push(remotePayload);
     });
 
     await importMergedPayload(merged);
+    for (const remotePayload of pulled) await applyRemoteSshConfig(remotePayload);
     await reloadAllStores();
     await push();
     await completeTeamLoginSetup();
@@ -705,13 +739,14 @@ export async function syncOnLoginReplace(): Promise<void> {
       setState("success");
       return;
     }
-    const msg = e instanceof Error ? e.message : String(e);
-    setState("error", msg);
+    reportFailure(e);
   }
 }
 
 /** Pull on login to restore data from server, then push local state. */
 export async function syncOnLogin(): Promise<void> {
+  _loginSyncOwed = false;
+  await settleVault();
   try {
     await unlockVaultIfNeeded();
 
@@ -739,9 +774,48 @@ export async function syncOnLogin(): Promise<void> {
       setState("success");
       return;
     }
-    const msg = e instanceof Error ? e.message : String(e);
-    setState("error", msg);
+    _loginSyncOwed = isUnreachable(e);
+    reportFailure(e);
   }
+}
+
+// ─── Pause ───────────────────────────────────────────────────────────────────
+
+export function isSyncPaused(): boolean {
+  return useSyncPrefsStore.getState().paused;
+}
+
+/** The realtime loop is retrying an unreachable server; it runs the owed sync once the stream opens. */
+function awaitingServer(): boolean {
+  return _status === "offline" && _sseAbort !== null && _dropStream === null;
+}
+
+/** A sync nobody asked for: skipped while this device is paused, deferred while the server is unreachable. */
+export function syncInBackground(forcePush = false): Promise<void> {
+  if (isSyncPaused()) return Promise.resolve();
+  if (awaitingServer()) {
+    _pushOwed ||= forcePush;
+    return Promise.resolve();
+  }
+  return syncNow(forcePush);
+}
+
+/** Launch sync. A paused device skips it; resuming runs it then. */
+export async function syncOnLaunch(): Promise<void> {
+  if (isSyncPaused()) await settleVault();
+  else await syncOnLogin();
+}
+
+export function setSyncPaused(paused: boolean): void {
+  if (paused === isSyncPaused()) return;
+  useSyncPrefsStore.getState().setPaused(paused);
+  if (paused) {
+    stopRealtimeSync();
+  } else {
+    void syncOnLogin();
+    startRealtimeSync();
+  }
+  _listeners.forEach((fn) => fn());
 }
 
 // ─── Debounced sync on mutations ──────────────────────────────────────────────
@@ -750,11 +824,11 @@ let _syncTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** Schedule a sync 2 s after the last mutation (debounced). */
 export function scheduleSync() {
-  if (!useSubscriptionStore.getState().isPro) return;
+  if (!useSubscriptionStore.getState().isPro || isSyncPaused() || _halted) return;
   if (_syncTimer) clearTimeout(_syncTimer);
   _syncTimer = setTimeout(() => {
     _syncTimer = null;
-    syncNow(true).catch(logFailure("forced push after local mutation")); // forcePush: local mutation must be uploaded
+    syncInBackground(true).catch(logFailure("forced push after local mutation")); // forcePush: local mutation must be uploaded
   }, 2000);
 }
 
@@ -768,17 +842,32 @@ export function onTeamSseEvent(fn: (teamId: string) => void): () => void {
 }
 
 let _sseAbort: AbortController | null = null;
+// Set while a stream is open: ends that one connection so the loop reconnects.
+let _dropStream: (() => void) | null = null;
+// The server sends a heartbeat every 30 s; a stream silent this long is dead.
+const STREAM_QUIET_MS = 75_000;
+
+const SSE_RETRY = "sse-retry";
+const _sseSleeps = createWakeableSleeps();
+const wakeSseRetry = () => void _sseSleeps.wake(SSE_RETRY);
 
 /**
  * Open a persistent SSE connection to the server. When another device uploads
  * a blob, the server sends its device_id. Team blob pushes from other members
  * arrive as "team:{team_id}" events on the same stream — no per-team SSE needed.
- * Auto-reconnects on disconnect with a 5 s back-off.
+ * Reconnects on its own, backing off while the server stays unreachable.
  */
 export function startRealtimeSync(): void {
   stopRealtimeSync();
-  _sseAbort = new AbortController();
-  void _sseLoop(_sseAbort.signal);
+  if (isSyncPaused()) return;
+  const abort = new AbortController();
+  _sseAbort = abort;
+  const offs = [onNetworkBack(wakeSseRetry), onForeground(wakeSseRetry)];
+  abort.signal.addEventListener("abort", () => {
+    offs.forEach((off) => off());
+    wakeSseRetry();
+  }, { once: true });
+  void _sseLoop(abort.signal);
 }
 
 export function stopRealtimeSync(): void {
@@ -786,16 +875,57 @@ export function stopRealtimeSync(): void {
   _sseAbort = null;
 }
 
+/** Stop the stream and the debounce timer, and refuse every later local write or upload until `resumeSync`. */
+export function haltSync(): void {
+  _halted = true;
+  stopRealtimeSync();
+  if (_syncTimer) clearTimeout(_syncTimer);
+  _syncTimer = null;
+}
+
+export const isSyncHalted = (): boolean => _halted;
+
+export function resumeSync(): void {
+  _halted = false;
+}
+
 async function _sseLoop(signal: AbortSignal): Promise<void> {
+  let failures = 0;
   while (!signal.aborted) {
+    const attempt = new AbortController();
+    const end = () => attempt.abort();
+    signal.addEventListener("abort", end, { once: true });
+    let healthy = false;
+    let quiet: ReturnType<typeof setTimeout> | undefined;
+    const drop = () => {
+      healthy = false;
+      end();
+    };
+    const heard = () => {
+      clearTimeout(quiet);
+      quiet = setTimeout(drop, STREAM_QUIET_MS);
+    };
+    let failure: unknown;
     try {
-      await _sseConnect(signal);
-    } catch {
-      // connection dropped or failed — fall through to reconnect delay
+      await _sseConnect(attempt.signal, {
+        onOpen: () => {
+          healthy = true;
+          _dropStream = drop;
+          heard();
+        },
+        onData: heard,
+      });
+    } catch (e) {
+      failure = e;
+    } finally {
+      clearTimeout(quiet);
+      signal.removeEventListener("abort", end);
+      _dropStream = null;
     }
-    if (!signal.aborted) {
-      await new Promise<void>((r) => setTimeout(r, 5_000));
-    }
+    if (signal.aborted) return;
+    if (isUnreachable(failure) && !_syncInFlight) setState("offline", failure.message);
+    failures = healthy ? 0 : failures + 1;
+    await _sseSleeps.sleep(SSE_RETRY, sseRetryDelay(failures));
   }
 }
 
@@ -1005,7 +1135,7 @@ export async function handleRealtimeEvent(eventData: string, myDeviceId: string)
   }
 }
 
-async function _sseConnect(signal: AbortSignal): Promise<void> {
+async function _sseConnect(signal: AbortSignal, hooks: { onOpen: () => void; onData: () => void }): Promise<void> {
   const [serverUrl, storedJwt, myDeviceId] = await Promise.all([
     getServerUrl(),
     getJwt(),
@@ -1021,19 +1151,24 @@ async function _sseConnect(signal: AbortSignal): Promise<void> {
   _listeners.forEach((fn) => fn());
   setMyPresence(true);
 
-  // Sync immediately on (re)connect to catch any events missed while offline
-  syncNow().catch(logFailure("syncNow on realtime connect"));
+  // Only once the stream is open: an unreachable server must not cost a full sync per retry.
+  const catchUp = () => {
+    hooks.onOpen();
+    if (_status === "offline") setState("idle");
+    // Catches any events missed while offline
+    (_loginSyncOwed ? syncOnLogin() : syncInBackground()).catch(logFailure("syncNow on realtime connect"));
 
-  // Seed connection-presence snapshot so we render correct state even before any
-  // SSE event arrives this session.
-  (async () => {
-    const [{ fetchCurrentConnectionUsage }, { useConnectionPresenceStore }] = await Promise.all([
-      import("@/services/connectionPresence"),
-      import("@/stores/connectionPresenceStore"),
-    ]);
-    const entries = await fetchCurrentConnectionUsage();
-    useConnectionPresenceStore.getState().setSnapshot(entries);
-  })().catch(logFailure("connection presence snapshot"));
+    // Seed connection-presence snapshot so we render correct state even before any
+    // SSE event arrives this session.
+    (async () => {
+      const [{ fetchCurrentConnectionUsage }, { useConnectionPresenceStore }] = await Promise.all([
+        import("@/services/connectionPresence"),
+        import("@/stores/connectionPresenceStore"),
+      ]);
+      const entries = await fetchCurrentConnectionUsage();
+      useConnectionPresenceStore.getState().setSnapshot(entries);
+    })().catch(logFailure("connection presence snapshot"));
+  };
 
   const parser = new SseDataLineParser();
   const connect = (token: string) => connectNativeSse(
@@ -1041,12 +1176,14 @@ async function _sseConnect(signal: AbortSignal): Promise<void> {
     { Authorization: `Bearer ${token}`, Accept: "text/event-stream" },
     signal,
     (text) => {
+      hooks.onData();
       // Each SSE data line contains either the pusher's device_id (personal sync)
       // or "team:{team_id}" (team blob pushed by another member).
       for (const eventData of parser.push(text)) {
         handleRealtimeEvent(eventData, myDeviceId).catch(logFailure(`realtime event ${eventData}`));
       }
     },
+    catchUp,
   );
   const connectAndFlush = async (token: string) => {
     await connect(token);

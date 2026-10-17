@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { Terminal } from "@xterm/xterm";
+import { Terminal } from "@xterm/xterm";
 
 const writeClipboard = vi.hoisted(() => vi.fn(async () => {}));
 const readClipboard = vi.hoisted(() => vi.fn(async () => ""));
@@ -11,7 +11,17 @@ vi.mock("@/stores/toggleSettingsStore", () => ({
   getToggle: (id: string) => toggles.values[id] ?? true,
 }));
 
-import { attachTerminalClipboard } from "./terminalClipboard";
+const copyFailed = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/logger", () => ({ logFailure: () => copyFailed }));
+const platform = vi.hoisted(() => ({ os: "linux" }));
+vi.mock("@/utils/platform", () => ({ getPlatformSync: () => platform.os }));
+
+import { attachTerminalClipboard, type TerminalClipboardHandle } from "./terminalClipboard";
+
+const MOVE = 32;
+const DOWN = 1;
+const LEFT_BUTTON = 0;
+const NO_BUTTON = 3;
 
 interface Harness {
   term: Terminal;
@@ -21,6 +31,8 @@ interface Harness {
   cleared: () => number;
   appEvents: string[];
   selection: { text: string };
+  clip: TerminalClipboardHandle;
+  report: (action: number) => void;
 }
 
 function harness(
@@ -42,6 +54,11 @@ function harness(
     disable() { this.cleared++; this._enabled = false; selection.text = ""; },
     enable() { this._enabled = true; },
   };
+  // Mirrors xterm: user input clears the selection, and every mouse report is
+  // sent as user input.
+  const coreService = {
+    triggerDataEvent(_data: string, wasUserInput = false) { if (wasUserInput) selection.text = ""; },
+  };
   // Mirrors xterm: a protocol change enables/disables selection, and disabling
   // it clears whatever was selected.
   const coreMouseService = {
@@ -52,6 +69,7 @@ function harness(
       if (name === "NONE") _selectionService.enable();
       else _selectionService.disable();
     },
+    triggerMouseEvent(_e: { action: number }) { coreService.triggerDataEvent("report", true); return true; },
   };
 
   // Stand-in for xterm's own reporting listener: it forwards to the app only
@@ -76,12 +94,13 @@ function harness(
     onSelectionChange: () => ({ dispose() {} }),
     paste: () => {},
     loadAddon: () => {},
-    _core: { coreMouseService, _selectionService },
+    _core: { coreService, coreMouseService, _selectionService },
   } as unknown as Terminal;
 
-  attachTerminalClipboard(term, container);
+  const clip = attachTerminalClipboard(term, container);
   return {
-    term, container, screen, appEvents, selection,
+    term, container, screen, appEvents, selection, clip,
+    report: (action) => { coreMouseService.triggerMouseEvent({ action }); },
     protocol: () => coreMouseService.activeProtocol,
     cleared: () => _selectionService.cleared,
   };
@@ -105,9 +124,18 @@ function release(init: MouseEventInit = {}) {
   }));
 }
 
+function copyShortcut(h: Harness) {
+  h.clip.handleKeyEvent(new KeyboardEvent("keydown", { key: "C", ctrlKey: true, shiftKey: true }));
+}
+
+const badge = () => document.body.querySelector("div[style*='position: fixed']");
+
 beforeEach(() => {
   toggles.values = {};
-  writeClipboard.mockClear();
+  writeClipboard.mockReset();
+  readClipboard.mockReset();
+  readClipboard.mockImplementation(async () => "");
+  copyFailed.mockReset();
   document.body.innerHTML = "";
 });
 
@@ -161,15 +189,49 @@ describe("drag-selects-text over an app holding the mouse", () => {
     expect(h.cleared()).toBe(0);
   });
 
-  it("copies the drag selection when select-to-copy is on", async () => {
-    vi.useFakeTimers();
+  it("copies the drag selection and shows the badge when select-to-copy is on", async () => {
     const h = harness();
     press(h.screen);
     h.selection.text = "copied";
     release({ clientX: 90, clientY: 10 });
-    await vi.advanceTimersByTimeAsync(30);
     expect(writeClipboard).toHaveBeenCalledWith("copied");
-    vi.useRealTimers();
+    await Promise.resolve();
+    expect(badge()).not.toBeNull();
+  });
+
+  it("shows no badge when the clipboard write fails", async () => {
+    writeClipboard.mockRejectedValueOnce(new Error("denied"));
+    const h = harness();
+    press(h.screen);
+    h.selection.text = "copied";
+    release({ clientX: 90, clientY: 10 });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(badge()).toBeNull();
+    expect(copyFailed).toHaveBeenCalled();
+  });
+
+  it("keeps the selection through the app's motion reports until a press", () => {
+    toggles.values = { "select-to-copy": false };
+    const h = harness();
+    press(h.screen);
+    h.selection.text = "kept";
+    release({ clientX: 90, clientY: 10 });
+    expect(writeClipboard).not.toHaveBeenCalled();
+    h.report(MOVE);
+    expect(h.selection.text).toBe("kept");
+    copyShortcut(h);
+    expect(writeClipboard).toHaveBeenCalledWith("kept");
+    h.report(DOWN);
+    expect(h.selection.text).toBe("");
+  });
+
+  it("restores xterm's reporting on dispose", () => {
+    const h = harness();
+    h.clip.dispose();
+    h.selection.text = "kept";
+    h.report(MOVE);
+    expect(h.selection.text).toBe("");
   });
 
   it.each([
@@ -195,5 +257,83 @@ describe("drag-selects-text over an app holding the mouse", () => {
     move({ clientY: -5 });
     expect(h.protocol()).toBe("NONE");
     expect(h.appEvents).toEqual([]);
+  });
+});
+
+describe("against the real xterm", () => {
+  it("does not count mouse motion reports as user input", async () => {
+    const term = new Terminal({ allowProposedApi: true });
+    const clip = attachTerminalClipboard(term, document.createElement("div"));
+    await new Promise<void>((resolve) => term.write("\x1b[?1003h\x1b[?1006h", resolve));
+    const core = (term as unknown as {
+      _core: {
+        coreService: { onUserInput(listener: () => void): void };
+        coreMouseService: { triggerMouseEvent(e: object): boolean };
+      };
+    })._core;
+    const userInput = vi.fn();
+    core.coreService.onUserInput(userInput);
+    const sent: string[] = [];
+    term.onData((d) => sent.push(d));
+    const report = (col: number, button: number, action: number) =>
+      core.coreMouseService.triggerMouseEvent({ col, row: 0, x: 0, y: 0, button, action, ctrl: false, alt: false, shift: false });
+
+    report(1, NO_BUTTON, MOVE);
+    expect(sent).toHaveLength(1);
+    expect(userInput).not.toHaveBeenCalled();
+    report(1, LEFT_BUTTON, DOWN);
+    expect(userInput).toHaveBeenCalledTimes(1);
+
+    clip.dispose();
+    report(2, NO_BUTTON, MOVE);
+    expect(userInput).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("paste", () => {
+  function pasteHarness(clipboard: string | Error) {
+    if (clipboard instanceof Error) readClipboard.mockRejectedValueOnce(clipboard);
+    else readClipboard.mockResolvedValueOnce(clipboard);
+    const pasted: string[] = [];
+    const pasteImage = vi.fn(async () => {});
+    const term = {
+      onSelectionChange: () => ({ dispose() {} }),
+      paste: (text: string) => pasted.push(text),
+      getSelection: () => "",
+    } as unknown as Terminal;
+    const clip = attachTerminalClipboard(term, document.createElement("div"), { pasteImage });
+    return { clip, pasted, pasteImage };
+  }
+  const ctrlV = () => new KeyboardEvent("keydown", { key: "v", ctrlKey: true });
+
+  it("pastes clipboard text", async () => {
+    const h = pasteHarness("ls -la");
+    expect(h.clip.handleKeyEvent(ctrlV())).toBe(false);
+    await vi.waitFor(() => expect(h.pasted).toEqual(["ls -la"]));
+    expect(h.pasteImage).not.toHaveBeenCalled();
+  });
+
+  it("hands a clipboard without text to pasteImage", async () => {
+    const h = pasteHarness("");
+    h.clip.handleKeyEvent(new KeyboardEvent("keydown", { key: "V", ctrlKey: true, shiftKey: true }));
+    await vi.waitFor(() => expect(h.pasteImage).toHaveBeenCalledOnce());
+    expect(h.pasted).toEqual([]);
+  });
+
+  it("pastes with Cmd+V on macOS only", async () => {
+    const cmdV = () => new KeyboardEvent("keydown", { key: "v", metaKey: true });
+    const linux = pasteHarness("ls");
+    expect(linux.clip.handleKeyEvent(cmdV())).toBeNull();
+    platform.os = "macos";
+    const mac = pasteHarness("ls");
+    expect(mac.clip.handleKeyEvent(cmdV())).toBe(false);
+    await vi.waitFor(() => expect(mac.pasted).toEqual(["ls"]));
+    platform.os = "linux";
+  });
+
+  it("treats an unreadable clipboard as one without text", async () => {
+    const h = pasteHarness(new Error("denied"));
+    h.clip.handleKeyEvent(ctrlV());
+    await vi.waitFor(() => expect(h.pasteImage).toHaveBeenCalledOnce());
   });
 });

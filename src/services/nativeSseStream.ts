@@ -1,9 +1,15 @@
 import { invoke } from "@/lib/invoke";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { isGatewayStatus, UnreachableError } from "@/services/reachability";
 
 export interface NativeSseEventNames {
+  open: string;
   data: string;
   closed: string;
+}
+
+interface NativeSseOpenPayload {
+  status: number;
 }
 
 interface NativeSseClosedPayload {
@@ -12,6 +18,7 @@ interface NativeSseClosedPayload {
 
 export function getNativeSseEventNames(streamId: string): NativeSseEventNames {
   return {
+    open: `http:sse:open:${streamId}`,
     data: `http:sse:data:${streamId}`,
     closed: `http:sse:closed:${streamId}`,
   };
@@ -22,14 +29,18 @@ export async function connectNativeSse(
   headers: Record<string, string>,
   signal: AbortSignal,
   onChunk: (chunk: string) => void,
+  onOpen?: () => void,
 ): Promise<void> {
   const streamId = crypto.randomUUID();
   const events = getNativeSseEventNames(streamId);
+  let unlistenOpen: UnlistenFn | null = null;
   let unlistenData: UnlistenFn | null = null;
   let unlistenClosed: UnlistenFn | null = null;
   let started = false;
+  let refused = false;
 
   const cleanup = async () => {
+    unlistenOpen?.();
     unlistenData?.();
     unlistenClosed?.();
     if (started) await invoke("http_sse_stop", { streamId }).catch(() => {});
@@ -47,13 +58,19 @@ export async function connectNativeSse(
     signal.addEventListener("abort", abort, { once: true });
 
     Promise.all([
+      listen<NativeSseOpenPayload>(events.open, ({ payload }) => {
+        if (payload.status >= 200 && payload.status < 300) onOpen?.();
+        else refused = !isGatewayStatus(payload.status);
+      }),
       listen<string>(events.data, ({ payload }) => onChunk(payload)),
       listen<NativeSseClosedPayload>(events.closed, ({ payload }) => {
         signal.removeEventListener("abort", abort);
-        finish(payload.error ? new Error(payload.error) : undefined);
+        if (!payload.error) finish();
+        else finish(refused ? new Error(payload.error) : new UnreachableError(payload.error));
       }),
     ])
-      .then(([dataUnlisten, closedUnlisten]) => {
+      .then(([openUnlisten, dataUnlisten, closedUnlisten]) => {
+        unlistenOpen = openUnlisten;
         unlistenData = dataUnlisten;
         unlistenClosed = closedUnlisten;
         if (signal.aborted) {

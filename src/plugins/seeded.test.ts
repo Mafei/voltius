@@ -27,7 +27,7 @@ vi.mock("./importPluginModule", () => ({
   pluginRegisterOf: (_mod: unknown) => () => {},
 }));
 vi.mock("./gatedPermissions", () => ({ requiresInstallConsent: consentSpy }));
-vi.mock("@/stores/notificationStore", () => ({
+vi.mock("@/stores/notificationStore", () => ({ APP_SOURCE: { kind: "app" },
   useNotificationStore: { getState: () => ({ addBanner }) },
 }));
 vi.mock("@/stores/uiStore", () => ({ useUIStore: { getState: () => ({ openSettings: () => {} }) } }));
@@ -35,6 +35,7 @@ vi.mock("@/lib/logger", () => ({ log: { error: vi.fn(), warn: vi.fn(), info: vi.
 vi.mock("@/i18n", () => ({ default: { t: (k: string) => k } }));
 
 import { loadSeededPlugins } from "./seeded";
+import { importPluginModule } from "./importPluginModule";
 
 describe("loadSeededPlugins", () => {
   beforeEach(() => {
@@ -50,6 +51,18 @@ describe("loadSeededPlugins", () => {
     invoke.mockResolvedValueOnce([]);
     await loadSeededPlugins();
     expect(loadPlugin).not.toHaveBeenCalled();
+  });
+
+  test("a retired seeded plugin is skipped before its module is imported", async () => {
+    invoke.mockImplementation(async (cmd: string) => {
+      if (cmd === "plugins_list_seeded") return ["ssh-config"];
+      return JSON.stringify({ id: "plugin-ssh-config", version: "1.0.0", permissions: [] });
+    });
+    vi.mocked(importPluginModule).mockClear();
+    await loadSeededPlugins();
+    expect(importPluginModule).not.toHaveBeenCalled();
+    expect(loadPlugin).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalledWith("plugin_seeded_read", { id: "ssh-config", filename: "index.js" });
   });
 
   test("one plugin failing to load does not prevent the others", async () => {
@@ -165,7 +178,7 @@ describe("loadSeededPlugins", () => {
       expect(addBanner).toHaveBeenCalledOnce();
       expect(addBanner.mock.calls[0][0]).toMatchObject({
         severity: "error",
-        source: { kind: "plugin", id: "core" },
+        source: { kind: "app" },
       });
     });
 

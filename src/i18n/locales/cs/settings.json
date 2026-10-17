@@ -36,6 +36,20 @@
       "ignoreBracketedPaste": {
         "title": "Prosté vkládání (bez bracketed paste)",
         "desc": "Vkládat jako prostý text bez značek \\x1b[200~ / \\x1b[201~. Opravuje poškozený vstup (např. „200~“) při vkládání do výzev sudo nebo CLI aplikací, které bracketed paste nepodporují."
+      },
+      "pasteImageAsPath": {
+        "title": "Vkládat obrázky jako cestu k souboru",
+        "desc": "Když schránka obsahuje obrázek, nahraje se na SSH hostitele (~/.cache/voltius/pastes, jen pro vlastníka, mazáno po 7 dnech) a vloží se jeho cesta. Nástroje na hostiteli jako Claude Code tak mohou přiložit snímek obrazovky. Pokud se odtud připojíte dál přes SSH, cesta ukazuje na tohoto prvního hostitele."
+      },
+      "keywordHighlight": {
+        "title": "Zvýrazňování klíčových slov",
+        "desc": "Obarví slova jako „error“ nebo „warning“ ve výstupu příkazů. Funguje v relacích s integrací shellu.",
+        "addRule": "Přidat pravidlo",
+        "deleteRule": "Smazat pravidlo",
+        "ruleEnabled": "Povolit pravidlo",
+        "color": "Barva",
+        "wordsPlaceholder": "Přidat slovo…",
+        "removeWord": "Odebrat {{word}}"
       }
     },
     "appearance": {
@@ -330,6 +344,11 @@
         "sub": "Změní heslo bez opětovného šifrování trezoru",
         "title": "Změnit hlavní heslo",
         "currentPlaceholder": "Aktuální heslo",
+        "verifyWithDevice": "Zapomněli jste ho? Potvrďte to raději: {{method}}",
+        "verifiedWithDevice": "Potvrzeno na tomto zařízení",
+        "deviceReason": "Potvrďte změnu hlavního hesla",
+        "deviceFailed": "Toto zařízení nemohlo potvrdit vaši totožnost. Zadejte raději aktuální heslo.",
+        "deviceSignedOut": "Toto zařízení bylo odhlášeno, nejspíš po změně hesla na jiném zařízení. Přihlaste se znovu novým heslem.",
         "newPlaceholder": "Nové heslo (min. 8 znaků)",
         "confirmPlaceholder": "Potvrďte nové heslo",
         "errorCurrentRequired": "Aktuální heslo je povinné",
@@ -340,6 +359,53 @@
         "done": "Hotovo",
         "changing": "Změna…",
         "changeBtn": "Změnit heslo"
+      },
+      "twoFactor": {
+        "label": "Dvoufázové ověření",
+        "subOff": "Při přihlášení na novém zařízení vyžadovat kód nebo přístupový klíč",
+        "subOn": "Zapnuto. Přihlášení na novém zařízení vyžaduje druhý krok",
+        "intro": "Po hlavním hesle bude přihlášení na novém zařízení vyžadovat druhý krok. Vyberte jeden způsob, druhý můžete přidat později.",
+        "introDevices": "Zapnutím odhlásíte svá ostatní zařízení. K opětovnému přihlášení potřebují aktuální verzi Voltiusu.",
+        "continue": "Pokračovat",
+        "scan": "Naskenujte kód ověřovací aplikací, nebo do ní opište klíč níže.",
+        "qrLabel": "QR kód pro ověřovací aplikaci",
+        "copyKey": "Zkopírovat klíč",
+        "confirmPrompt": "Potom zadejte šestimístný kód, který aplikace zobrazí.",
+        "turnOn": "Zapnout",
+        "codesTitle": "Uložte si záložní kódy",
+        "codesBody": "Každý kód vás jednou přihlásí, pokud přijdete o ověřovací aplikaci nebo přístupový klíč. Znovu se už nezobrazí.",
+        "copy": "Kopírovat",
+        "copied": "Zkopírováno",
+        "save": "Uložit do souboru",
+        "saved": "Mám je uložené",
+        "manageBody": "Přihlášení na novém zařízení vyžaduje po hlavním hesle jeden z těchto způsobů.",
+        "newCodes": "Nové záložní kódy",
+        "newCodesSub": "Stávající přestanou platit",
+        "turnOff": "Vypnout",
+        "turnOffSub": "Přihlašovat se jen hlavním heslem",
+        "generate": "Vygenerovat",
+        "regeneratePrompt": "Potvrďte druhým faktorem, abyste nahradili záložní kódy.",
+        "disablePrompt": "Zadejte hlavní heslo a potvrďte druhým faktorem, abyste dvoufázové ověření vypnuli.",
+        "authenticator": "Ověřovací aplikace",
+        "authenticatorSub": "Šestimístné kódy z aplikace v telefonu",
+        "authenticatorOn": "Zapnuto",
+        "authenticatorIntro": "Přihlášení na novém zařízení bude vyžadovat šestimístný kód z ověřovací aplikace.",
+        "passkey": "Přístupový klíč",
+        "passkeys": "Přístupové klíče",
+        "passkeySub": "Otisk prstu, obličej nebo bezpečnostní klíč přes prohlížeč",
+        "passkeyIntro": "Voltius otevře prohlížeč, kde přístupový klíč vytvoříte, a pak vás vrátí sem.",
+        "passkeyName": "Název, například Notebook",
+        "passkeyCreate": "Pokračovat v prohlížeči",
+        "passkeyAdd": "Přidat přístupový klíč",
+        "passkeyAdded": "Přidáno {{date}}",
+        "passkeyUsed": "naposledy použito {{date}}",
+        "passkeyRemove": "Odebrat {{name}}",
+        "remove": "Odebrat",
+        "removeAuthenticatorPrompt": "Zadejte hlavní heslo a potvrďte druhým faktorem, abyste odebrali ověřovací aplikaci.",
+        "removePasskeyPrompt": "Zadejte hlavní heslo a potvrďte druhým faktorem, abyste odebrali přístupový klíč „{{name}}“.",
+        "lastFactor": "Toto je váš jediný druhý faktor. Jeho odebráním vypnete dvoufázové ověření a odhlásíte svá ostatní zařízení.",
+        "codesLeft": "Nepoužité kódy: {{count}}",
+        "back": "Zpět"
       },
       "setMasterPassword": {
         "label": "Nastavit hlavní heslo",
@@ -544,9 +610,15 @@
         "syncing": "Synchronizace…",
         "error": "Chyba: {{error}}",
         "lastSync": "Poslední synchronizace: {{time}}",
-        "offline": "Offline",
+        "offline": "Server je nedostupný",
+        "offlineDetail": "Server je nedostupný: {{error}}",
         "idle": "Zatím nesynchronizováno",
+        "paused": "Pozastaveno na tomto zařízení",
         "syncNow": "Synchronizovat nyní"
+      },
+      "pause": {
+        "label": "Pozastavit synchronizaci na tomto zařízení",
+        "sub": "Zastaví synchronizaci se serverem na pozadí. Týmové trezory se přestanou aktualizovat a při spuštění se nenačtou, dokud synchronizaci neobnovíte. „Synchronizovat nyní“ synchronizuje jen vaše vlastní data."
       },
       "requiresPro": {
         "title": "Synchronizace s cloudem",
@@ -1192,6 +1264,83 @@
       "teamPresence": {
         "title": "Sdílet, které hosty z týmového trezoru používáte",
         "desc": "Pokud je zapnuto, váš avatar se zobrazí na kartě hostu, dokud k němu máte otevřený terminál. Vidí ho jen kolegové s přístupem k danému hostu."
+      },
+      "sshConfig": {
+        "switch": {
+          "title": "Průběžně synchronizovat z ~/.ssh/config",
+          "desc": "Hostitelé z vaší konfigurace se vytvářejí a udržují aktuální ve Voltiu na všech vašich počítačích. Hodí se, když konfiguraci zapisuje nástroj (gcloud, MDM…)."
+        },
+        "vault": {
+          "title": "Trezor",
+          "desc": "Kde se vytvářejí nově spravovaní hostitelé. Pouze osobní trezory.",
+          "personal": "Osobní"
+        },
+        "status": {
+          "title": "Stav",
+          "line": "Naposledy načteno {{when}} · {{managed}} spravovaných · {{skipped}} nesynchronizovaných",
+          "never": "Zatím nenačteno",
+          "view": "Zobrazit hostitele…",
+          "syncNow": "Synchronizovat nyní"
+        },
+        "off": {
+          "title": "Vypnout průběžnou synchronizaci?",
+          "message_one": "Spravovaný hostitel zůstane ve Voltiu a stane se běžným hostitelem: na žádném z vašich počítačů už nebude sledovat ~/.ssh/config.",
+          "message_few": "{{count}} spravovaní hostitelé zůstanou ve Voltiu a stanou se běžnými hostiteli: na žádném z vašich počítačů už nebudou sledovat ~/.ssh/config.",
+          "message_many": "{{count}} spravovaného hostitele zůstane ve Voltiu a stane se běžnými hostiteli: na žádném z vašich počítačů už nebudou sledovat ~/.ssh/config.",
+          "message_other": "{{count}} spravovaných hostitelů zůstane ve Voltiu a stane se běžnými hostiteli: na žádném z vašich počítačů už nebudou sledovat ~/.ssh/config.",
+          "confirm": "Vypnout"
+        },
+        "dialog": {
+          "activateTitle": "Zapnout průběžnou synchronizaci",
+          "reviewTitle": "Hostitelé z ~/.ssh/config",
+          "intro": "Propojení hostitelé si ponechají název, složku a nastavení. Soubor budou sledovat jen údaje, které uvádí (adresa, port a případně uživatel, klíč nebo jump hostitelé), na všech vašich počítačích.",
+          "turnOn": "Zapnout",
+          "cancel": "Zrušit",
+          "close": "Zavřít",
+          "linkAgain": "Propojit znovu",
+          "recreate": "Vytvořit znovu",
+          "counts": "{{create}} k vytvoření · {{link}} k propojení · {{skipped}} nesynchronizovaných · trezor {{vault}}"
+        },
+        "row": {
+          "create": "Bude vytvořen",
+          "link": {
+            "legacy": "Bude propojen s „{{name}}“ · dřívější synchronizace",
+            "detached": "Bude propojen s „{{name}}“ · dříve odpojen",
+            "name": "Bude propojen s „{{name}}“ · stejný název a adresa",
+            "address": "Bude propojen s „{{name}}“ · stejná adresa"
+          },
+          "ambiguous": "Nejednoznačné (shoduje se: {{names}}) · vytvoří se nový hostitel",
+          "managed": "Spravován · „{{name}}“",
+          "detached": "Odpojen · „{{name}}“ už soubor nesleduje",
+          "deleted": "Smazán · synchronizace jej znovu nevytvoří",
+          "ignored": "Ignorován · nebude se synchronizovat",
+          "identityReplaced": "Identita „{{name}}“ bude nahrazena klíčem ze souboru",
+          "skipped": {
+            "pattern": "Nesynchronizuje se · vzor, ne hostitel",
+            "match": "Nesynchronizuje se · blok Match",
+            "include": "Nesynchronizuje se · Include se nepodařilo načíst",
+            "includeOutside": "Nesynchronizuje se · Include mimo ~/.ssh",
+            "proxyCommand": "Nesynchronizuje se · ProxyCommand není podporován",
+            "key": "Klíč nelze přečíst · hostitel vytvořen bez klíče",
+            "keyNotCopied": "Klíč nezkopírován · hostitel vytvořen bez klíče",
+            "pending": "Čeká se · hostitel ještě nedorazil z vašeho jiného zařízení"
+          }
+        },
+        "keys": {
+          "title": "Klíče",
+          "switch": "Kopírovat soukromé klíče do trezoru",
+          "warning": "Zkopírované klíče putují do trezoru {{vault}} a synchronizují se do všech vašich zařízení, včetně telefonu (šifrovaně).",
+          "settingDesc": "Vypnuto: hostitelé použijí klíč, který už v trezoru je (stejný veřejný klíč nebo název), jinak žádný. Zkopírované klíče se synchronizují do všech vašich zařízení.",
+          "copy": "Bude zkopírován",
+          "notCopied": "Nezkopírován",
+          "exists": "Už v trezoru",
+          "unreadable": "Nečitelný"
+        },
+        "here": {
+          "title": "Tento počítač",
+          "desc": "Synchronizace je pro váš účet zapnutá, ale ~/.ssh/config tohoto počítače ještě nebyl zkontrolován. Dokud ho nezkontrolujete, nic se tu nečte ani nekopíruje.",
+          "action": "Zkontrolovat…"
+        }
       }
     },
     "toggleDefs": {
@@ -1212,6 +1361,12 @@
       },
       "ignoreBracketedPaste": {
         "label": "Prosté vkládání (bez bracketed paste)"
+      },
+      "pasteImageAsPath": {
+        "label": "Vkládat obrázky jako cestu k souboru"
+      },
+      "keywordHighlight": {
+        "label": "Zvýrazňování klíčových slov"
       },
       "autoForward": {
         "label": "Automatické přesměrování portů"

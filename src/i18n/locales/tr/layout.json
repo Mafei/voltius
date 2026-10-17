@@ -60,7 +60,24 @@
       "confirmMasterPasswordPlaceholder": "Ana parolayı onaylayın",
       "errorPasswordRequired": "Parola gerekli",
       "errorMinLength4": "En az 4 karakter",
-      "pleaseWait": "Lütfen bekleyin…"
+      "pleaseWait": "Lütfen bekleyin…",
+      "reauthTitle": "Yeniden oturum açın",
+      "reauthDesc": "Bu cihazdaki oturumunuz sona erdi. Yeniden bağlanmak için ana parolanızı girin."
+    },
+    "twoFactor": {
+      "prompt": "Kimlik doğrulama uygulamanızdaki 6 haneli kodu girin.",
+      "recoveryPrompt": "Kurtarma kodlarınızdan birini girin. Her biri bir kez kullanılabilir.",
+      "codePlaceholder": "6 haneli kod",
+      "recoveryPlaceholder": "Kurtarma kodu",
+      "useRecovery": "Kurtarma kodu kullan",
+      "useCode": "Kimlik doğrulama kodu kullan",
+      "verify": "Doğrula",
+      "usePasskey": "Geçiş anahtarı kullan",
+      "passkeyOrCodePrompt": "Geçiş anahtarınızı kullanın veya kimlik doğrulama uygulamanızdaki 6 haneli kodu girin.",
+      "passkeyOrRecoveryPrompt": "Geçiş anahtarınızı kullanın veya kurtarma kodlarınızdan birini girin.",
+      "passkeyWaiting": "Tarayıcınızda devam edin, sonra buraya dönün.",
+      "passkeyDoneTitle": "Tamam",
+      "passkeyDoneBody": "Voltius'a dönün. Bu sekmeyi kapatabilirsiniz."
     },
     "mainPanel": {
       "noVaultSelectedTitle": "Seçili kasa yok",
@@ -123,6 +140,9 @@
       "leaveLocalTitle": "Bu yerel hesap bırakılsın mı?",
       "leaveLocalMessage": "Bu hesabın sunucuları, anahtarları ve kod parçacıkları yalnızca bu makinede saklanır. {{account}} hesabına geçerseniz bunlar silinir ve kurtarılamaz.",
       "leaveLocalConfirm": "Sil ve geçiş yap",
+      "removeTitle": "Bu hesap bu cihazdan kaldırılsın mı?",
+      "removeMessage": "{{account}} hesabının bu cihazda kayıtlı sunucuları, anahtarları ve kod parçacıkları silinir. Eşitlenmemiş olanlar kurtarılamaz.",
+      "removeConfirm": "Kaldır",
       "autoLock": "Otomatik kilit ayarları…",
       "autoLockOff": "Otomatik kilit kapalı",
       "autoLockAfter": "{{duration}} sonra otomatik kilitlenir",
@@ -157,6 +177,10 @@
       "enableArrow": "Etkinleştir →",
       "notConfigured": "Yapılandırılmadı",
       "configureArrow": "Yapılandır →",
+      "paused": "Duraklatıldı",
+      "resumeArrow": "Sürdür →",
+      "pause": "Eşitlemeyi duraklat",
+      "resume": "Eşitlemeyi sürdür",
       "encryptedBlob": "Şifreli veri · {{size}}",
       "status": {
         "syncing": "Eşitleniyor…",
@@ -165,9 +189,11 @@
         "error": "Eşitleme hatası",
         "errorDetail": "Eşitleme hatası: {{error}}",
         "errorDetailFrom": "Eşitleme hatası · {{source}}: {{error}}",
-        "offline": "Çevrimdışı",
+        "offline": "Sunucuya ulaşılamıyor",
+        "offlineDetail": "Sunucuya ulaşılamıyor: {{error}}",
         "idle": "Boşta",
         "notConfigured": "Eşitleme yapılandırılmadı",
+        "paused": "Eşitleme duraklatıldı",
         "default": "Eşitleme",
         "unknown": "bilinmiyor"
       }

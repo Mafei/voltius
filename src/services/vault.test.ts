@@ -20,6 +20,8 @@ import {
   unlockVaultIfNeeded,
   verifyVaultKey,
   wipeLocalConfig,
+  swapAccountProfile,
+  dropAccountProfile,
 } from "./vault";
 import { VaultLockedError, VaultUnreadableError, vaultErrorCode } from "./vaultErrors";
 import { useOrgLockPolicyStore } from "@/stores/orgLockPolicyStore";
@@ -159,6 +161,64 @@ test("a wipe with nothing to carry leaves the keychain alone", async () => {
   await wipeLocalConfig();
   expect(invoked("keychain_set")).toBe(false);
   expect(invoked("config_wipe")).toBe(true);
+});
+
+test("swapping profiles hands both ids to the backend and reports whether one was restored", async () => {
+  h.invoke.mockImplementation(async (cmd: string) => (cmd === "account_profile_swap" ? true : undefined));
+
+  await expect(swapAccountProfile({ parkAs: "a", restore: "b" })).resolves.toBe(true);
+
+  expect(h.invoke).toHaveBeenCalledWith("account_profile_swap", { parkAs: "a", restore: "b" });
+  expect(invoked("keychain_set")).toBe(false);
+});
+
+test("a swap carries device secrets the same way a wipe does", async () => {
+  const carry = { "proxy_password:__global__": "proxy-pw" };
+
+  await swapAccountProfile({ parkAs: null, restore: "b", carry });
+
+  expect(h.invoke).toHaveBeenCalledWith("keychain_set", {
+    key: "carried_device_secrets",
+    value: JSON.stringify(carry),
+  });
+});
+
+test("a failed swap leaves the key installed, so the next read unlocks again", async () => {
+  await getLocalSecret("k");
+  h.invoke.mockImplementationOnce(async () => {
+    throw new Error("Failed to switch account data");
+  });
+
+  await expect(swapAccountProfile({ parkAs: "a", restore: "b" })).rejects.toThrow("Failed to switch account data");
+
+  h.invoke.mockClear();
+  await expect(getLocalSecret("k")).resolves.toBe("value");
+  expect(invoked("secrets_unlock")).toBe(true);
+});
+
+test("a secret read while a swap is running does not reopen the store", async () => {
+  await getLocalSecret("k");
+  h.invoke.mockClear();
+  let finish!: (restored: boolean) => void;
+  h.invoke.mockImplementation(async (cmd: string) => {
+    if (cmd === "account_profile_swap") return new Promise<boolean>((resolve) => { finish = resolve; });
+    if (cmd === "secrets_get") throw LOCKED;
+    return undefined;
+  });
+
+  const swapping = swapAccountProfile({ parkAs: "a", restore: "b" });
+  await expect(getLocalSecret("k")).rejects.toBeInstanceOf(VaultLockedError);
+  await expect(getLocalSecret("k")).rejects.toBeInstanceOf(VaultLockedError);
+  finish(true);
+  await swapping;
+
+  expect(invoked("secrets_unlock")).toBe(false);
+});
+
+test("dropping a profile names the account to the backend", async () => {
+  await dropAccountProfile("b");
+
+  expect(h.invoke).toHaveBeenCalledWith("account_profile_drop", { accountId: "b" });
 });
 
 test("resetVault drops the team lock policy held in memory", async () => {

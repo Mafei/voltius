@@ -3,7 +3,9 @@ import type { ToastSeverity } from "@/plugins/api";
 
 export type NotificationSource =
   | { kind: "plugin"; id: string; name: string }
-  | { kind: "app"; area: "team" };
+  | { kind: "app" };
+
+export const APP_SOURCE: NotificationSource = { kind: "app" };
 
 export function sourceKey(source: NotificationSource): string {
   return source.kind === "plugin" ? source.id : "app";
@@ -19,6 +21,8 @@ export interface ToastEntry {
   action?: { label: string; onClick: () => void };
   // Progress fields
   progress?: number;
+  thumbnail?: string;
+  detail?: string;
   cancellable?: boolean;
   onCancel?: () => void;
   finished?: boolean;
@@ -65,7 +69,8 @@ export type InboxKind =
   | "controlRequest"
   | "awaitingKey"
   | "membershipEnded"
-  | "secretsNotWiped";
+  | "secretsNotWiped"
+  | "sshConfigMigrated";
 
 export interface InboxAction {
   label: string;

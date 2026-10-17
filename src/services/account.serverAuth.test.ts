@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { routeVaultSecret } from "@/test/vaultSecretRoute";
 import { test, expect, vi, beforeEach } from "vitest";
+import type { Identity } from "./identity";
 
 const h = vi.hoisted(() => ({
   invoke: vi.fn(),
@@ -26,6 +27,10 @@ const h = vi.hoisted(() => ({
   http: {} as Record<string, { ok: boolean; status: number; body?: unknown }>,
   dek: null as number[] | null,
   x25519: null as number[] | null,
+  kek: null as number[] | null,
+  ensureIdentity: vi.fn<() => Promise<Identity>>(),
+  syncPaused: false,
+  isSyncPaused: vi.fn((): boolean => h.syncPaused),
   emailVerified: false,
   seq: [] as string[],
   /** Request bodies by endpoint path, so a test can assert what was sent. */
@@ -35,7 +40,7 @@ const h = vi.hoisted(() => ({
 vi.mock("@tauri-apps/api/core", () => ({ invoke: h.invoke }));
 vi.mock("@/i18n", () => ({ default: { t: (k: string) => k } }));
 vi.mock("@/services/http", () => ({ appFetch: h.appFetch, isAbortError: () => false }));
-vi.mock("@/services/sync", () => ({ push: h.push }));
+vi.mock("@/services/sync", () => ({ push: h.push, isSyncPaused: h.isSyncPaused }));
 vi.mock("./vault", () => ({
   setVaultKey: (key: number[]) => {
     h.sessionKey = key;
@@ -53,8 +58,9 @@ vi.mock("./vault", () => ({
 vi.mock("@/stores/subscriptionStore", () => ({
   useSubscriptionStore: { getState: () => ({ load: h.load, emailVerified: h.emailVerified }) },
 }));
+vi.mock("@/services/identity", () => ({ ensureIdentity: h.ensureIdentity }));
 vi.mock("@/stores/vaultKeysStore", () => ({
-  useVaultKeysStore: { getState: () => ({ set: h.keysSet, clear: vi.fn(), dek: h.dek, x25519Private: h.x25519 }) },
+  useVaultKeysStore: { getState: () => ({ set: h.keysSet, clear: vi.fn(), dek: h.dek, kek: h.kek, x25519Private: h.x25519 }) },
 }));
 
 import {
@@ -65,6 +71,7 @@ import {
   signInToCloud,
   linkToCloud,
   changeMasterPassword,
+  settleVaultOnDek,
   changeEmail,
   refreshSession,
   refreshVerificationState,
@@ -72,11 +79,14 @@ import {
   resendVerificationEmail,
 } from "./account";
 import { VaultUnreadableError } from "./vaultErrors";
+import { clearSessionRevoked, tryRefreshJwt } from "./authTokens";
+import { TwoFactorRequiredError } from "./twoFactorProof";
 import { EmailUndeliverableError } from "@/utils/emailVerification";
 import { DEFAULT_SERVER_URL, lastServerUrl } from "@/utils/serverInstance";
 import { GLOBAL_PROXY_PASSWORD_KEY } from "./teamVaultSecretKeys";
 
 const S = "https://srv";
+const STORED_IDENTITY: Identity = { privateKey: btoa("id"), publicKey: "P", proven: true, stored: true };
 const TOKENS = { jwt_token: "JWT", refresh_token: "RT" };
 
 function routeInvoke() {
@@ -108,7 +118,9 @@ function routeInvoke() {
         return { dek: [1, 1, 1], x25519_private: [2, 2, 2], x25519_public: "RANDOM_PUB" };
       case "wrap_user_secrets_cmd":
         return "WRAPPED_B64";
+      // "W_OLD" stands for secrets wrapped under the old password's kek.
       case "unwrap_user_secrets_cmd":
+        if (args.wrappedB64 === "W_OLD" && String(args.kek) !== "9,9,9") throw new Error("Decryption failed");
         return { dek: [1, 1, 1], x25519_private: [2, 2, 2] };
       case "get_machine_fingerprint":
         return "FP";
@@ -142,6 +154,12 @@ const ok = (body: unknown = {}) => ({ ok: true, status: 200, body });
 const err = (status: number, body: unknown = {}) => ({ ok: false, status, body });
 
 beforeEach(() => {
+  clearSessionRevoked();
+  h.kek = null;
+  h.ensureIdentity.mockReset();
+  h.ensureIdentity.mockResolvedValue(STORED_IDENTITY);
+  h.syncPaused = false;
+  h.isSyncPaused.mockClear();
   for (const m of [h.invoke, h.appFetch, h.setVaultKey, h.wipeLocalConfig, h.load, h.keysSet]) m.mockReset();
   h.readLocalSecrets.mockReset().mockResolvedValue({});
   h.getVaultStatus.mockReset();
@@ -229,12 +247,38 @@ test("createServerAccount registers the identity its vault key derives, not the 
   expect(h.sent["/auth/register"].public_key).toBe("DERIVED_FROM_1,1,1"); // the dek
 });
 
-test("linkToCloud registers the identity of the vault it keeps", async () => {
+test("linkToCloud registers the identity a cloud-created account would have", async () => {
   h.store.master_password = "pw";
   h.store.account_id = "acc";
   h.http["/auth/register"] = ok(TOKENS);
   await linkToCloud("a@b.co", S);
-  expect(h.sent["/auth/register"].public_key).toBe("DERIVED_FROM_9,9,9");
+  expect(h.sent["/auth/register"].public_key).toBe("DERIVED_FROM_1,1,1");
+  expect(h.invoke).toHaveBeenCalledWith("wrap_user_secrets_cmd", {
+    kek: [9, 9, 9],
+    dek: [1, 1, 1],
+    x25519Private: Array.from(atob(btoa("legacy-x25519-private")), (c) => c.charCodeAt(0)),
+  });
+});
+
+test("linkToCloud moves the vault it already has to the dek", async () => {
+  h.store.master_password = "pw";
+  h.store.account_id = "acc";
+  h.http["/auth/register"] = ok(TOKENS);
+  existingVaultOpenedBy([9, 9, 9]);
+  await linkToCloud("a@b.co", S);
+  expect(h.invoke).toHaveBeenCalledWith("secrets_rekey", { oldEncKey: [9, 9, 9], newEncKey: [1, 1, 1] });
+  expect(h.setVaultKey).toHaveBeenLastCalledWith([1, 1, 1]);
+});
+
+test("a link whose rekey fails keeps the vault on the kek and still links", async () => {
+  h.store.master_password = "pw";
+  h.store.account_id = "acc";
+  h.http["/auth/register"] = ok(TOKENS);
+  existingVaultOpenedBy([9, 9, 9]);
+  h.rekeyError = new Error("disk full");
+  await linkToCloud("a@b.co", S);
+  expect(h.store.mode).toBe("server");
+  expect(h.fileKey).toEqual([9, 9, 9]);
 });
 
 /**
@@ -531,6 +575,40 @@ test("changeMasterPassword maps 401 to currentPasswordIncorrect", async () => {
   await expect(changeMasterPassword("old", "new")).rejects.toThrow("common.error.currentPasswordIncorrect");
 });
 
+test("a password change wraps the proven identity under the new key", async () => {
+  cloudSessionOn([1, 1, 1]);
+  h.ensureIdentity.mockResolvedValueOnce({ privateKey: btoa("\x07\x07"), publicKey: "P", proven: true, stored: false });
+  await changeMasterPassword("old", "new");
+  expect(h.invoke).toHaveBeenCalledWith("wrap_user_secrets_cmd", { kek: [8, 8, 8], dek: [1, 1, 1], x25519Private: [7, 7] });
+});
+
+test("an unproven identity keeps the stored key in the new wrap", async () => {
+  cloudSessionOn([1, 1, 1]);
+  h.ensureIdentity.mockResolvedValueOnce({ privateKey: btoa("x"), publicKey: "P", proven: false, stored: false });
+  await changeMasterPassword("old", "new");
+  expect(h.invoke).toHaveBeenCalledWith("wrap_user_secrets_cmd", { kek: [8, 8, 8], dek: [1, 1, 1], x25519Private: [2, 2, 2] });
+});
+
+test("a session without cached keys adopts the server's before resolving the identity", async () => {
+  cloudSessionOn([1, 1, 1]);
+  h.dek = null;
+  h.x25519 = null;
+  h.http["/auth/me"] = ok({ wrapped_user_secrets: "W" });
+  await changeMasterPassword("old", "new");
+  expect(h.keysSet).toHaveBeenCalledWith({ dek: [1, 1, 1], x25519Private: [2, 2, 2], kek: [9, 9, 9] });
+  expect(h.keysSet.mock.invocationCallOrder[0]).toBeLessThan(h.ensureIdentity.mock.invocationCallOrder[0]);
+});
+
+test("an identity that cannot be resolved fails the change before anything is touched", async () => {
+  cloudSessionOn([9, 9, 9]);
+  existingVaultOpenedBy([9, 9, 9]);
+  h.ensureIdentity.mockRejectedValueOnce(new Error("offline"));
+  await expect(changeMasterPassword("old", "new")).rejects.toThrow("offline");
+  expect(h.seq).not.toContain("secrets_rekey");
+  expect(step("/auth/password")).toBe(-1);
+  expect(h.setVaultKey).not.toHaveBeenCalled();
+});
+
 test("changeMasterPassword rotates tokens and password on success", async () => {
   cloudSessionOn([1, 1, 1]);
   await changeMasterPassword("old", "new");
@@ -809,4 +887,403 @@ test("authenticateServerAccount rejects bad credentials and leaves the session a
   await expect(authenticateServerAccount("signin", "b@x.io", PW_CURRENT, S))
     .rejects.toThrow("common.error.invalidEmailOrPassword");
   expect(h.store).toEqual(before);
+});
+
+// ─── two-factor sign-in ──────────────────────────────────────────────────────
+
+const CHALLENGE = err(428, { error: "TWO_FACTOR_REQUIRED", pending_token: "PENDING", methods: ["totp", "recovery"] });
+
+function serverAccount() {
+  h.store.account_id = "acc";
+  h.store.mode = "server";
+  h.store.email = "a@b.co";
+  h.store.server_url = S;
+}
+
+/** Registered longest path first: routeHttp matches by substring, and "/auth/login" is one of "/auth/login/2fa". */
+function secondStep(answer: { ok: boolean; status: number; body?: unknown }) {
+  h.http["/auth/login/2fa"] = answer;
+  h.http["/auth/login"] = CHALLENGE;
+}
+
+async function challengeFrom<T>(work: Promise<T>): Promise<TwoFactorRequiredError<T>> {
+  const error = await work.then(() => null, (e: unknown) => e);
+  expect(error).toBeInstanceOf(TwoFactorRequiredError);
+  return error as TwoFactorRequiredError<T>;
+}
+
+test("login stops at the code step without touching the keychain, then finishes with the code", async () => {
+  h.store.server_url = S;
+  h.http["/auth/challenge"] = ok({ account_id: "acc" });
+  secondStep(ok({ ...TOKENS, wrapped_user_secrets: "WRAPPED" }));
+
+  const challenge = await challengeFrom(login("pw", "a@b.co", S));
+  expect(challenge.methods).toEqual(["totp", "recovery"]);
+  // A sign-in abandoned here must not leave something that reads as a local account.
+  expect(h.store.mode).toBeUndefined();
+  expect(h.store.account_id).toBeUndefined();
+  expect(h.setVaultKey).not.toHaveBeenCalled();
+
+  await challenge.complete({ code: " 123456 " });
+  expect(h.sent["/auth/login/2fa"]).toEqual({ pending_token: "PENDING", code: "123456" });
+  expect(h.store).toMatchObject({ mode: "server", account_id: "acc", jwt: "JWT", refresh_token: "RT" });
+  expect(h.setVaultKey).toHaveBeenLastCalledWith([1, 1, 1]);
+});
+
+test("a recovery code is sent under its own name", async () => {
+  serverAccount();
+  secondStep(ok({ ...TOKENS, wrapped_user_secrets: "WRAPPED" }));
+
+  const challenge = await challengeFrom(login("pw"));
+  await challenge.complete({ recoveryCode: "abcd-efgh-jkmn-pqrs" });
+  expect(h.sent["/auth/login/2fa"]).toEqual({ pending_token: "PENDING", recovery_code: "abcd-efgh-jkmn-pqrs" });
+});
+
+test("a passkey ceremony is opened for the same pending sign-in, and its code finishes it", async () => {
+  serverAccount();
+  h.http["/auth/login/2fa/passkey"] = ok({ handle: "H", url: "https://portal/2fa/passkey#h=H" });
+  secondStep(ok({ ...TOKENS, wrapped_user_secrets: "WRAPPED" }));
+
+  const challenge = await challengeFrom(login("pw"));
+  const returnTo = { kind: "loopback", port: 49152, state: "state" } as const;
+  await expect(challenge.openPasskey(returnTo)).resolves.toMatchObject({ url: "https://portal/2fa/passkey#h=H" });
+  expect(h.sent["/auth/login/2fa/passkey"]).toEqual({ pending_token: "PENDING", return_to: returnTo });
+
+  await challenge.complete({ passkeyCode: "PK" });
+  expect(h.sent["/auth/login/2fa"]).toEqual({ pending_token: "PENDING", passkey_code: "PK" });
+
+  h.http["/auth/login/2fa/passkey"] = err(401);
+  await expect(challenge.openPasskey(returnTo)).rejects.toThrow("common.error.twoFactorExpired");
+});
+
+test.each([
+  [err(401, { error: "TWO_FACTOR_INVALID" }), "common.error.twoFactorInvalid"],
+  [err(429, { error: "TWO_FACTOR_LOCKED" }), "common.error.twoFactorLocked"],
+  [err(503, { error: "TWO_FACTOR_UNAVAILABLE" }), "common.error.twoFactorUnavailable"],
+  [err(401), "common.error.twoFactorExpired"],
+  [err(500), "common.error.serverLoginFailed"],
+])("a refused code says why and can be retried (%#)", async (refusal, message) => {
+  serverAccount();
+  secondStep(refusal);
+
+  const challenge = await challengeFrom(login("pw"));
+  await expect(challenge.complete({ code: "000000" })).rejects.toThrow(message);
+  expect(h.store.jwt).toBeUndefined();
+
+  h.http["/auth/login/2fa"] = ok({ ...TOKENS, wrapped_user_secrets: "WRAPPED" });
+  await challenge.complete({ code: "123456" });
+  expect(h.store.jwt).toBe("JWT");
+});
+
+test("a 428 that is not a two-factor challenge is an ordinary failure", async () => {
+  serverAccount();
+  h.http["/auth/login"] = err(428, {});
+  await expect(login("pw")).rejects.toThrow("common.error.serverLoginFailed");
+});
+
+test("signInToCloud wipes nothing until the code is accepted", async () => {
+  h.http["/auth/challenge"] = ok({ account_id: "acc" });
+  secondStep(ok({ ...TOKENS, wrapped_user_secrets: "WRAPPED" }));
+
+  const challenge = await challengeFrom(signInToCloud("a@b.co", "pw", S));
+  expect(h.wipeLocalConfig).not.toHaveBeenCalled();
+  expect(h.store.jwt).toBeUndefined();
+
+  await challenge.complete({ code: "123456" });
+  expect(h.wipeLocalConfig).toHaveBeenCalled();
+  expect(h.store).toMatchObject({ mode: "server", jwt: "JWT", wrapped_user_secrets: "WRAPPED" });
+});
+
+test("authenticateServerAccount hands back the session once the code is accepted", async () => {
+  h.http["/auth/challenge"] = ok({ account_id: "acc" });
+  secondStep(ok({ ...TOKENS, wrapped_user_secrets: "WRAPPED" }));
+
+  const challenge = await challengeFrom(authenticateServerAccount("signin", "a@b.co", "pw", S));
+  await expect(challenge.complete({ code: "123456" })).resolves.toMatchObject({
+    account_id: "acc", jwt: "JWT", refresh_token: "RT", wrapped_user_secrets: "WRAPPED", master_password: "pw",
+  });
+  expect(h.store.jwt).toBeUndefined();
+});
+
+// ─── unlock is not a sign-in ─────────────────────────────────────────────────
+
+function lockedCloudVault() {
+  serverAccount();
+  h.store.refresh_token = "RT";
+  h.store.wrapped_user_secrets = "WRAPPED";
+  existingVaultOpenedBy([1, 1, 1]);
+}
+
+test("unlocking a vault whose session the server still honours does not sign in again", async () => {
+  lockedCloudVault();
+  h.http["/auth/refresh"] = ok({ jwt_token: "JWT2" });
+  h.http["/auth/login"] = CHALLENGE;
+
+  await login("pw");
+  expect(h.setVaultKey).toHaveBeenLastCalledWith([1, 1, 1]);
+  expect(h.store.jwt).toBe("JWT2");
+  expect(h.sent["/auth/login"]).toBeUndefined();
+});
+
+test("unlocking after the session was revoked signs in again, and says nothing about it", async () => {
+  lockedCloudVault();
+  h.http["/auth/refresh"] = err(401);
+  h.http["/auth/login"] = ok({ ...TOKENS, refresh_token: "RT2", wrapped_user_secrets: "WRAPPED" });
+
+  await login("pw");
+  expect(h.store.refresh_token).toBe("RT2");
+  // The fresh pair lifts the revocation: the next refresh reaches the server again.
+  h.http["/auth/refresh"] = ok({ jwt_token: "JWT3" });
+  await expect(tryRefreshJwt()).resolves.toBe("JWT3");
+});
+
+test("a password that did not open the cached secrets is still proven by the server", async () => {
+  serverAccount();
+  h.store.refresh_token = "RT";
+  h.http["/auth/refresh"] = ok({ jwt_token: "JWT2" });
+  h.http["/auth/login"] = err(401);
+
+  await expect(login("pw")).rejects.toThrow("common.error.serverLoginFailed");
+});
+
+// ─── revoked session ─────────────────────────────────────────────────────────
+
+test("a revoked session is asked about once, then left alone until a new sign-in", async () => {
+  h.store.refresh_token = "RT";
+  h.store.server_url = S;
+  h.http["/auth/refresh"] = err(401);
+
+  await expect(tryRefreshJwt()).resolves.toBeNull();
+  await expect(tryRefreshJwt()).resolves.toBeNull();
+  await expect(refreshSession()).rejects.toThrow("common.error.sessionRefreshFailed");
+  expect(h.seq.filter((entry) => entry.includes("/auth/refresh"))).toHaveLength(1);
+});
+
+// The server announces a version bump before it answers the request that caused it,
+// so this device's own sync loop can refresh with the pair it is about to replace.
+test("a 401 for a refresh token replaced mid-flight is retried with the new one", async () => {
+  h.store.refresh_token = "OLD";
+  h.store.server_url = S;
+  h.appFetch.mockImplementation(async (_url: string, init?: { body?: string }) => {
+    const sent = JSON.parse(init!.body!).refresh_token;
+    if (sent === "OLD") {
+      h.store.refresh_token = "NEW";
+      return { ok: false, status: 401, json: async () => ({}) };
+    }
+    return { ok: true, status: 200, json: async () => ({ jwt_token: `JWT_FOR_${sent}` }) };
+  });
+
+  await expect(tryRefreshJwt()).resolves.toBe("JWT_FOR_NEW");
+  await expect(tryRefreshJwt()).resolves.toBe("JWT_FOR_NEW");
+});
+
+test("a refresh the server could not answer is not a revocation", async () => {
+  h.store.refresh_token = "RT";
+  h.store.server_url = S;
+  h.http["/auth/refresh"] = err(503);
+  await expect(tryRefreshJwt()).resolves.toBeNull();
+
+  h.http["/auth/refresh"] = ok({ jwt_token: "JWT2" });
+  await expect(tryRefreshJwt()).resolves.toBe("JWT2");
+});
+
+test("changeMasterPassword sends the code and names a refused one", async () => {
+  h.store.account_id = "acc";
+  h.store.jwt = "JWT0";
+  h.store.server_url = S;
+  h.dek = [1, 1, 1];
+  h.x25519 = [2, 2, 2];
+  h.http["/auth/password"] = err(401, { error: "TWO_FACTOR_INVALID" });
+
+  await expect(changeMasterPassword("pw", "new", { code: "000000" })).rejects.toThrow("common.error.twoFactorInvalid");
+  expect(h.sent["/auth/password"]).toMatchObject({ code: "000000" });
+
+  h.http["/auth/password"] = err(428, { error: "TWO_FACTOR_REQUIRED" });
+  await expect(changeMasterPassword("pw", "new")).rejects.toThrow("common.error.twoFactorRequired");
+});
+
+// ─── settleVaultOnDek ────────────────────────────────────────────────────────
+
+function kekVaultWithDek() {
+  cloudSessionOn([9, 9, 9]);
+  h.kek = [9, 9, 9];
+  existingVaultOpenedBy([9, 9, 9]);
+}
+
+test("a kek vault moves to the dek once the identity is stored", async () => {
+  kekVaultWithDek();
+  await settleVaultOnDek();
+  expect(h.invoke).toHaveBeenCalledWith("secrets_rekey", { oldEncKey: [9, 9, 9], newEncKey: [1, 1, 1] });
+  expect(h.setVaultKey).toHaveBeenLastCalledWith([1, 1, 1]);
+  await vi.waitFor(() => expect(h.push).toHaveBeenCalled());
+});
+
+test("a paused device moves its vault to the dek without uploading", async () => {
+  kekVaultWithDek();
+  h.syncPaused = true;
+  await settleVaultOnDek();
+  expect(h.invoke).toHaveBeenCalledWith("secrets_rekey", { oldEncKey: [9, 9, 9], newEncKey: [1, 1, 1] });
+  await vi.waitFor(() => expect(h.isSyncPaused).toHaveBeenCalled());
+  expect(h.push).not.toHaveBeenCalled();
+});
+
+test("a vault stays on the kek while the identity is not stored", async () => {
+  kekVaultWithDek();
+  h.ensureIdentity.mockResolvedValueOnce({ privateKey: "", publicKey: "", proven: true, stored: false });
+  await settleVaultOnDek();
+  expect(h.seq).not.toContain("secrets_rekey");
+  expect(h.setVaultKey).not.toHaveBeenCalled();
+});
+
+test("an offline device keeps its vault and its unlock", async () => {
+  kekVaultWithDek();
+  h.ensureIdentity.mockRejectedValueOnce(new Error("offline"));
+  await expect(settleVaultOnDek()).resolves.toBeUndefined();
+  expect(h.seq).not.toContain("secrets_rekey");
+  expect(h.setVaultKey).not.toHaveBeenCalled();
+});
+
+test("a vault already on the dek is left alone without asking for the identity", async () => {
+  cloudSessionOn([1, 1, 1]);
+  h.kek = [9, 9, 9];
+  await settleVaultOnDek();
+  expect(h.ensureIdentity).not.toHaveBeenCalled();
+});
+
+test("a local account is never settled", async () => {
+  kekVaultWithDek();
+  h.store.mode = "local";
+  await settleVaultOnDek();
+  expect(h.ensureIdentity).not.toHaveBeenCalled();
+});
+
+test("an account switch while the identity resolves leaves the new account's vault alone", async () => {
+  kekVaultWithDek();
+  h.ensureIdentity.mockImplementationOnce(async () => {
+    h.sessionKey = [7, 7, 7];
+    h.kek = [7, 7, 7];
+    return STORED_IDENTITY;
+  });
+  await settleVaultOnDek();
+  expect(h.seq).not.toContain("secrets_rekey");
+  expect(h.setVaultKey).not.toHaveBeenCalled();
+});
+
+// ─── stranded vault ──────────────────────────────────────────────────────────
+
+function strandedOnOldKek() {
+  h.store.account_id = "acc";
+  h.store.mode = "server";
+  h.store.email = "a@b.co";
+  h.store.server_url = S;
+  h.http["/auth/login"] = ok({ ...TOKENS, wrapped_user_secrets: "W_NEW" });
+  existingVaultOpenedBy([9, 9, 9]);
+}
+
+test("sign-in after a change elsewhere reopens the vault with the password stored here", async () => {
+  strandedOnOldKek();
+  h.store.master_password = "old";
+  await login("new");
+  expect(h.invoke).toHaveBeenCalledWith("secrets_rekey", { oldEncKey: [9, 9, 9], newEncKey: [1, 1, 1] });
+  expect(h.setVaultKey).toHaveBeenLastCalledWith([1, 1, 1]);
+  expect(h.store.master_password).toBe("new");
+  await vi.waitFor(() => expect(h.push).toHaveBeenCalled());
+});
+
+test("the identity is looked up while the old key is still the vault key", async () => {
+  strandedOnOldKek();
+  h.store.master_password = "old";
+  let vaultKeyDuringLookup: number[] | null = null;
+  h.ensureIdentity.mockImplementationOnce(async () => {
+    vaultKeyDuringLookup = h.sessionKey;
+    return { privateKey: "", publicKey: "", proven: true, stored: true };
+  });
+  await login("new");
+  expect(vaultKeyDuringLookup).toEqual([9, 9, 9]);
+});
+
+test("the server's wrapped secrets are cached before the lookup compares against them", async () => {
+  strandedOnOldKek();
+  h.store.master_password = "old";
+  let cachedDuringLookup: string | null | undefined;
+  h.ensureIdentity.mockImplementationOnce(async () => {
+    cachedDuringLookup = h.store.wrapped_user_secrets;
+    return { privateKey: "", publicKey: "", proven: true, stored: true };
+  });
+  await login("new");
+  expect(cachedDuringLookup).toBe("W_NEW");
+});
+
+test("a bound device reads the old sealed password to reopen the vault, then seals the new one", async () => {
+  strandedOnOldKek();
+  h.store.master_password_sealed = "S:old";
+  h.store.wrapped_user_secrets = "W_OLD";
+  await login("new");
+  expect(h.setVaultKey).toHaveBeenLastCalledWith([1, 1, 1]);
+  expect(h.store.master_password_sealed).toBe("S:new");
+});
+
+test("a bound device signing in after a change elsewhere seals the new password", async () => {
+  strandedOnOldKek();
+  existingVaultOpenedBy([1, 1, 1]);
+  h.store.master_password_sealed = "S:old";
+  h.store.wrapped_user_secrets = "W_OLD";
+  await login("new");
+  expect(h.store.master_password_sealed).toBe("S:new");
+});
+
+test("a bound device signing in with the password it already holds is not asked to seal again", async () => {
+  strandedOnOldKek();
+  existingVaultOpenedBy([1, 1, 1]);
+  h.store.master_password_sealed = "S:old";
+  h.store.wrapped_user_secrets = "W_OLD";
+  await login("old");
+  expect(h.invoke).not.toHaveBeenCalledWith("vault_secret_set", expect.anything());
+  expect(h.store.master_password_sealed).toBe("S:old");
+});
+
+test("a cancelled prompt on a bound device leaves today's unreadable vault", async () => {
+  strandedOnOldKek();
+  h.store.master_password_sealed = "S:old";
+  const route = h.invoke.getMockImplementation()!;
+  h.invoke.mockImplementation(async (cmd: string, args: Record<string, unknown>) =>
+    cmd === "vault_secret_get" ? { outcome: "cancelled", value: null } : route(cmd, args));
+  await expect(login("new")).rejects.toThrow(VaultUnreadableError);
+  expect(h.seq).not.toContain("secrets_rekey");
+});
+
+test("a device that stored the same password has nothing older to try", async () => {
+  strandedOnOldKek();
+  h.store.master_password = "new";
+  await expect(login("new")).rejects.toThrow(VaultUnreadableError);
+});
+
+test.each([
+  ["its rekey fails", () => {
+    h.rekeyError = new Error("disk full");
+  }],
+  ["the file cannot be read", () => {
+    const fits = h.verifyVaultKey.getMockImplementation()!;
+    h.verifyVaultKey.mockImplementation(async (key: number[]) => {
+      if (String(key) === "9,9,9") throw new Error("EBUSY");
+      return fits(key);
+    });
+  }],
+])("a recovery where %s is an unreadable vault, on the key the sign-in installed", async (_name, fail) => {
+  strandedOnOldKek();
+  h.store.master_password = "old";
+  fail();
+  await expect(login("new")).rejects.toThrow(VaultUnreadableError);
+  expect(h.sessionKey).toEqual([8, 8, 8]);
+  expect(h.push).not.toHaveBeenCalled();
+});
+
+test("a stored password that opens nothing either is an unreadable vault", async () => {
+  strandedOnOldKek();
+  // "zzz" derives [9, 9, 9]; this file is on a key neither password reaches.
+  existingVaultOpenedBy([7, 7, 7]);
+  h.store.master_password = "zzz";
+  await expect(login("new")).rejects.toThrow(VaultUnreadableError);
+  expect(h.seq).not.toContain("secrets_rekey");
+  expect(h.sessionKey).toEqual([8, 8, 8]);
 });

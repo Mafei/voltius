@@ -1,3 +1,4 @@
+pub mod clipboard;
 pub mod connections;
 pub mod crdt;
 pub mod crypto;
@@ -18,6 +19,7 @@ pub mod local;
 pub mod mcp;
 pub mod metrics;
 pub mod mobaxterm;
+pub mod openssh;
 pub mod ping;
 pub mod plugin_registry;
 pub mod plugin_storage;

@@ -60,7 +60,24 @@
       "confirmMasterPasswordPlaceholder": "Confirmer le mot de passe principal",
       "errorPasswordRequired": "Mot de passe requis",
       "errorMinLength4": "Au moins 4 caractères",
-      "pleaseWait": "Veuillez patienter…"
+      "pleaseWait": "Veuillez patienter…",
+      "reauthTitle": "Se reconnecter",
+      "reauthDesc": "Votre session sur cet appareil a pris fin. Saisissez votre mot de passe principal pour vous reconnecter."
+    },
+    "twoFactor": {
+      "prompt": "Saisissez le code à 6 chiffres de votre application d'authentification.",
+      "recoveryPrompt": "Saisissez l'un de vos codes de récupération. Chacun ne fonctionne qu'une fois.",
+      "codePlaceholder": "Code à 6 chiffres",
+      "recoveryPlaceholder": "Code de récupération",
+      "useRecovery": "Utiliser un code de récupération",
+      "useCode": "Utiliser un code d'authentification",
+      "verify": "Vérifier",
+      "usePasskey": "Utiliser une clé d'accès",
+      "passkeyOrCodePrompt": "Utilisez votre clé d'accès, ou saisissez le code à 6 chiffres de votre application d'authentification.",
+      "passkeyOrRecoveryPrompt": "Utilisez votre clé d'accès, ou saisissez l'un de vos codes de récupération.",
+      "passkeyWaiting": "Continuez dans votre navigateur, puis revenez ici.",
+      "passkeyDoneTitle": "Terminé",
+      "passkeyDoneBody": "Revenez à Voltius. Vous pouvez fermer cet onglet."
     },
     "mainPanel": {
       "noVaultSelectedTitle": "Aucun coffre sélectionné",
@@ -123,6 +140,9 @@
       "leaveLocalTitle": "Quitter ce compte local ?",
       "leaveLocalMessage": "Les hôtes, clés et snippets de ce compte sont stockés uniquement sur cette machine. Passer à {{account}} les efface définitivement.",
       "leaveLocalConfirm": "Effacer et changer",
+      "removeTitle": "Retirer ce compte de cet appareil ?",
+      "removeMessage": "Les hôtes, clés et snippets de {{account}} enregistrés sur cet appareil sont supprimés. Ce qui n'a pas été synchronisé ne pourra pas être récupéré.",
+      "removeConfirm": "Retirer",
       "autoLock": "Réglages du verrouillage auto…",
       "autoLockOff": "Verrouillage auto désactivé",
       "autoLockAfter": "Verrouillage auto après {{duration}}",
@@ -157,6 +177,10 @@
       "enableArrow": "Activer →",
       "notConfigured": "Non configuré",
       "configureArrow": "Configurer →",
+      "paused": "En pause",
+      "resumeArrow": "Reprendre →",
+      "pause": "Mettre la synchronisation en pause",
+      "resume": "Reprendre la synchronisation",
       "encryptedBlob": "Bloc chiffré · {{size}}",
       "status": {
         "syncing": "Synchronisation…",
@@ -165,9 +189,11 @@
         "error": "Erreur de synchronisation",
         "errorDetail": "Erreur de synchronisation : {{error}}",
         "errorDetailFrom": "Erreur de synchronisation · {{source}} : {{error}}",
-        "offline": "Hors ligne",
+        "offline": "Serveur injoignable",
+        "offlineDetail": "Serveur injoignable : {{error}}",
         "idle": "Inactif",
         "notConfigured": "Synchronisation non configurée",
+        "paused": "Synchronisation en pause",
         "default": "Synchronisation",
         "unknown": "inconnu"
       }

@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Icon } from "@iconify/react";
 import { Trans, useTranslation } from "react-i18next";
-import { getAccountMode, getCurrentUserEmail, getMe, setMasterPassword, logout } from "@/services/account";
+import { getAccountMode, getCurrentUserEmail, getMe, setMasterPassword } from "@/services/account";
+import { useSignOutConfirm } from "@/hooks/useSignOutConfirm";
 import { lockApp } from "@/services/appLock";
 import { resetVault } from "@/services/vault";
 import { useSecurityStore } from "@/stores/securityStore";
@@ -19,6 +20,7 @@ import { canLockApp } from "@/utils/accountMode";
 import EditEmailModal from "./EditEmailModal";
 import { SessionSecuritySettings } from "./SessionSecuritySettings";
 import ChangeMasterPasswordModal from "./ChangeMasterPasswordModal";
+import { TwoFactorSettings } from "./TwoFactorSettings";
 import { formatOptionalDate, SHORT_DATE } from "@/utils/localeFormat";
 
 type AccountStep = "idle" | "set-password" | "loading" | "confirm-wipe";
@@ -112,10 +114,12 @@ export default function AccountSection() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showEditEmail, setShowEditEmail] = useState(false);
+  const { requestSignOut, signOutConfirm } = useSignOutConfirm((e) => setError(e instanceof Error ? e.message : String(e)));
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [handle, setHandle] = useState<string | null>(null);
   const [handleIsCustom, setHandleIsCustom] = useState(false);
   const [handleManaged, setHandleManaged] = useState(false);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState<boolean | null>(null);
   // `null` until /auth/me answers — the claim control renders in neither state
   // until then, so a verified user never sees the "verify your email" row flash.
   const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
@@ -159,6 +163,7 @@ export default function AccountSection() {
       setHandleIsCustom(!!me.handle_is_custom);
       setEmailVerified(!!me.email_verified);
       setHandleManaged(!!me.handle_managed);
+      setTwoFactorEnabled(!!me.two_factor_enabled);
       if (typeof me.allow_stranger_invites === "boolean") setAllowStrangerInvites(me.allow_stranger_invites);
     }).catch(() => {});
     setStep("idle");
@@ -346,6 +351,7 @@ export default function AccountSection() {
               onClick={() => setShowChangePassword(true)}
             />
           )}
+          {mode === "server" && <TwoFactorSettings enabled={twoFactorEnabled} onChange={setTwoFactorEnabled} />}
           {mode === "local-nopassword" && (
             <ActionItem
               icon="lucide:lock"
@@ -376,9 +382,7 @@ export default function AccountSection() {
               danger
               onClick={() => {
                 setError("");
-                logout()
-                  .then(() => window.location.reload())
-                  .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+                requestSignOut();
               }}
             />
           )}
@@ -404,6 +408,8 @@ export default function AccountSection() {
         </div>
       )}
 
+      {signOutConfirm}
+
       {showEditEmail && currentEmail && (
         <EditEmailModal
           currentEmail={currentEmail}
@@ -415,7 +421,7 @@ export default function AccountSection() {
       )}
 
       {showChangePassword && (
-        <ChangeMasterPasswordModal onClose={() => setShowChangePassword(false)} />
+        <ChangeMasterPasswordModal twoFactorEnabled={!!twoFactorEnabled} onClose={() => setShowChangePassword(false)} />
       )}
 
       {step === "confirm-wipe" && (

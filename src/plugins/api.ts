@@ -14,6 +14,7 @@ import type { SubscriptionView } from "./domains/account";
 import type { PluginView, SourceView } from "./domains/plugins";
 import type { MarketplacePlugin } from "@/stores/marketplaceStore";
 import type { ExportResult, ExportType, ImportResult } from "./domains/importexport";
+import type { SyncSummary } from "@/services/sshConfig/sync";
 export type { ExportResult, ExportType, ImportResult } from "./domains/importexport";
 
 export type { PluginAuditAction } from "@/services/auditContext";
@@ -178,7 +179,7 @@ export interface PluginTransfer {
 
 export type SyncProviderStatus = "idle" | "syncing" | "success" | "error" | "offline";
 
-export type SyncProviderAvailability = "active" | "not_configured" | "disabled" | "locked" | "needs_upgrade";
+export type SyncProviderAvailability = "active" | "not_configured" | "disabled" | "locked" | "needs_upgrade" | "paused";
 
 /** What a sync provider plugin publishes under `publishState("sync-state", …)`. */
 export interface SyncProviderState {
@@ -1375,6 +1376,7 @@ export interface PluginAPI {
     import(opts: {
       content: string; vaultId: string; passphrase?: string; dryRun: boolean;
     }): Promise<DomainResult<ImportResult>>;
+    sshConfigSync(): Promise<DomainResult<SyncSummary>>;
   };
 
   // MCP tool contributions — GATED (mcp:contribute). Tools run with THIS

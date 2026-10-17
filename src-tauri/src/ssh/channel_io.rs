@@ -219,7 +219,7 @@ pub async fn open_exec_session(
                 shutdown_tx: io.shutdown_tx,
                 channel_only: true,
                 persist: false,
-                user_tmux: None,
+                user_session: None,
                 _jump_handles: vec![],
                 remote_routes: std::sync::Arc::new(tokio::sync::Mutex::new(
                     std::collections::HashMap::new(),

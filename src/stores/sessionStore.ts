@@ -37,14 +37,14 @@ import { inlineCommandForBackend, resolveHostCommand } from "@/services/hostComm
 import { runHostCommand } from "@/services/hostCommandRun";
 import { notifyError } from "@/utils/notifyError";
 import { isFileOnlyProtocol } from "@/utils/connectionType";
-import { tmuxAttachChoice, tmuxEndpoint } from "@/services/tmuxSessionCore";
+import { sessionAttachChoice, tmuxEndpoint, isUserSession, modeForSession, remoteFromMode } from "@/services/tmuxSessionCore";
 
 /** `background: true` opens the session without taking the user's active tab. */
 export type OpenOptions = {
   background?: boolean;
   sessionId?: string;
   keepFailedSession?: boolean;
-  sshLaunch?: { preparedId?: string; choice?: import("@/services/ssh").TmuxChoice; session?: import("@/services/ssh").TmuxSession; username?: string };
+  sshLaunch?: { preparedId?: string; choice?: import("@/services/ssh").SessionChoice; session?: import("@/services/ssh").RemoteSession; username?: string };
 };
 
 interface SessionStore {
@@ -148,7 +148,7 @@ export async function buildSshConnectOptions(
   knock: HopRoute["knock"];
   cols?: number;
   rows?: number;
-  tmux?: import("@/services/ssh").TmuxChoice;
+  sessionChoice?: import("@/services/ssh").SessionChoice;
 }> {
   const [jumpHosts, route] = await Promise.all([resolveJumpHosts(connection), resolveFirstHop(connection)]);
   const envVars = connection.env_vars?.map((e): [string, string] => [e.key, e.value]) ?? [];
@@ -164,12 +164,12 @@ export async function buildSshConnectOptions(
 
   const mode = useSessionStore.getState().sessions.find((s) => s.id === sessionId)?.sshMode;
   return {
-    ...(mode?.kind === "tmux" ? { tmux: tmuxAttachChoice(mode.session) } : {}),
+    ...(isUserSession(mode) ? { sessionChoice: sessionAttachChoice(remoteFromMode(mode)) } : {}),
     jumpHosts: jumpHosts.length > 0 ? jumpHosts : undefined,
     envVars: envVars.length > 0 ? envVars : undefined,
     agentForwarding: connection.agent_forwarding ?? false,
     legacyAlgorithms: connection.legacy_algorithms ?? false,
-    preCommand: mode?.kind === "tmux" ? undefined : inlineCommandForBackend(connection, "pre"),
+    preCommand: isUserSession(mode) ? undefined : inlineCommandForBackend(connection, "pre"),
     autoForward: getToggle("auto-forward"),
     shellIntegration: connection.shell_integration ?? getToggle("shell-integration"),
     keepaliveIntervalSecs: intervalSecs,
@@ -215,8 +215,8 @@ function createSshSession(
     connectionName: connection.name?.trim() || `${connection.username}@${connection.host}:${connection.port}`,
     status: "connecting",
     persist: options.sshLaunch ? false : resolvePersistSession(connection.persist_session),
-    sshMode: options.sshLaunch?.session ? { kind: "tmux", session: options.sshLaunch.session, username: options.sshLaunch.username ?? connection.username, endpoint: tmuxEndpoint(connection) } : options.sshLaunch ? { kind: "plain" } : undefined,
-    title: options.sshLaunch?.choice?.kind === "create" ? options.sshLaunch.choice.name : undefined,
+    sshMode: options.sshLaunch?.session ? modeForSession(options.sshLaunch.session, options.sshLaunch.username ?? connection.username, tmuxEndpoint(connection)) : options.sshLaunch ? { kind: "plain" } : undefined,
+    title: options.sshLaunch?.choice?.choice.kind === "create" ? options.sshLaunch.choice.choice.name : undefined,
     type: "ssh",
     encoding: connection.terminal_encoding,
   };
@@ -271,12 +271,12 @@ function withSessionConnectLock<T>(sessionId: string, fn: () => Promise<T>): Pro
 async function connectSshTransport(set: SessionSetter, params: SshConnectParams) {
   const mode = useSessionStore.getState().sessions.find((s) => s.id === params.sessionId)?.sshMode;
   const endpoint = tmuxEndpoint(params);
-  if (mode?.kind === "tmux" && (mode.username !== params.username || mode.endpoint !== endpoint)) {
-    throw new Error(i18n.t("mobile.tmux.identityChanged"));
+  if (isUserSession(mode) && (mode.username !== params.username || mode.endpoint !== endpoint)) {
+    throw new Error(i18n.t("mobile.session.identityChanged"));
   }
   const result = await sshConnect(params);
-  if (result?.tmux_session) patchSession(set, params.sessionId, {
-    sshMode: { kind: "tmux", session: result.tmux_session, username: params.username, endpoint }, persist: false,
+  if (result?.session) patchSession(set, params.sessionId, {
+    sshMode: modeForSession(result.session, params.username, endpoint), persist: false,
   });
   return result;
 }
@@ -311,7 +311,7 @@ async function connectSshSession(
         connectionId: connection.id,
         initialCwd,
         ...opts,
-        ...(launch ? { preparedId: launch.preparedId, tmux: launch.choice, persist: false, preCommand: launch.choice ? undefined : opts.preCommand } : {}),
+        ...(launch ? { preparedId: launch.preparedId, sessionChoice: launch.choice, persist: false, preCommand: launch.choice ? undefined : opts.preCommand } : {}),
       }),
     );
     markSshConnected(set, sessionId, connection.username);
@@ -859,7 +859,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       // confirmed kill publishes the tombstone.
       void (async () => {
         let killed = false;
-        const postCmd = connection && session?.sshMode?.kind !== "tmux" ? resolveHostCommand(connection, "post") : null;
+        const postCmd = connection && !isUserSession(session?.sshMode) ? resolveHostCommand(connection, "post") : null;
         try {
           if (connection && postCmd?.kind === "snippet") {
             await runHostCommand(connection, "post", sessionId, session?.type ?? "ssh");
@@ -1003,7 +1003,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       setSkipPick(set, sessionId, false);
       markSshConnected(set, sessionId, credentials?.username);
       reportConnectionAudit(connection, "connection.started", credentials);
-      if (session.sshMode?.kind !== "tmux") void runHostCommand(connection, "pre", sessionId, "ssh");
+      if (!isUserSession(session.sshMode)) void runHostCommand(connection, "pre", sessionId, "ssh");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (isSessionEnded(msg)) {
@@ -1051,7 +1051,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       });
       setSkipPick(set, sessionId, false);
       patchSession(set, sessionId, { connectedUsername: credentials?.username });
-      if (session.sshMode?.kind !== "tmux") void runHostCommand(connection, "pre", sessionId, "ssh");
+      if (!isUserSession(session.sshMode)) void runHostCommand(connection, "pre", sessionId, "ssh");
       return { ok: true };
     } catch (err) {
       return {
@@ -1097,7 +1097,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       setSkipPick(set, sessionId, false);
       markSshConnected(set, sessionId, credentials?.username);
       reportConnectionAudit(connection, "connection.started", credentials && { ...credentials, passphrase });
-      if (session.sshMode?.kind !== "tmux") void runHostCommand(connection, "pre", sessionId, "ssh");
+      if (!isUserSession(session.sshMode)) void runHostCommand(connection, "pre", sessionId, "ssh");
     } catch (err) {
       markSessionError(set, sessionId, err);
     }
@@ -1189,7 +1189,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       markSshConnected(set, sessionId, username);
       useConnectionStore.getState().setLastUsed(conn.id).catch(() => {});
       reportConnectionAudit(conn, "connection.started", resolved);
-      if (session.sshMode?.kind !== "tmux") void runHostCommand(conn, "pre", sessionId, "ssh");
+      if (!isUserSession(session.sshMode)) void runHostCommand(conn, "pre", sessionId, "ssh");
     } catch (err) {
       markSessionError(set, sessionId, err);
     }

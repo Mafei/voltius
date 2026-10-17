@@ -12,8 +12,8 @@ use tauri::AppHandle;
 
 #[derive(serde::Serialize)]
 pub struct SshConnectResult {
-    pub tmux_listing: Option<crate::ssh::tmux::TmuxListing>,
-    pub tmux_session: Option<crate::ssh::tmux::TmuxSession>,
+    pub session_listing: Option<crate::ssh::multiplexer::SessionListing>,
+    pub session: Option<crate::ssh::multiplexer::RemoteSession>,
 }
 
 #[tauri::command]
@@ -21,7 +21,7 @@ pub async fn ssh_connect(
     app: AppHandle,
     state: tauri::State<'_, SessionManager>,
     pf: tauri::State<'_, PortForwardManager>,
-    pickers: tauri::State<'_, crate::ssh::tmux::TmuxPickers>,
+    pickers: tauri::State<'_, crate::ssh::multiplexer::SessionPickers>,
     known_hosts: tauri::State<'_, Arc<KnownHostsStore>>,
     pending_conflicts: tauri::State<'_, Arc<PendingConflicts>>,
     session_id: String,
@@ -50,12 +50,20 @@ pub async fn ssh_connect(
     proxy: Option<ProxySpec>,
     terminal_colors: Option<crate::ssh::control_mode::TerminalColors>,
     knock: Option<KnockSpec>,
-    prepare_tmux: Option<bool>,
+    prepare_backend: Option<crate::ssh::multiplexer::Backend>,
     prepared_id: Option<String>,
-    tmux: Option<crate::ssh::tmux::TmuxChoice>,
+    session_choice: Option<crate::ssh::multiplexer::SessionChoice>,
 ) -> Result<SshConnectResult, AppError> {
     let authenticated = if let Some(id) = prepared_id {
-        pickers.take(&id, &host, port, &username).await?
+        pickers
+            .take(
+                &id,
+                &host,
+                port,
+                &username,
+                session_choice.as_ref().map(|c| c.backend()),
+            )
+            .await?
     } else {
         client::authenticate_connection(
             app.clone(),
@@ -77,20 +85,20 @@ pub async fn ssh_connect(
         )
         .await?
     };
-    if prepare_tmux.unwrap_or(false) {
-        let listing = match crate::ssh::tmux::list(&authenticated).await {
+    if let Some(backend) = prepare_backend {
+        let listing = match crate::ssh::multiplexer::list(&authenticated, backend).await {
             Ok(listing) => listing,
             Err(error) => {
-                crate::ssh::tmux::disconnect(&authenticated).await;
+                crate::ssh::multiplexer::disconnect(&authenticated).await;
                 return Err(error.into());
             }
         };
         pickers
-            .insert(session_id, host, port, username, authenticated)
+            .insert(session_id, host, port, username, backend, authenticated)
             .await?;
         return Ok(SshConnectResult {
-            tmux_listing: Some(listing),
-            tmux_session: None,
+            session_listing: Some(listing),
+            session: None,
         });
     }
     let cleanup_handle = Arc::clone(&authenticated.handle);
@@ -110,7 +118,7 @@ pub async fn ssh_connect(
         rows.filter(|r| *r > 0).unwrap_or(24),
         initial_cwd,
         terminal_colors,
-        tmux,
+        session_choice,
     )
     .await
     {
@@ -124,7 +132,7 @@ pub async fn ssh_connect(
             return Err(error);
         }
     };
-    let tmux_session = connected.user_tmux.clone();
+    let session = connected.user_session.clone();
 
     state.add(session_id.clone(), connected).await;
 
@@ -150,14 +158,14 @@ pub async fn ssh_connect(
     }
 
     Ok(SshConnectResult {
-        tmux_listing: None,
-        tmux_session,
+        session_listing: None,
+        session,
     })
 }
 
 #[tauri::command]
-pub async fn ssh_tmux_cancel(
-    pickers: tauri::State<'_, crate::ssh::tmux::TmuxPickers>,
+pub async fn ssh_session_cancel(
+    pickers: tauri::State<'_, crate::ssh::multiplexer::SessionPickers>,
     pending_conflicts: tauri::State<'_, Arc<PendingConflicts>>,
     prepared_id: String,
 ) -> Result<(), String> {

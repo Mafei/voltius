@@ -9,3 +9,6 @@ pub mod test_docker;
 #[cfg(test)]
 pub mod test_proc_server;
 pub mod tmux;
+
+pub mod multiplexer;
+pub mod zellij;

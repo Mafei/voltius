@@ -61,6 +61,18 @@ jobs:
       - name: Install locked frontend dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Record zsh global startup diagnostics
+        run: |
+          mkdir -p android-ci-artifacts
+          sudo apt-get update -qq
+          sudo apt-get install -y zsh tmux
+          rc_dir="$(mktemp -d)"
+          trap 'rm -rf "$rc_dir"' EXIT
+          for mode in -i -di; do
+            printf 'zsh mode %s\n' "$mode"
+            ZDOTDIR="$rc_dir" zsh "$mode" -c 'print -r -- "status after global startup: $?"; autoload -Uz compaudit; compaudit || true'
+          done 2>&1 | tee android-ci-artifacts/zsh-global-startup.log
+
       - name: Check formatting and relevant regressions
         run: |
           mkdir -p android-ci-artifacts

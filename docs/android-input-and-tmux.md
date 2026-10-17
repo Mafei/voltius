@@ -2,8 +2,8 @@
 
 This candidate is based on `66a6c8925fb283c1b68eb27c5573cb9742b625a8`
 (upstream 0.58.0 at `7a64f0b25a4d3adf56d4fb1fd8f76db26d41fa85`).
-It remains a candidate; the pre-existing zsh regression is not bypassed and the
-`mafei/android` maintenance branch must not advance while the full gate fails.
+It remains a candidate until validation passes. The `mafei/android` maintenance
+branch must not advance while the full gate fails.
 
 ## Input diagnosis and change
 
@@ -54,6 +54,11 @@ not interpolated script text. New names are limited to 128 UTF-8 bytes, cannot
 start with `-`, and cannot contain `.`, `:` or control characters. Chinese,
 spaces and shell punctuation are preserved. A timed-out create must be checked
 by refreshing before another attempt; the app does not automatically retry it.
+Metadata commands force tmux's UTF-8 client mode even under a C login locale.
+The wire format uses printable separators, keeps the arbitrary name last and
+decodes tmux's escaped backslashes. This preserves Chinese, `|` and literal `\`
+through create, list and selection verification; shell quoting alone is not
+sufficient because tmux also parses command separators and format jobs.
 
 These are user-owned sessions: closing a tab only closes that client and does not
 kill the tmux session or another attached client. Host pre/post commands and
@@ -90,6 +95,17 @@ The candidate Actions workflow runs the full frontend and existing native gate,
 these tmux/auth tests, Robolectric API 24/35 contracts, ARM64 build and APK static
 checks. APK evidence is retained independently of gate failure, with development
 signing only. No release is published.
+
+The old `zsh_hooks_mark_each_command` failure was in the first prompt before any
+user command: the test also loaded Ubuntu's `/etc/zsh/zshrc`, which runs compinit.
+In an isolated Ubuntu 24.04/zsh 5.9 runner, adding an insecure directory to the
+otherwise intact completion path reproduces the exact old `D;0,A,D;1,A,...`
+failure (`compinit: initialization aborted`). The fixture now uses zsh `-d` to
+skip global rc files while still loading its own `.zshenv`. The full expected
+12-marker sequence, including real `true`/`false` statuses, is unchanged; no
+assertion or installed-shell test is skipped. Production hooks are unchanged.
+Actions also records global startup status and compaudit output so a runner
+startup failure can be distinguished from hook behavior.
 
 No physical Android, ColorOS/Find N6, real selected IME, real host or emulator
 test has been performed. Framework/unit/static checks do not establish actual

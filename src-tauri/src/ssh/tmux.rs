@@ -123,10 +123,13 @@ impl TmuxPickers {
     }
 }
 
-const SESSION_FORMAT: &str = "#{session_id}\t#{session_name}\t#{session_windows}\t#{session_attached}\t#{session_created}\t#{pid}";
+// cmdq_print escapes control characters and backslashes, and non-UTF-8 clients
+// also replace Unicode. Keep the arbitrary name last, use printable separators,
+// and request UTF-8 explicitly even when the login locale is C.
+const SESSION_FORMAT: &str = "#{session_id}|#{session_windows}|#{session_attached}|#{session_created}|#{pid}|#{session_name}";
 
 fn list_command() -> String {
-    sh_c(&format!("unset TMUX TMUX_PANE; command -v tmux >/dev/null 2>&1 || exit 127; LC_ALL=C tmux list-sessions -F {}", super::exec::shell_quote(SESSION_FORMAT)), &[])
+    sh_c(&format!("unset TMUX TMUX_PANE; command -v tmux >/dev/null 2>&1 || exit 127; LC_ALL=C tmux -u list-sessions -F {}", super::exec::shell_quote(SESSION_FORMAT)), &[])
 }
 
 pub fn valid_id(id: &str) -> bool {
@@ -148,29 +151,42 @@ fn parse_listing(out: &str) -> Result<Vec<TmuxSession>, String> {
     out.lines()
         .filter(|line| !line.is_empty())
         .map(|line| {
-            let fields: Vec<_> = line.split('\t').collect();
-            if fields.len() != 6 || !valid_id(fields[0]) || fields[1].chars().any(char::is_control)
-            {
+            let fields: Vec<_> = line.splitn(6, '|').collect();
+            if fields.len() != 6 || !valid_id(fields[0]) {
                 return Err("TMUX_INVALID_LIST_RESPONSE".into());
             }
             Ok(TmuxSession {
                 id: fields[0].into(),
-                name: fields[1].into(),
-                windows: fields[2]
+                name: decode_name(fields[5])?,
+                windows: fields[1]
                     .parse()
                     .map_err(|_| "TMUX_INVALID_LIST_RESPONSE")?,
-                created: fields[4]
+                created: fields[3]
                     .parse()
                     .map_err(|_| "TMUX_INVALID_LIST_RESPONSE")?,
-                server_pid: fields[5]
+                server_pid: fields[4]
                     .parse()
                     .map_err(|_| "TMUX_INVALID_LIST_RESPONSE")?,
-                attached: fields[3]
+                attached: fields[2]
                     .parse()
                     .map_err(|_| "TMUX_INVALID_LIST_RESPONSE")?,
             })
         })
         .collect()
+}
+
+fn decode_name(encoded: &str) -> Result<String, String> {
+    let mut name = String::with_capacity(encoded.len());
+    let mut chars = encoded.chars();
+    while let Some(c) = chars.next() {
+        // tmux's VIS_CSTYLE output doubles literal backslashes. Other escapes
+        // represent controls, which are unsupported session names in this UI.
+        if c.is_control() || (c == '\\' && chars.next() != Some('\\')) {
+            return Err("TMUX_INVALID_LIST_RESPONSE".into());
+        }
+        name.push(c);
+    }
+    Ok(name)
 }
 
 async fn run(
@@ -236,7 +252,7 @@ fn choice_command(choice: &TmuxChoice) -> Result<String, String> {
                 return Err("TMUX_INVALID_SESSION_ID".into());
             }
             (
-                format!("tmux display-message -p -t \"$1\" {format}"),
+                format!("tmux -u display-message -p -t \"$1\" {format}"),
                 id.clone(),
             )
         }
@@ -244,7 +260,7 @@ fn choice_command(choice: &TmuxChoice) -> Result<String, String> {
             validate_name(name)?;
             // tmux performs the unique-name check atomically. Never use new-session -A.
             (
-                format!("tmux new-session -d -P -F {format} -s \"$1\""),
+                format!("tmux -u new-session -d -P -F {format} -s \"$1\""),
                 tmux_name_argument(name),
             )
         }
@@ -287,7 +303,7 @@ pub fn attach_command(id: &str) -> Result<String, String> {
     }
     // No -d: leave already attached clients alone. Default socket, not Voltius's private one.
     Ok(sh_c(
-        "unset TMUX TMUX_PANE; exec tmux attach-session -t \"$1\"",
+        "unset TMUX TMUX_PANE; exec tmux -u attach-session -t \"$1\"",
         &[id],
     ))
 }
@@ -299,11 +315,11 @@ mod tests {
     #[test]
     fn parse_sessions_preserves_names_and_reports_attached_clients() {
         assert_eq!(
-            parse_listing("$0\t工作 shell\t2\t1\t123\t42\n$12\ta'b;$x\t1\t0\t124\t42\n").unwrap(),
+            parse_listing("$0|2|1|123|42|工作 | shell\\\\path\n$12|1|0|124|42|a'b;$x\n").unwrap(),
             vec![
                 TmuxSession {
                     id: "$0".into(),
-                    name: "工作 shell".into(),
+                    name: "工作 | shell\\path".into(),
                     windows: 2,
                     attached: 1,
                     created: 123,
@@ -321,7 +337,8 @@ mod tests {
         );
         assert!(parse_listing("").unwrap().is_empty());
         assert!(parse_listing("banner").is_err());
-        assert!(parse_listing("$0\tx\tNaN\t0").is_err());
+        assert!(parse_listing("$0|NaN|0|123|42|x").is_err());
+        assert!(parse_listing("$0|1|0|123|42|bad\\tname").is_err());
     }
 
     #[test]
@@ -424,6 +441,7 @@ mod tests {
             std::process::Command::new("/bin/sh")
                 .args(["-c", command])
                 .env("PATH", &path)
+                .env("LC_ALL", "C")
                 .env_remove("TMUX")
                 .env_remove("TMUX_PANE")
                 .output()
@@ -431,7 +449,7 @@ mod tests {
         };
         let marker = directory.path().join("name-evaluated");
         let name = format!(
-            "工作 #{{session_name}} #(touch {}) ' $(printf BAD);",
+            "工作 | \\ #{{session_name}} #(touch {}) ' $(printf BAD);",
             marker.display()
         );
         let create = choice_command(&TmuxChoice::Create { name: name.clone() }).unwrap();

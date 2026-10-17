@@ -8,7 +8,7 @@ const h = vi.hoisted(() => ({
   sessions: [] as TerminalSession[],
 }));
 vi.mock("./credentials", () => ({ resolveConnectionCredentials: h.credentials }));
-vi.mock("./ssh", () => ({ sshConnect: h.prepare, sshTmuxCancel: h.cancel, sshDisconnectForReconnect: h.drop }));
+vi.mock("./ssh", () => ({ sshConnect: h.prepare, sshTmuxCancel: h.cancel, sshDisconnect: h.drop }));
 vi.mock("@/stores/sessionStore", () => ({
   buildSshConnectOptions: async () => ({ keepaliveIntervalSecs: 3, keepaliveMax: 3 }),
   useSessionStore: {
@@ -71,7 +71,7 @@ test("cancel while opening cleans up only the newly owned tab", async () => {
   const pending = picker.attach(tmuxSession()); await Promise.resolve();
   const id = h.connect.mock.calls[0][1].sessionId; picker.close(); gate.resolve(id);
   await expect(pending).rejects.toThrow("TMUX_PICKER_CLOSED");
-  expect(h.drop).toHaveBeenCalledWith(id); expect(h.remove).toHaveBeenCalledWith(id);
+  expect(h.drop).toHaveBeenCalledWith(id, undefined, false, false); expect(h.remove).toHaveBeenCalledWith(id);
   expect(h.drop).not.toHaveBeenCalledWith("keep-existing");
 });
 

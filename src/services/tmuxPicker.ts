@@ -1,6 +1,6 @@
 import type { Connection } from "@/types";
 import { resolveConnectionCredentials } from "./credentials";
-import { sshConnect, sshDisconnectForReconnect, sshTmuxCancel, type TmuxChoice, type TmuxListing, type TmuxSession } from "./ssh";
+import { sshConnect, sshDisconnect, sshTmuxCancel, type TmuxChoice, type TmuxListing, type TmuxSession } from "./ssh";
 import { buildSshConnectOptions, useSessionStore } from "@/stores/sessionStore";
 import { findTmuxTab, tmuxAttachChoice, tmuxEndpoint } from "./tmuxSessionCore";
 
@@ -75,7 +75,9 @@ export function createTmuxPicker(connection: Connection, preparedId = crypto.ran
       } finally {
         await release();
         if (!transferred) {
-          await sshDisconnectForReconnect(id);
+          // This tab is being abandoned, not reconnected: release its forwarding reference too.
+          // The backend hands shared host forwards to surviving tabs; never kill the tmux session.
+          await sshDisconnect(id, undefined, false, false).catch(() => {});
           useSessionStore.getState().removeSession(id);
         }
       }

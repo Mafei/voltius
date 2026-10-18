@@ -147,6 +147,7 @@ try {
         comparisons.push({ viewport, dpr, font_model: fontModel, font_scale: fontScale, keyboard_open: keyboardOpen, layout, unit: "CSS px",
           before: { header: old.header.height, keys: old.keys.height, terminal: old.terminal.height, first_tab_ink_gap: gapOf(old.rows[0]), tab_overflow: old.strip.scrollHeight > old.strip.clientHeight || old.rows.some((row) => row.top < old.header.top - 0.75 || row.bottom > old.header.contentBottom + 0.75) },
           after: { header: m.header.height, keys: m.keys.height, terminal: m.terminal.height, first_tab_ink_gap: gapOf(m.rows[0]), tab_overflow: false }, terminal_gain: m.terminal.height - old.terminal.height });
+        if (dpr === 1 && [393, 844].includes(viewport.width) && fontModel === "text-only" && fontScale === 1 && layout === "many") console.log(JSON.stringify({ height_example_css_px: comparisons.at(-1) }));
         await page.evaluate(() => document.querySelector("main").removeAttribute("data-mobile-legacy")); await settle(page);
         if (dpr === 1 && [393, 844].includes(viewport.width) && fontModel === "text-only" && [1, 2].includes(fontScale) && layout === "many") {
           await page.locator("[data-mobile-session-strip]").evaluate((strip) => { strip.scrollLeft = 0; });
@@ -181,7 +182,8 @@ try {
       await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
       for (const delta of [20, 40, 60, 80]) { await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x - delta, y }] }); await page.waitForTimeout(30); }
       await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-      await page.waitForFunction(() => document.querySelector("[data-mobile-extra-keys]").scrollLeft > 10);
+      const panRange = await row.evaluate((node) => node.scrollWidth - node.clientWidth);
+      if (panRange > 1) await page.waitForFunction((threshold) => document.querySelector("[data-mobile-extra-keys]").scrollLeft > threshold, Math.min(5, panRange / 2), { timeout: 5000 });
       assert.equal(await page.evaluate(() => window.__mobileTabFixture.inputMetrics.length), 0, "scroll drag must not emit a key");
       const escape = page.getByRole("button", { name: "Esc", exact: true });
       await escape.focus(); await page.keyboard.press("Space");

@@ -39,8 +39,8 @@ export function terminalOptions(overrides: FixtureOptions = {}): FixtureOptions 
     ...terminalFontOptions("'Source Code Pro', monospace"), scrollback: 5000,
     theme: { background: "#111827", foreground: "#e5e7eb", cursor: "#ffffff" }, ...overrides };
 }
-export function createTerminal(host: HTMLElement, overrides: FixtureOptions = {}) {
-  const term = new Terminal(terminalOptions(overrides)); term.open(host); claimWebglRenderer(term); synchronizeTerminalFonts(term, () => {}); return term;
+export function createTerminal(host: HTMLElement, overrides: FixtureOptions = {}, attachRenderer = claimWebglRenderer) {
+  const term = new Terminal(terminalOptions(overrides)); term.open(host); attachRenderer(term); synchronizeTerminalFonts(term, () => {}); return term;
 }
 /** Read the actual default framebuffer in the rendering call stack, before compositor clearing. */
 export async function captureFrame(term: Terminal, trigger: () => void | Promise<void>): Promise<Uint8Array> {

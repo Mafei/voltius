@@ -17,5 +17,5 @@ export default defineConfig({
     { find: "@", replacement: path.join(root, "src") },
   ] },
   server: { host: "127.0.0.1", port: 1428, strictPort: true, watch: { ignored: ["**/target/**", "**/node_modules/**"] } },
-  build: { outDir: path.join(root, "node_modules/.cache/voltius-desktop-ui"), rollupOptions: { input: path.join(root, "tests/desktop-ui/index.html") } },
+  build: { outDir: path.join(root, "node_modules/.cache/voltius-desktop-ui"), rollupOptions: { input: [path.join(root, "tests/desktop-ui/index.html"), path.join(root, "tests/terminal-render/index.html")] } },
 });

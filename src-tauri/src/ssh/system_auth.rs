@@ -1,7 +1,7 @@
 //! Opt-in, device-local SSH authentication. No private material crosses IPC or is persisted.
 use crate::error::{AppError, ErrorCode};
 use russh::client;
-use russh::keys::PrivateKeyWithHashAlg;
+use russh::keys::{ssh_key::HashAlg, PrivateKeyWithHashAlg};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -24,6 +24,10 @@ pub struct SystemAuth {
     pub config_host: Option<String>,
     pub identities_only: Option<bool>,
     pub credential_id: Option<String>,
+    /// Keep wrapper/jump tests inside their synthetic home without changing process HOME.
+    #[cfg(test)]
+    #[serde(skip)]
+    pub test_home: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
@@ -312,6 +316,8 @@ pub(super) async fn authenticate<H: client::Handler>(
                 "Cannot locate the current user's home directory.",
             )
         })?;
+        #[cfg(test)]
+        let home = spec.test_home.clone().unwrap_or(home);
         authenticate_at(handle, username, host, spec, passphrase, &home).await
     }
 }
@@ -331,6 +337,7 @@ pub(super) async fn authenticate_at<H: client::Handler>(
     let mut attempts = 0;
     let mut local_error = None;
     let mut offered = Vec::new();
+    let mut public_diagnostics = Vec::new();
     for path in &paths {
         if attempts >= MAX_IDENTITIES {
             break;
@@ -369,8 +376,17 @@ pub(super) async fn authenticate_at<H: client::Handler>(
         offered.push(key.public_key().key_data().clone());
         attempts += 1;
         let hash = super::client::key_hash(handle, key.algorithm()).await;
+        if key.algorithm().is_rsa() && hash.is_none() {
+            return Err(problem("RSA_SHA2_UNAVAILABLE", "System private-key login requires RSA-SHA2 and does not fall back to RSA/SHA1. Choose a compatible key or authentication method."));
+        }
+        let signer = PrivateKeyWithHashAlg::new(key, hash);
+        public_diagnostics.push(format!(
+            "{} {}",
+            signer.algorithm().as_str(),
+            signer.public_key().fingerprint(HashAlg::Sha256)
+        ));
         let result = handle
-            .authenticate_publickey(username, PrivateKeyWithHashAlg::new(key, hash))
+            .authenticate_publickey(username, signer)
             .await
             .map_err(|_| {
                 problem(
@@ -388,7 +404,7 @@ pub(super) async fn authenticate_at<H: client::Handler>(
     if attempts == 0 {
         return Err(problem("NO_IDENTITIES", "No usable local private-key files. System keys support Ed25519, ECDSA and RSA; this mode does not use ssh-agent."));
     }
-    Err(problem("KEY_REJECTED", "Server rejected the selected local private-key identities. At most three keys are attempted, without agent or password fallback. Check the username and the identity accepted by OpenSSH."))
+    Err(problem("KEY_REJECTED", &format!("Server rejected {attempts} selected local private-key identities. Offered algorithms and public SHA256 fingerprints: {}. At most three keys, without agent or password fallback. Compare with the identity accepted by OpenSSH.", public_diagnostics.join("; "))))
 }
 
 #[cfg(test)]

@@ -50,6 +50,7 @@ export async function verifyTabLabels(browser, createContext, output) {
       }
       for (const zoom of [0.75, 1, 1.25, 1.5, 2]) {
         await page.evaluate((zoom) => { document.body.style.zoom = String(zoom); }, zoom);
+        await page.evaluate(async () => { await document.fonts.ready; await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
         const rows = await measurements(page);
         await writeFile(path.join(output, "TAB-LABEL-LAST-MEASUREMENTS.json"), JSON.stringify({ dpr, css_zoom: zoom, rows }, null, 2));
         for (const row of rows) {

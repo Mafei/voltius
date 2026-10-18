@@ -24,6 +24,134 @@ impl russh::client::Handler for PinnedClient {
         )
     }
 }
+
+#[tokio::test]
+#[ignore = "requires scripts/with-openssh8-fixture.sh; CI runs this explicitly"]
+async fn openssh8_rsa_sha2_interoperability() {
+    use russh::keys::{ssh_key::HashAlg, PrivateKeyWithHashAlg};
+    struct FixtureClient(PublicKey);
+    impl russh::client::Handler for FixtureClient {
+        type Error = russh::Error;
+        async fn check_server_key(
+            &mut self,
+            key: &PublicKeyOrCertificate,
+        ) -> Result<bool, Self::Error> {
+            Ok(
+                matches!(key, PublicKeyOrCertificate::PublicKey { key, .. } if key.key_data() == self.0.key_data()),
+            )
+        }
+    }
+    let address: std::net::SocketAddr = std::env::var("VOLTIUS_OPENSSH8_ADDR")
+        .expect("synthetic fixture address required")
+        .parse()
+        .unwrap();
+    assert!(
+        address.ip().is_loopback(),
+        "the interoperability fixture must be loopback only"
+    );
+    let home = std::path::PathBuf::from(
+        std::env::var("VOLTIUS_OPENSSH8_HOME").expect("synthetic fixture home required"),
+    );
+    let pinned =
+        PublicKey::from_openssh(&std::fs::read_to_string(home.join("host.pub")).unwrap()).unwrap();
+    let key = Arc::new(
+        russh::keys::decode_secret_key(
+            &read_bounded(&home.join(".ssh/id_rsa"), true).await.unwrap(),
+            None,
+        )
+        .unwrap(),
+    );
+    let mut handle =
+        russh::client::connect(Default::default(), address, FixtureClient(pinned.clone()))
+            .await
+            .unwrap();
+    let hash = super::client::key_hash(&handle, key.algorithm()).await;
+    assert!(matches!(hash, Some(HashAlg::Sha256 | HashAlg::Sha512)));
+    let mut policy = spec(Mode::Keys);
+    policy.test_home = Some(home.clone());
+    // Empty explicit list: the two missing defaults must not consume the key budget.
+    super::client::authenticate_handle_with_system(
+        &mut handle,
+        "synthetic-ssh",
+        None,
+        None,
+        None,
+        Some(("127.0.0.1", &policy)),
+    )
+    .await
+    .unwrap();
+    println!(
+        "OPENSSH8_PRODUCTION_RSA_SHA2_OK negotiated={hash:?} synthetic_fingerprint={}",
+        key.public_key().fingerprint(HashAlg::Sha256)
+    );
+    for bits in [3072, 4096] {
+        let mut extra =
+            russh::client::connect(Default::default(), address, FixtureClient(pinned.clone()))
+                .await
+                .unwrap();
+        let policy = file_policy(&home, &home.join(format!(".ssh/rsa-{bits}")));
+        super::client::authenticate_handle_with_system(
+            &mut extra,
+            "synthetic-ssh",
+            None,
+            None,
+            None,
+            Some(("127.0.0.1", &policy)),
+        )
+        .await
+        .unwrap();
+        println!("OPENSSH8_PRODUCTION_RSA_SHA2_OK explicit_bits={bits}");
+    }
+    let mut sha256 =
+        russh::client::connect(Default::default(), address, FixtureClient(pinned.clone()))
+            .await
+            .unwrap();
+    assert!(sha256
+        .authenticate_publickey(
+            "synthetic-ssh",
+            PrivateKeyWithHashAlg::new(key.clone(), Some(HashAlg::Sha256))
+        )
+        .await
+        .unwrap()
+        .success());
+    println!("OPENSSH8_EXPLICIT_RSA_SHA2_256_OK");
+    let (wrong_file, wrong_public) = generate_kind(&home, "wrong-rsa", "", "rsa");
+    let mut wrong =
+        russh::client::connect(Default::default(), address, FixtureClient(pinned.clone()))
+            .await
+            .unwrap();
+    let wrong_policy = file_policy(&home, &wrong_file);
+    let error = super::client::authenticate_handle_with_system(
+        &mut wrong,
+        "synthetic-ssh",
+        None,
+        None,
+        None,
+        Some(("127.0.0.1", &wrong_policy)),
+    )
+    .await
+    .unwrap_err()
+    .to_string();
+    assert!(
+        error.contains("KEY_REJECTED")
+            && error.contains(&wrong_public.fingerprint(HashAlg::Sha256).to_string())
+    );
+    assert!(!error.contains(&key.public_key().fingerprint(HashAlg::Sha256).to_string()));
+    assert!(error.contains("rsa-sha2-"));
+    println!("OPENSSH8_WRONG_RSA_DIAGNOSTIC_IDENTIFIES_ONLY_ATTEMPTED_PUBLIC_KEY");
+    let mut legacy = russh::client::connect(Default::default(), address, FixtureClient(pinned))
+        .await
+        .unwrap();
+    assert!(
+        !legacy
+            .authenticate_publickey("synthetic-ssh", PrivateKeyWithHashAlg::new(key, None))
+            .await
+            .unwrap()
+            .success(),
+        "SHA1 must remain rejected; it is never an automatic fallback"
+    );
+    println!("OPENSSH8_SHA1_NEGATIVE_CONTROL_REJECTED");
+}
 struct KeyServer {
     expected: PublicKey,
     offered: Arc<AtomicUsize>,
@@ -97,7 +225,15 @@ fn spec(mode: Mode) -> SystemAuth {
         config_host: None,
         identities_only: None,
         credential_id: Some("synthetic-connection".into()),
+        test_home: None,
     }
+}
+
+fn file_policy(home: &Path, file: &Path) -> SystemAuth {
+    let mut policy = spec(Mode::Keys);
+    policy.identity_files = vec![file.to_string_lossy().into_owned()];
+    policy.test_home = Some(home.to_owned());
+    policy
 }
 
 #[tokio::test]
@@ -415,8 +551,7 @@ async fn system_key_opens_the_real_sftp_subsystem_and_jump_auth_keeps_host_key_c
             russh::client::connect(Default::default(), ("127.0.0.1", port), PinnedClient)
                 .await
                 .unwrap();
-        let mut policy = spec(Mode::Keys);
-        policy.identity_files = vec![file.to_string_lossy().into_owned()];
+        let policy = file_policy(home.path(), &file);
         crate::ssh::client::authenticate_handle_with_system(
             &mut handle,
             "synthetic-user",
@@ -447,8 +582,7 @@ async fn system_key_opens_the_real_sftp_subsystem_and_jump_auth_keeps_host_key_c
         port,
         &fingerprint,
     )]));
-    let mut policy = spec(Mode::Keys);
-    policy.identity_files = vec![file.to_string_lossy().into_owned()];
+    let policy = file_policy(home.path(), &file);
     let jump = super::client::JumpHostConnect {
         host: "127.0.0.1".into(),
         port,

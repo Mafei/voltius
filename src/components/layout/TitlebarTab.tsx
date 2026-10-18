@@ -171,7 +171,7 @@ export function TitlebarTab({
       onContextMenu={onContextMenu}
       onDoubleClick={onDoubleClick}
       onPointerDown={onPointerDown}
-      className={`group ${frameClassName} transition-all`}
+      className={`group ${frameClassName} transition-colors`}
       title={title}
       style={tabSurfaceStyle(active)}
       onMouseEnter={(e) => {

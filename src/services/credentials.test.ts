@@ -65,6 +65,15 @@ test("system authentication bypasses vault secret reads but keeps CONNECT permis
   await expect(resolveJumpHosts(conn({ jump_hosts: [{ id: "synthetic-jump", connection_id: "jump" }] }))).rejects.toThrow(ConnectNotAllowedError);
 });
 
+test.each(["removed-agent", "invalid"] as const)("a blocked %s device policy cannot silently use vault credentials on the target or jump", async (mode) => {
+  useSystemSshAuthStore.setState({ byConnection: { c1: { mode }, jump: { mode } } });
+  h.getSecret.mockResolvedValue("synthetic-vault-must-not-be-used");
+  h.connections = [conn({ id: "jump" })];
+  await expect(resolveConnectionCredentials(conn())).rejects.toThrow(/Explicitly choose/);
+  await expect(resolveJumpHosts(conn({ jump_hosts: [{ id: "synthetic-jump", connection_id: "jump" }] }))).rejects.toThrow(/Explicitly choose/);
+  expect(h.getSecret).not.toHaveBeenCalled();
+});
+
 test("a host the member may not connect to yields no credentials at all", async () => {
   h.can.mockImplementation((permission, vaultId, objectId) => !(permission === "CONNECT" && vaultId === "t1" && objectId === "c1"));
   h.getSecret.mockResolvedValue("pw");

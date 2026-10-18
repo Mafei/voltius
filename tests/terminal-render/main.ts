@@ -1,21 +1,14 @@
 /** Synthetic-only GPU/endurance fixture. Never loads a host, credential or user data. */
 import { Terminal } from "@xterm/xterm";
-import { FitAddon } from "@xterm/addon-fit";
 import { claimWebglRenderer } from "@/utils/webglAddon";
-import { terminalFontStack } from "@/utils/fontStack";
+import { nextFrame, write, emit, renderer, hash, comparePixels, terminalOptions, createTerminal, captureFrame, nativeViewSnapshot } from "./support";
 import "@xterm/xterm/css/xterm.css";
 import "@/styles/globals.css";
 
 const parameters = new URLSearchParams(location.search);
 const reference = parameters.get("precision") === "highp-reference";
 const seconds = Number(parameters.get("seconds") ?? 120);
-const events: Record<string, unknown>[] = [];
 const nativeSnapshots: Record<string, unknown>[] = [];
-function emit(value: Record<string, unknown>) {
-  events.push(value);
-  console.log(JSON.stringify(value));
-  (window as any).webkit?.messageHandlers.renderProbe.postMessage(value);
-}
 // Diagnostic A/B only: production does not intercept shader compilation.
 const originalShaderSource = WebGL2RenderingContext.prototype.shaderSource;
 const glyphShaders: string[] = [];
@@ -27,14 +20,9 @@ WebGL2RenderingContext.prototype.shaderSource = function (shader, source) {
   originalShaderSource.call(this, shader, source);
 };
 
-const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 async function nativeSnapshot(label: string) {
-  if (!(window as any).webkit?.messageHandlers.renderProbe) return;
-  await new Promise<void>((resolve) => {
-    (window as any).__terminalSnapshotAck = (result: Record<string, unknown>) => { nativeSnapshots.push(result); resolve(); };
-    const r = document.getElementById("primary")!.getBoundingClientRect();
-    emit({ phase: "snapshot", label, rect: { x: r.x, y: r.y, width: r.width, height: r.height } });
-  });
+  const result = await nativeViewSnapshot(label, document.getElementById("primary")!);
+  if (result) nativeSnapshots.push(result);
 }
 async function nativeZoom(value: number) {
   if (!(window as any).webkit?.messageHandlers.renderProbe) return;
@@ -44,9 +32,6 @@ async function nativeZoom(value: number) {
   });
   await nextFrame(); await nextFrame();
 }
-const write = (term: Terminal, text: string) => new Promise<void>((resolve) => term.write(text, resolve));
-function hash(bytes: Uint8Array) { let h = 2166136261; for (const b of bytes) h = Math.imul(h ^ b, 16777619); return (h >>> 0).toString(16).padStart(8, "0"); }
-function renderer(term: Terminal): any { return (term as any)._core._renderService._renderer.value; }
 function atlas(term: Terminal): any { return renderer(term)._charAtlas; }
 function pages(term: Terminal) { return atlas(term)?.pages.map((p: any) => ({ width: p.canvas.width, height: p.canvas.height, version: p.version })) ?? []; }
 
@@ -105,40 +90,19 @@ async function run() {
   const micro = [512, 1024, 2048, 4096].flatMap((size) => (["lowp", "highp"] as const).map((p) => precisionProbe(size, p)));
   emit({ phase: "precision", reference, device_pixel_ratio: devicePixelRatio, user_agent: navigator.userAgent, micro });
   await document.fonts.load('14px "Source Code Pro"'); await document.fonts.ready;
-  const options = { allowProposedApi: true, cols: 80, rows: 20, cursorBlink: false, fontSize: 14, lineHeight: 1,
-    fontFamily: terminalFontStack("'Source Code Pro', monospace"), scrollback: 5000,
-    theme: { background: "#111827", foreground: "#e5e7eb", cursor: "#ffffff" } };
+  const options = terminalOptions();
   const host = document.getElementById("primary")!, secondHost = document.getElementById("secondary")!;
   host.style.cssText = "position:absolute;left:8px;top:8px;width:800px;height:620px";
   secondHost.style.cssText = "position:absolute;left:820px;top:8px;width:330px;height:300px";
-  const primary = new Terminal(options), secondary = new Terminal({ ...options, cols: 32, rows: 8 });
-  primary.open(host); secondary.open(secondHost); claimWebglRenderer(primary); claimWebglRenderer(secondary);
-  const fit = new FitAddon(); primary.loadAddon(fit);
-  let capture: ((pixels: Uint8Array) => void) | null = null;
+  const primary = createTerminal(host), secondary = createTerminal(secondHost, { cols: 32, rows: 8 });
   let gl: WebGL2RenderingContext;
-  const wrapped = new WeakSet<object>();
   function bindRenderer() {
     const r = renderer(primary); gl = r._gl;
     if (!gl) throw Error("Production WebGL renderer was not acquired");
-    if (wrapped.has(r)) return;
-    wrapped.add(r);
-    const context = gl, actualRenderRows = r.renderRows.bind(r);
-    r.renderRows = (first: number, last: number) => {
-      actualRenderRows(first, last);
-      if (capture) {
-        const done = capture; capture = null;
-        const pixels = new Uint8Array(context.drawingBufferWidth * context.drawingBufferHeight * 4);
-        context.readPixels(0, 0, context.drawingBufferWidth, context.drawingBufferHeight, context.RGBA, context.UNSIGNED_BYTE, pixels); done(pixels);
-      }
-    };
   }
   bindRenderer();
   async function captureWrite(text: string): Promise<Uint8Array> {
-    return await new Promise<Uint8Array>((resolve, reject) => {
-      const timeout = setTimeout(() => { capture = null; reject(Error("render capture timed out")); }, 10000);
-      capture = (pixels) => { clearTimeout(timeout); resolve(pixels); };
-      void write(primary, text);
-    });
+    return await captureFrame(primary, () => { void write(primary, text); });
   }
   await write(primary, frame); await write(secondary, "\x1b[?25lSynthetic atlas trainer"); await nextFrame(); await nextFrame();
   if (atlas(primary) !== atlas(secondary)) throw Error("Trainer must share production texture atlas");
@@ -148,8 +112,7 @@ async function run() {
   atlas(primary).onAddTextureAtlasCanvas((canvas: HTMLCanvasElement) => { additions++; maxAtlas = Math.max(maxAtlas, canvas.width); });
   atlas(primary).onRemoveTextureAtlasCanvas(() => { removals++; });
   function compare(label: string, pixels: Uint8Array) {
-    let different = 0; for (let i = 0; i < initial.length; i += 4) if (initial[i] !== pixels[i] || initial[i + 1] !== pixels[i + 1] || initial[i + 2] !== pixels[i + 2]) different++;
-    const result = { label, different_pixels: different, same_dimensions: initial.length === pixels.length, baseline_hash: hash(initial), current_hash: hash(pixels), pages: pages(primary), gl_error: gl.getError() };
+    const result = { label, ...comparePixels(initial, pixels), pages: pages(primary), gl_error: gl.getError() };
     checks.push(result); emit({ phase: "pixel-check", reference, ...result });
   }
   compare("stable-baseline", await captureWrite(frame));
@@ -179,7 +142,7 @@ async function run() {
   }
   compare("after-soak-incremental", await captureWrite("\x1b[2;9H000000"));
   await nativeSnapshot("after-soak");
-  compare("after-explicit-full-refresh", await new Promise<Uint8Array>((resolve) => { capture = resolve; primary.refresh(0, primary.rows - 1); }));
+  compare("after-explicit-full-refresh", await captureFrame(primary, () => primary.refresh(0, primary.rows - 1)));
   const buffer = Array.from({ length: primary.rows }, (_, i) => primary.buffer.active.getLine(i)?.translateToString(true) ?? "");
   for (const fontSize of [16, 18, 12, 14]) { primary.options.fontSize = fontSize; await nextFrame(); await nextFrame(); }
   await write(primary, frame); await nextFrame(); compare("after-font-resize-return", await captureWrite(frame));
@@ -191,8 +154,8 @@ async function run() {
   for (let i = 0; i < 16; i++) {
     const element = document.createElement("div"); element.style.cssText = `position:absolute;left:850px;top:${340 + i * 20}px;width:60px;height:30px`;
     document.body.appendChild(element); elements.push(element);
-    const term = new Terminal({ ...options, cols: 4, rows: 2, fontSize: 12 + i / 10 });
-    term.open(element); claimWebglRenderer(term); pooled.push(term); await write(term, "中A"); await nextFrame();
+    const term = createTerminal(element, { ...options, cols: 4, rows: 2, fontSize: 12 + i / 10 });
+    pooled.push(term); await write(term, "中A"); await nextFrame();
   }
   claimWebglRenderer(primary); bindRenderer(); await nextFrame(); await nextFrame();
   compare("after-context-pool-eviction-return", await captureWrite(frame));

@@ -139,7 +139,7 @@ final class RenderProbe: NSObject, WKScriptMessageHandler, WKNavigationDelegate 
             do {
                 let data = try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys])
                 print(String(data: data, encoding: .utf8)!); fflush(stdout)
-                if label == "baseline" || label == "after-soak" || different != 0 {
+                if label == "baseline" || label == "after-soak" || different != 0 || request["save"] as? Bool == true {
                     try self.savePNG(image, name: "composited-\(self.modes[self.index])-\(label).png")
                 }
                 self.webView!.evaluateJavaScript("window.__terminalSnapshotAck(" + String(data: data, encoding: .utf8)! + ")", completionHandler: nil)

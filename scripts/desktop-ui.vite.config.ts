@@ -30,5 +30,5 @@ export default defineConfig({
     { find: "@", replacement: path.join(root, "src") },
   ] },
   server: { host: "127.0.0.1", port: 1428, strictPort: true, watch: { ignored: ["**/target/**", "**/node_modules/**"] } },
-  build: { outDir: path.join(root, "node_modules/.cache/voltius-desktop-ui"), rollupOptions: { input: ["tests/desktop-ui/index.html", "tests/terminal-render/index.html", "tests/terminal-render/font.html"].map((p) => path.join(root, p)) } },
+  build: { outDir: path.join(root, "node_modules/.cache/voltius-desktop-ui"), rollupOptions: { input: ["tests/desktop-ui/index.html", ...["index", "font", "ambiguous", "keyboard"].map((name) => `tests/terminal-render/${name}.html`)].map((p) => path.join(root, p)) } },
 });

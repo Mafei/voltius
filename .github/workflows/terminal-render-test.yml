@@ -34,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(contains(github.ref, '-font-') && '[{"entry":"font","seconds":0}]' || contains(github.ref, '-probe-') && '[{"entry":"index","seconds":900}]' || '[{"entry":"index","seconds":900},{"entry":"font","seconds":0}]') }}
+        include: ${{ fromJSON(contains(github.ref, '-glyph-') && '[{"entry":"ambiguous","seconds":0},{"entry":"keyboard","seconds":0}]' || contains(github.ref, '-font-') && '[{"entry":"font","seconds":0}]' || contains(github.ref, '-probe-') && '[{"entry":"index","seconds":900}]' || '[{"entry":"index","seconds":900},{"entry":"font","seconds":0},{"entry":"ambiguous","seconds":0},{"entry":"keyboard","seconds":0}]') }}
     timeout-minutes: 40
     defaults:
       run:

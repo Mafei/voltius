@@ -66,6 +66,7 @@ final class RenderProbe: NSObject, WKScriptMessageHandler, WKNavigationDelegate 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let body = message.body as? [String: Any], let phase = body["phase"] as? String else { return }
         if phase == "snapshot" { capture(body); return }
+        if phase == "native-keys", let keys = body["keys"] as? [String] { dispatchKeys(keys); return }
         if phase == "zoom", let value = body["value"] as? Double {
             webView!.pageZoom = value
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { self.webView?.evaluateJavaScript("window.__terminalZoomAck()", completionHandler: nil) }
@@ -153,6 +154,22 @@ final class RenderProbe: NSObject, WKScriptMessageHandler, WKNavigationDelegate 
             throw NSError(domain: "SyntheticRenderProbe", code: 1, userInfo: [NSLocalizedDescriptionKey: "Snapshot PNG encoding failed"])
         }
         try png.write(to: output.appendingPathComponent(name))
+    }
+
+    func dispatchKeys(_ keys: [String], index: Int = 0) {
+        if index == keys.count { webView?.evaluateJavaScript("window.__terminalKeysAck()", completionHandler: nil); return }
+        let mappings: [String: (UInt16, String, String, NSEvent.ModifierFlags)] = [
+            "ctrl-b": (11, "\u{2}", "b", .control), "ctrl-g": (5, "\u{7}", "g", .control),
+            "ctrl-enter": (36, "\r", "\r", .control), "enter": (36, "\r", "\r", [])
+        ]
+        guard let (code, text, base, flags) = mappings[keys[index]] else { fputs("Unsupported synthetic key\n", stderr); exit(2) }
+        window.makeFirstResponder(webView)
+        for type in [NSEvent.EventType.keyDown, .keyUp] {
+            guard let event = NSEvent.keyEvent(with: type, location: .zero, modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime,
+                windowNumber: window.windowNumber, context: nil, characters: text, charactersIgnoringModifiers: base, isARepeat: false, keyCode: code) else { exit(2) }
+            window.sendEvent(event)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { self.dispatchKeys(keys, index: index + 1) }
     }
 }
 

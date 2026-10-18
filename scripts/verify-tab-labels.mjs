@@ -17,7 +17,7 @@ async function measurements(page) {
       const box = line.getBoundingClientRect(), range = document.createRange(); range.selectNodeContents(line);
       const text = range.getBoundingClientRect();
       return { value: line.textContent, top: box.top, bottom: box.bottom, textTop: text.top, textBottom: text.bottom,
-        lineHeight: getComputedStyle(line).lineHeight, overflow: getComputedStyle(line).textOverflow,
+        lineHeight: getComputedStyle(line).lineHeight, fontSize: getComputedStyle(line).fontSize, fontFamily: getComputedStyle(line).fontFamily, overflow: getComputedStyle(line).textOverflow,
         width: box.width, scrollWidth: line.scrollWidth, clientWidth: line.clientWidth };
     });
     return { id: fixture.dataset.tabCase, selected: fixture.dataset.selected, top, bottom, scale, labelTop: label.getBoundingClientRect().top,
@@ -32,8 +32,9 @@ export async function verifyTabLabels(browser, createContext, output) {
   const results = [];
   for (const dpr of [1, 1.25, 2]) {
     const context = await createContext(browser, { viewport: { width: 1280, height: 1000 }, deviceScaleFactor: dpr });
+    let page;
     try {
-      const page = await context.newPage(); const errors = []; page.on("pageerror", (error) => errors.push(String(error)));
+      page = await context.newPage(); const errors = []; page.on("pageerror", (error) => errors.push(String(error)));
       await page.goto(url); await page.locator("[data-tab-case]").first().waitFor(); await page.evaluate(() => document.fonts.ready);
       if (dpr === 1) {
         await page.locator("main").evaluate((node) => node.setAttribute("data-legacy-tab-lines", ""));
@@ -48,11 +49,12 @@ export async function verifyTabLabels(browser, createContext, output) {
       for (const zoom of [0.75, 1, 1.25, 1.5, 2]) {
         await page.evaluate((zoom) => { document.body.style.zoom = String(zoom); }, zoom);
         const rows = await measurements(page);
+        await writeFile(path.join(output, "TAB-LABEL-LAST-MEASUREMENTS.json"), JSON.stringify({ dpr, css_zoom: zoom, rows }, null, 2));
         for (const row of rows) {
           const tolerance = 0.5 * row.scale;
           for (const line of row.lines) {
             assert(line.top >= row.top - tolerance && line.bottom <= row.bottom + tolerance, `line clipped at ${dpr}/${zoom}: ${row.id}/${row.selected}`);
-            assert(line.textTop >= row.top - tolerance && line.textBottom <= row.bottom + tolerance, `text bounds clipped at ${dpr}/${zoom}: ${row.id}`);
+            assert(line.textTop >= row.top - tolerance && line.textBottom <= row.bottom + tolerance, `text bounds clipped at ${dpr}/${zoom}: ${JSON.stringify({ row, line })}`);
             assert(row.title.includes(line.value), "tooltip retains the complete primary and host text");
           }
           for (const icon of row.decorations) assert(icon.top >= row.top - tolerance && icon.bottom <= row.bottom + tolerance, "icon/close stays inside the tab");
@@ -72,6 +74,9 @@ export async function verifyTabLabels(browser, createContext, output) {
       assert.equal(await page.getByRole("button", { name: /Deploy-gjpqy.*Synthetic host/ }).count(), 2);
       await tab.locator(":scope > span").last().click(); assert.equal(await page.locator("[data-close-count]").textContent(), "1");
       assert.deepEqual(errors, []);
+    } catch (error) {
+      await page?.screenshot({ path: path.join(output, "tab-labels-failure.png"), fullPage: true }).catch(() => {});
+      throw error;
     } finally { await context.close(); }
   }
   await writeFile(path.join(output, "TAB-LABEL-VALIDATION.json"), JSON.stringify({ source_sha: process.env.GITHUB_SHA ?? null,

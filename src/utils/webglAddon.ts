@@ -1,5 +1,6 @@
 import type { Terminal } from "@xterm/xterm";
 import { WebglAddon } from "@xterm/addon-webgl";
+import { guardWebglResourceDisposal } from "./webglResources";
 
 const USER_AGENT = typeof navigator !== "undefined" ? navigator.userAgent : "";
 const ANDROID = /Android/i.test(USER_AGENT);
@@ -22,6 +23,7 @@ interface RendererInternals {
 class PooledWebglAddon extends WebglAddon {
   readonly term: Terminal;
   private samplingCanvas: HTMLCanvasElement | undefined;
+  private restoreDisposal: (() => void) | undefined;
 
   constructor(term: Terminal) {
     super(PRESERVE_DRAWING_BUFFER);
@@ -52,6 +54,8 @@ class PooledWebglAddon extends WebglAddon {
 
   override activate(terminal: Terminal): void {
     super.activate(terminal);
+    const gl = this.renderer()?._gl;
+    if (gl) this.restoreDisposal = guardWebglResourceDisposal(gl);
     this.configureGlyphSampling();
     this.samplingCanvas = this.renderer()?._canvas;
     this.samplingCanvas?.addEventListener("webglcontextrestored", this.configureGlyphSampling);
@@ -64,6 +68,8 @@ class PooledWebglAddon extends WebglAddon {
     // The addon never releases its context, and a disposed one still counts against the cap until GC.
     const gl = this.renderer()?._gl;
     super.dispose();
+    this.restoreDisposal?.();
+    this.restoreDisposal = undefined;
     gl?.getExtension("WEBGL_lose_context")?.loseContext();
   }
 }

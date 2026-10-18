@@ -83,7 +83,8 @@ async function run() {
     results.push(result); emit({ phase: "context-case", ...result });
   }
   emit({ phase: "complete", case: "attributed-webgl-context-restoration", results,
-    failed_checks: results.filter((r) => r.unexpected_errors > 0).length,
+    stock_control_error_cases: results.filter((r) => !r.production && r.unexpected_errors > 0).length,
+    failed_checks: results.filter((r) => r.production && (r.unexpected_errors > 0 || r.different_pixels > 0)).length,
     scope: "Own synthetic WKWebView contexts, stock addon versus production pool. Error tracing consumes errors only to attribute them; every non-context-lost error remains an explicit failure." });
 }
 run().catch((error) => emit({ phase: "error", message: String(error), stack: error?.stack }));

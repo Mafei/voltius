@@ -220,6 +220,9 @@ async function run() {
     canvas.addEventListener(name, () => { clearTimeout(timeout); resolve(); }, { once: true });
   });
   const lost = contextEvent("webglcontextlost"); loss.loseContext(); await lost;
+  const lossError = gl!.getError();
+  emit({ phase: "intentional-context-loss", gl_error: lossError });
+  if (lossError !== 0 && lossError !== gl!.CONTEXT_LOST_WEBGL) throw Error("Unexpected GL error during intentional context loss: " + lossError);
   await new Promise((resolve) => setTimeout(resolve, 500));
   const restored = contextEvent("webglcontextrestored"); loss.restoreContext(); await restored;
   bindRenderer(); await nextFrame(); await nextFrame();
@@ -232,7 +235,7 @@ async function run() {
     unmasked_renderer: debug ? gl!.getParameter(debug.UNMASKED_RENDERER_WEBGL) : "unavailable",
     dimensions: [gl!.drawingBufferWidth, gl!.drawingBufferHeight], buffer, checks, native_snapshots: nativeSnapshots, buffer_checks: bufferChecks,
     utf8_stream: { bytes: wireBytes, chunks: wireChunks, messages: wireMessages, deliberately_split_multibyte: true }, precision: micro,
-    failed_checks: checks.filter((x) => x.different_pixels !== 0 || !x.same_dimensions).length + nativeSnapshots.filter((x) => x.valid !== true || x.different_pixels !== 0).length + bufferChecks.filter((x) => !x.primary_text_matches || !x.secondary_text_matches).length,
+    failed_checks: checks.filter((x) => x.different_pixels !== 0 || !x.same_dimensions || x.gl_error !== 0).length + nativeSnapshots.filter((x) => x.valid !== true || x.different_pixels !== 0).length + bufferChecks.filter((x) => !x.primary_text_matches || !x.secondary_text_matches).length,
     scope: "Actual production xterm/WebGL/font stack in this engine; synthetic data only. No SSH, user host, server change or private screenshot." };
   (window as any).__terminalRenderResult = result; emit(result);
 }

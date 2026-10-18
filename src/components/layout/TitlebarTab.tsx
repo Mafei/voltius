@@ -12,11 +12,15 @@ import { sessionLabel } from "@/utils/sessionLabel";
 
 export function SessionTabLabel({ session }: { session: TerminalSession }) {
   const mode = session.sshMode;
-  return <span className="flex flex-col min-w-0 text-left">
-    <span className="truncate">{sessionLabel(session)}</span>
-    {(mode?.kind === "tmux" || mode?.kind === "zellij") && <span className="truncate text-[10px] opacity-70">
-      {mode.kind === "tmux" ? "Tmux" : "Zellij"} · {session.customTitle && session.customTitle !== mode.session.name ? `${mode.session.name} · ` : null}{session.connectionName} · {mode.username}@{mode.endpoint}
-    </span>}
+  const primary = sessionLabel(session);
+  const secondary = mode?.kind === "tmux" || mode?.kind === "zellij"
+    ? `${mode.kind === "tmux" ? "Tmux" : "Zellij"} · ${session.customTitle && session.customTitle !== mode.session.name ? `${mode.session.name} · ` : ""}${session.connectionName} · ${mode.username}@${mode.endpoint}`
+    : undefined;
+  // Both lines must fit inside a 2.25rem tab, including its borders. Inheriting
+  // text-base's 1.6rem line-height on both lines clips the session and host.
+  return <span data-session-label className="flex min-w-0 flex-col text-left" title={[primary, secondary].filter(Boolean).join("\n")}>
+    <span data-session-primary className={secondary ? "truncate text-sm leading-[1.2rem]" : "truncate"}>{primary}</span>
+    {secondary && <span data-session-secondary className="truncate text-[0.667rem] leading-[0.8rem] opacity-70">{secondary}</span>}
   </span>;
 }
 
@@ -138,6 +142,7 @@ export function TitlebarTab({
   onMouseLeave?: (e: React.MouseEvent) => void;
   buttonRef?: React.Ref<HTMLButtonElement>;
 }) {
+  const tabIcon = <span className="inline-flex shrink-0 items-center justify-center" aria-hidden="true">{icon}</span>;
   if (renaming) {
     return (
       <div
@@ -145,7 +150,7 @@ export function TitlebarTab({
         className="relative flex items-center gap-2 h-9 px-2 rounded-xl text-base font-medium-bold shrink-0 overflow-hidden"
         style={tabSurfaceStyle(active)}
       >
-        {icon}
+        {tabIcon}
         <InlineNameEditor
           value={renameValue}
           ariaLabel={renameAriaLabel}
@@ -184,14 +189,14 @@ export function TitlebarTab({
       }}
     >
       {mcpBar}
-      {icon}
-      <span className="max-w-[140px] truncate" onClick={onLabelClick}>
+      {tabIcon}
+      <span className="min-w-0 max-w-[140px] truncate" onClick={onLabelClick}>
         {label}
       </span>
       {trailing}
       {onClose && <span
         onClick={onClose}
-        className="ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-sm p-0.5"
+        className="ml-0.5 inline-flex shrink-0 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-sm p-0.5"
         style={{ color: active ? "var(--t-tab-active-text)" : "var(--t-text-muted)" }}
         onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = "1"; (e.currentTarget as HTMLElement).style.color = "var(--t-status-error)"; }}
         onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = active ? "var(--t-tab-active-text)" : "var(--t-text-muted)"; }}

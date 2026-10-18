@@ -11,6 +11,8 @@ final class RenderProbe: NSObject, WKScriptMessageHandler, WKNavigationDelegate 
     let diagnostic: Bool
     var index = 0
     var failed = false
+    var baselinePixels: [UInt8]?
+    var baselineSize: [Int]?
     var webView: WKWebView?
     var window: NSWindow!
 
@@ -40,6 +42,8 @@ final class RenderProbe: NSObject, WKScriptMessageHandler, WKNavigationDelegate 
         webView?.stopLoading()
         webView?.configuration.userContentController.removeScriptMessageHandler(forName: "renderProbe")
         webView?.removeFromSuperview()
+        baselinePixels = nil
+        baselineSize = nil
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
         configuration.userContentController.add(self, name: "renderProbe")
@@ -61,6 +65,12 @@ final class RenderProbe: NSObject, WKScriptMessageHandler, WKNavigationDelegate 
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let body = message.body as? [String: Any], let phase = body["phase"] as? String else { return }
+        if phase == "snapshot" { capture(body); return }
+        if phase == "zoom", let value = body["value"] as? Double {
+            webView!.pageZoom = value
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { self.webView?.evaluateJavaScript("window.__terminalZoomAck()", completionHandler: nil) }
+            return
+        }
         do {
             let data = try JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])
             print(String(data: data, encoding: .utf8)!)
@@ -81,9 +91,8 @@ final class RenderProbe: NSObject, WKScriptMessageHandler, WKNavigationDelegate 
             let mode = modes[index]
             webView!.takeSnapshot(with: nil) { image, error in
                 do {
-                    if let image = image, let tiff = image.tiffRepresentation,
-                       let bitmap = NSBitmapImageRep(data: tiff), let png = bitmap.representation(using: .png, properties: [:]) {
-                        try png.write(to: self.output.appendingPathComponent("terminal-render-\(mode).png"))
+                    if let image = image {
+                        try self.savePNG(image, name: "terminal-render-\(mode).png")
                     } else {
                         fputs("Own-view snapshot unavailable: \(String(describing: error))\n", stderr)
                     }
@@ -92,6 +101,58 @@ final class RenderProbe: NSObject, WKScriptMessageHandler, WKNavigationDelegate 
                 } catch { fputs("Snapshot write failed: \(error)\n", stderr); exit(2) }
             }
         } catch { fputs("Render evidence failed: \(error)\n", stderr); exit(2) }
+    }
+
+    func capture(_ request: [String: Any]) {
+        guard let label = request["label"] as? String, let rect = request["rect"] as? [String: Double] else { exit(2) }
+        let configuration = WKSnapshotConfiguration()
+        configuration.rect = CGRect(x: rect["x"]!, y: rect["y"]!, width: rect["width"]!, height: rect["height"]!)
+        configuration.afterScreenUpdates = true
+        webView!.takeSnapshot(with: configuration) { image, error in
+            guard let image = image, let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+                fputs("Native composited snapshot unavailable: \(String(describing: error))\n", stderr)
+                exit(2)
+            }
+            let width = cg.width, height = cg.height
+            var pixels = [UInt8](repeating: 0, count: width * height * 4)
+            pixels.withUnsafeMutableBytes { raw in
+                let context = CGContext(data: raw.baseAddress, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                    space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue)!
+                context.draw(cg, in: CGRect(x: 0, y: 0, width: width, height: height))
+            }
+            var colors: [UInt32: Int] = [:]
+            for i in stride(from: 0, to: pixels.count, by: 4) {
+                let color = UInt32(pixels[i]) << 16 | UInt32(pixels[i + 1]) << 8 | UInt32(pixels[i + 2])
+                colors[color, default: 0] += 1
+            }
+            let foreground = width * height - (colors.values.max() ?? 0)
+            let valid = foreground > 500
+            if self.baselinePixels == nil { self.baselinePixels = pixels; self.baselineSize = [width, height] }
+            var different = 0
+            if self.baselinePixels!.count == pixels.count {
+                for i in stride(from: 0, to: pixels.count, by: 4) {
+                    if pixels[i] != self.baselinePixels![i] || pixels[i + 1] != self.baselinePixels![i + 1] || pixels[i + 2] != self.baselinePixels![i + 2] { different += 1 }
+                }
+            } else { different = max(pixels.count, self.baselinePixels!.count) / 4 }
+            let result: [String: Any] = ["phase": "native-compositor-check", "label": label, "valid": valid, "different_pixels": different,
+                "size": [width, height], "baseline_size": self.baselineSize!, "foreground_pixels": foreground, "method": "WKWebView.takeSnapshot of own synthetic view"]
+            do {
+                let data = try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys])
+                print(String(data: data, encoding: .utf8)!); fflush(stdout)
+                if label == "baseline" || label == "after-soak" || different != 0 {
+                    try self.savePNG(image, name: "composited-\(self.modes[self.index])-\(label).png")
+                }
+                self.webView!.evaluateJavaScript("window.__terminalSnapshotAck(" + String(data: data, encoding: .utf8)! + ")", completionHandler: nil)
+            } catch { fputs("Native snapshot evidence failed: \(error)\n", stderr); exit(2) }
+        }
+    }
+
+    func savePNG(_ image: NSImage, name: String) throws {
+        guard let tiff = image.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff),
+              let png = bitmap.representation(using: .png, properties: [:]) else {
+            throw NSError(domain: "SyntheticRenderProbe", code: 1, userInfo: [NSLocalizedDescriptionKey: "Snapshot PNG encoding failed"])
+        }
+        try png.write(to: output.appendingPathComponent(name))
     }
 }
 

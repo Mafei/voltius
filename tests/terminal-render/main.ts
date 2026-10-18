@@ -10,6 +10,7 @@ const parameters = new URLSearchParams(location.search);
 const reference = parameters.get("precision") === "highp-reference";
 const seconds = Number(parameters.get("seconds") ?? 120);
 const events: Record<string, unknown>[] = [];
+const nativeSnapshots: Record<string, unknown>[] = [];
 function emit(value: Record<string, unknown>) {
   events.push(value);
   console.log(JSON.stringify(value));
@@ -27,6 +28,22 @@ WebGL2RenderingContext.prototype.shaderSource = function (shader, source) {
 };
 
 const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+async function nativeSnapshot(label: string) {
+  if (!(window as any).webkit?.messageHandlers.renderProbe) return;
+  await new Promise<void>((resolve) => {
+    (window as any).__terminalSnapshotAck = (result: Record<string, unknown>) => { nativeSnapshots.push(result); resolve(); };
+    const r = document.getElementById("primary")!.getBoundingClientRect();
+    emit({ phase: "snapshot", label, rect: { x: r.x, y: r.y, width: r.width, height: r.height } });
+  });
+}
+async function nativeZoom(value: number) {
+  if (!(window as any).webkit?.messageHandlers.renderProbe) return;
+  await new Promise<void>((resolve) => {
+    (window as any).__terminalZoomAck = () => resolve();
+    emit({ phase: "zoom", value });
+  });
+  await nextFrame(); await nextFrame();
+}
 const write = (term: Terminal, text: string) => new Promise<void>((resolve) => term.write(text, resolve));
 function hash(bytes: Uint8Array) { let h = 2166136261; for (const b of bytes) h = Math.imul(h ^ b, 16777619); return (h >>> 0).toString(16).padStart(8, "0"); }
 function renderer(term: Terminal): any { return (term as any)._core._renderService._renderer.value; }
@@ -88,7 +105,7 @@ async function run() {
   const micro = [512, 1024, 2048, 4096].flatMap((size) => (["lowp", "highp"] as const).map((p) => precisionProbe(size, p)));
   emit({ phase: "precision", reference, device_pixel_ratio: devicePixelRatio, user_agent: navigator.userAgent, micro });
   await document.fonts.load('14px "Source Code Pro"'); await document.fonts.ready;
-  const options = { allowProposedApi: true, cols: 80, rows: 20, cursorBlink: false, fontSize: 14, lineHeight: 1.2,
+  const options = { allowProposedApi: true, cols: 80, rows: 20, cursorBlink: false, fontSize: 14, lineHeight: 1,
     fontFamily: terminalFontStack("'Source Code Pro', monospace"), scrollback: 5000,
     theme: { background: "#111827", foreground: "#e5e7eb", cursor: "#ffffff" } };
   const host = document.getElementById("primary")!, secondHost = document.getElementById("secondary")!;
@@ -98,17 +115,24 @@ async function run() {
   primary.open(host); secondary.open(secondHost); claimWebglRenderer(primary); claimWebglRenderer(secondary);
   const fit = new FitAddon(); primary.loadAddon(fit);
   let capture: ((pixels: Uint8Array) => void) | null = null;
-  const r = renderer(primary), gl: WebGL2RenderingContext = r._gl;
-  if (!gl) throw Error("Production WebGL renderer was not acquired");
-  const actualRenderRows = r.renderRows.bind(r);
-  r.renderRows = (first: number, last: number) => {
-    actualRenderRows(first, last);
-    if (capture) {
-      const done = capture; capture = null;
-      const pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
-      gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels); done(pixels);
-    }
-  };
+  let gl: WebGL2RenderingContext;
+  const wrapped = new WeakSet<object>();
+  function bindRenderer() {
+    const r = renderer(primary); gl = r._gl;
+    if (!gl) throw Error("Production WebGL renderer was not acquired");
+    if (wrapped.has(r)) return;
+    wrapped.add(r);
+    const context = gl, actualRenderRows = r.renderRows.bind(r);
+    r.renderRows = (first: number, last: number) => {
+      actualRenderRows(first, last);
+      if (capture) {
+        const done = capture; capture = null;
+        const pixels = new Uint8Array(context.drawingBufferWidth * context.drawingBufferHeight * 4);
+        context.readPixels(0, 0, context.drawingBufferWidth, context.drawingBufferHeight, context.RGBA, context.UNSIGNED_BYTE, pixels); done(pixels);
+      }
+    };
+  }
+  bindRenderer();
   async function captureWrite(text: string): Promise<Uint8Array> {
     return await new Promise<Uint8Array>((resolve, reject) => {
       const timeout = setTimeout(() => { capture = null; reject(Error("render capture timed out")); }, 10000);
@@ -129,13 +153,18 @@ async function run() {
     checks.push(result); emit({ phase: "pixel-check", reference, ...result });
   }
   compare("stable-baseline", await captureWrite(frame));
-  for (let base = 0; base < 24000; base += 96) {
+  await nativeSnapshot("baseline"); await nativeSnapshot("stable-baseline");
+  let combinations = 0;
+  for (let base = 0; base < 512000; base += 96) {
     const color = Math.floor(base / 8000), chars = Array.from({ length: 96 }, (_, j) => String.fromCodePoint(0x4e00 + ((base + j) % 8000))).join("");
-    const data = `\x1b[2J\x1b[H\x1b[38;2;${210 + color};220;230m${chars}`;
+    const data = `\x1b[2J\x1b[H\x1b[38;2;${160 + color % 80};${200 + Math.floor(color / 80)};230m${chars}`;
     bytes += new TextEncoder().encode(data).byteLength; await write(secondary, data); await nextFrame();
-    if (base % 2400 === 0) { emit({ phase: "atlas-growth", reference, glyph_combinations: base, pages: pages(primary), additions, removals }); }
+    combinations = base + 96;
+    if (base % 9600 === 0) { emit({ phase: "atlas-growth", reference, glyph_combinations: combinations, pages: pages(primary), additions, removals }); }
+    if (pages(primary).some((p: { width: number }) => p.width >= 4096)) break;
   }
   compare("after-atlas-growth-incremental", await captureWrite("\x1b[2;9H000000"));
+  await nativeSnapshot("after-atlas-growth");
   const soakStart = performance.now();
   while (performance.now() - soakStart < seconds * 1000) {
     const value = String(iterations % 1000000).padStart(6, "0");
@@ -143,22 +172,39 @@ async function run() {
     if (iterations % 10 === 0) { await write(secondary, `\r\nSynthetic ${iterations} 中文 0123456789 → ± │`); secondary.scrollLines(-2); secondary.scrollToBottom(); }
     if (iterations % 100 === 0) {
       const parent = primary.element!.parentElement!; primary.element!.remove(); parent.appendChild(primary.element!); claimWebglRenderer(primary);
+      await write(primary, "\x1b[6;3H\x1b[7m合成ab\x1b[0m\x1b[6;3H123456\x1b[6;1H\x1b[2K" + sentinel[5]);
       compare("soak-" + iterations, await captureWrite("\x1b[2;9H000000"));
     }
     iterations++; await nextFrame();
   }
   compare("after-soak-incremental", await captureWrite("\x1b[2;9H000000"));
+  await nativeSnapshot("after-soak");
   compare("after-explicit-full-refresh", await new Promise<Uint8Array>((resolve) => { capture = resolve; primary.refresh(0, primary.rows - 1); }));
   const buffer = Array.from({ length: primary.rows }, (_, i) => primary.buffer.active.getLine(i)?.translateToString(true) ?? "");
   for (const fontSize of [16, 18, 12, 14]) { primary.options.fontSize = fontSize; await nextFrame(); await nextFrame(); }
   await write(primary, frame); await nextFrame(); compare("after-font-resize-return", await captureWrite(frame));
   primary.resize(90, 22); await nextFrame(); primary.resize(80, 20); await nextFrame();
   compare("after-grid-resize-return", await captureWrite(frame));
+  await nativeZoom(1.25); await nativeZoom(1.5); await nativeZoom(1);
+  compare("after-native-page-zoom-return", await captureWrite(frame)); await nativeSnapshot("after-zoom");
+  const pooled: Terminal[] = [], elements: HTMLElement[] = [];
+  for (let i = 0; i < 16; i++) {
+    const element = document.createElement("div"); element.style.cssText = `position:absolute;left:850px;top:${340 + i * 20}px;width:60px;height:30px`;
+    document.body.appendChild(element); elements.push(element);
+    const term = new Terminal({ ...options, cols: 4, rows: 2, fontSize: 12 + i / 10 });
+    term.open(element); claimWebglRenderer(term); pooled.push(term); await write(term, "中A"); await nextFrame();
+  }
+  claimWebglRenderer(primary); bindRenderer(); await nextFrame(); await nextFrame();
+  compare("after-context-pool-eviction-return", await captureWrite(frame));
+  pooled.forEach((term) => term.dispose()); elements.forEach((element) => element.remove());
+  await nativeSnapshot("after-context-pool-recovery");
+  const debug = gl!.getExtension("WEBGL_debug_renderer_info");
   const result = { phase: "complete", reference, mode: reference ? "fixture-highp-reference" : "production", elapsed_seconds: (performance.now() - started) / 1000,
-    soak_seconds: (performance.now() - soakStart) / 1000, iterations, synthetic_bytes_written: bytes, additions, removals, max_atlas_size: maxAtlas,
-    glyph_shaders: glyphShaders, webgl_vendor: gl.getParameter(gl.VENDOR), webgl_renderer: gl.getParameter(gl.RENDERER),
-    dimensions: [gl.drawingBufferWidth, gl.drawingBufferHeight], buffer, checks, precision: micro,
-    failed_checks: checks.filter((x) => x.different_pixels !== 0 || !x.same_dimensions).length,
+    soak_seconds: (performance.now() - soakStart) / 1000, iterations, glyph_combinations: combinations, synthetic_bytes_written: bytes, additions, removals, max_atlas_size: maxAtlas,
+    glyph_shaders: glyphShaders, webgl_vendor: gl!.getParameter(gl!.VENDOR), webgl_renderer: gl!.getParameter(gl!.RENDERER),
+    unmasked_renderer: debug ? gl!.getParameter(debug.UNMASKED_RENDERER_WEBGL) : "unavailable",
+    dimensions: [gl!.drawingBufferWidth, gl!.drawingBufferHeight], buffer, checks, native_snapshots: nativeSnapshots, precision: micro,
+    failed_checks: checks.filter((x) => x.different_pixels !== 0 || !x.same_dimensions).length + nativeSnapshots.filter((x) => x.valid !== true || x.different_pixels !== 0).length,
     scope: "Actual production xterm/WebGL/font stack in this engine; synthetic data only. No SSH, user host, server change or private screenshot." };
   (window as any).__terminalRenderResult = result; emit(result);
 }

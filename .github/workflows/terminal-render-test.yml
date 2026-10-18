@@ -26,6 +26,7 @@ jobs:
           test "$(uname -m)" = arm64
           mkdir -p terminal-render-evidence
           pnpm vite build --config scripts/desktop-ui.vite.config.ts 2>&1 | tee terminal-render-evidence/fixture-build.log
+          pnpm exec tsc --project tests/terminal-render/tsconfig.json
           swiftc scripts/terminal-render-probe.swift -o terminal-render-evidence/render-probe
       - name: Measure native WKWebView GPU rendering and sustained output
         env:
@@ -40,7 +41,8 @@ jobs:
             sleep 1
           done
           args=(http://127.0.0.1:1428/tests/terminal-render/index.html terminal-render-evidence)
-          if [[ "$DIAGNOSTIC" == 1 ]]; then args+=(60 production,highp-reference --diagnostic); else args+=(900 production); fi
+          args+=(900 production)
+          if [[ "$DIAGNOSTIC" == 1 ]]; then args+=(--diagnostic); fi
           terminal-render-evidence/render-probe "${args[@]}" 2>&1 | tee terminal-render-evidence/native-render.log
           cp LICENSE NOTICE.md terminal-render-evidence/
       - name: Preserve only synthetic rendering evidence

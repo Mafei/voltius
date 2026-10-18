@@ -211,6 +211,20 @@ async function run() {
   compare("after-context-pool-eviction-return", await captureWrite(frame));
   pooled.forEach((term) => term.dispose()); elements.forEach((element) => element.remove());
   await nativeSnapshot("after-context-pool-recovery");
+  // Exercise a real reset of our own WebGL context as well as addon eviction.
+  const canvas = renderer(primary)._canvas as HTMLCanvasElement;
+  const loss = gl!.getExtension("WEBGL_lose_context");
+  if (!loss) throw Error("Context restoration extension unavailable");
+  const contextEvent = (name: string) => new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => reject(Error(name + " timed out")), 10000);
+    canvas.addEventListener(name, () => { clearTimeout(timeout); resolve(); }, { once: true });
+  });
+  const lost = contextEvent("webglcontextlost"); loss.loseContext(); await lost;
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  const restored = contextEvent("webglcontextrestored"); loss.restoreContext(); await restored;
+  bindRenderer(); await nextFrame(); await nextFrame();
+  compare("after-native-context-restoration", await captureWrite(frame));
+  await nativeSnapshot("after-native-context-restoration");
   const debug = gl!.getExtension("WEBGL_debug_renderer_info");
   const result = { phase: "complete", reference, mode: filterReference ? "fixture-linear-minification-reference" : sampleReference ? "fixture-nearest-stable-reference" : reference ? "fixture-highp-reference" : "production", elapsed_seconds: (performance.now() - started) / 1000,
     soak_seconds: (performance.now() - soakStart) / 1000, iterations, glyph_combinations: combinations, synthetic_bytes_written: bytes, additions, removals, max_atlas_size: maxAtlas,

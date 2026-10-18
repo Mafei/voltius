@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { TitlebarTab, SessionTabLabel, sessionTabIcon } from "@/components/layout/TitlebarTab";
 import { useApplyTheme } from "@/hooks/useApplyTheme";
-import type { TerminalSession } from "@/types";
+import type { Connection, TerminalSession } from "@/types";
 
 function mux(id: string, name: string, backend: "tmux" | "zellij", customTitle?: string): TerminalSession {
   const target = { username: "alice", endpoint: "synthetic.example.invalid:22" };
@@ -21,6 +21,7 @@ const cases: TerminalSession[] = [
   { id: "plain", connectionId: "synthetic-plain", connectionName: "Synthetic SSH", title: "plain-shell-gjpqy", type: "ssh", status: "connected", sshMode: { kind: "plain" } },
   { id: "local", connectionId: "synthetic-local", connectionName: "Local Shell", title: "Local Shell › Zsh", type: "local", status: "connected" },
 ];
+const iconHost = { id: "synthetic-icon", name: "Synthetic icon host", host: "example.invalid", port: 22, username: "alice", distro: "ubuntu" } as Connection;
 
 export default function TabLabelFixture() {
   useApplyTheme();
@@ -35,7 +36,7 @@ export default function TabLabelFixture() {
     <div className="grid grid-cols-[150px_auto_auto] items-center gap-x-6 gap-y-3">
       <span>Case</span><span>Selected</span><span>Unselected</span>
       {cases.map((session) => [<span key={`${session.id}-name`}>{session.id}</span>, ...[true, false].map((active) => <div key={`${session.id}-${active}`} data-tab-case={session.id} data-selected={active} className="w-max">
-        <TitlebarTab itemKey={`${session.id}-${active}`} active={active} icon={sessionTabIcon(session, undefined, active, "connected")}
+        <TitlebarTab itemKey={`${session.id}-${active}`} active={active} icon={sessionTabIcon(session, session.id === "renamed" ? undefined : iconHost, active, "connected")}
           label={<SessionTabLabel session={session} />} renaming={false} renameValue="" renameAriaLabel="Rename synthetic tab"
           onRenameCommit={() => {}} onRenameCancel={() => {}} onClick={() => {}} onLabelClick={() => {}}
           onClose={(event) => { event.stopPropagation(); setClosed((count) => count + 1); }}

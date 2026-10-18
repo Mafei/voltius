@@ -36,6 +36,7 @@ export async function verifyTabLabels(browser, createContext, output) {
     try {
       page = await context.newPage(); const errors = []; page.on("pageerror", (error) => errors.push(String(error)));
       await page.goto(url); await page.locator("[data-tab-case]").first().waitFor(); await page.evaluate(() => document.fonts.ready);
+      await page.locator('[data-tab-case="local"] button > span:last-child svg').first().waitFor();
       if (dpr === 1) {
         await page.locator("main").evaluate((node) => node.setAttribute("data-legacy-tab-lines", ""));
         const legacy = await measurements(page);

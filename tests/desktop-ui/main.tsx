@@ -14,6 +14,9 @@ import { useShortcutStore } from "@/stores/shortcutStore";
 import { metrics } from "./picker";
 import type { Connection } from "@/types";
 import TabLabelFixture from "./tabLabels";
+import { preloadIcons } from "@/utils/icons";
+
+preloadIcons();
 
 const host = { id: "synthetic-desktop-ui", name: "Synthetic test host", host: "example.invalid", port: 22, username: "alice" } as Connection;
 const data: string[] = [];

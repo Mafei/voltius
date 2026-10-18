@@ -95,6 +95,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libsoup-3.0-dev libsecret-1-dev openssh-client
       - uses: ./.github/actions/prepare-desktop
+      - name: Build embedded plugin assets required by native tests
+        run: pnpm build:plugins 2>&1 | tee desktop-ssh8-evidence/seeded-plugins.log
       - name: Real OpenSSH 8 RSA-SHA2 interoperability without agent or SHA1 fallback
         run: bash scripts/with-openssh8-fixture.sh desktop-ssh8-evidence cargo test --locked -p voltius --lib ssh::system_auth_tests::openssh8_rsa_sha2_interoperability -- --ignored --exact --nocapture
       - name: Preserve public synthetic interoperability evidence only

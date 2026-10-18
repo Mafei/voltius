@@ -20,7 +20,8 @@ async function measurements(page) {
         lineHeight: getComputedStyle(line).lineHeight, fontSize: getComputedStyle(line).fontSize, fontFamily: getComputedStyle(line).fontFamily, overflow: getComputedStyle(line).textOverflow,
         width: box.width, scrollWidth: line.scrollWidth, clientWidth: line.clientWidth };
     });
-    return { id: fixture.dataset.tabCase, selected: fixture.dataset.selected, top, bottom, scale, labelTop: label.getBoundingClientRect().top,
+    return { id: fixture.dataset.tabCase, selected: fixture.dataset.selected, top, bottom, scale, tabHeight: style.height, tabClasses: tab.className,
+      legacy: document.querySelector("main").hasAttribute("data-legacy-tab-lines"), labelTop: label.getBoundingClientRect().top,
       labelBottom: label.getBoundingClientRect().bottom, title: label.title, lines,
       decorations: [tab.children[0], tab.lastElementChild].map((node) => {
         const box = node.getBoundingClientRect(); return { top: box.top, bottom: box.bottom, left: box.left, right: box.right };
@@ -54,7 +55,7 @@ export async function verifyTabLabels(browser, createContext, output) {
         for (const row of rows) {
           const tolerance = 0.5 * row.scale;
           for (const line of row.lines) {
-            assert(line.top >= row.top - tolerance && line.bottom <= row.bottom + tolerance, `line clipped at ${dpr}/${zoom}: ${row.id}/${row.selected}`);
+            assert(line.top >= row.top - tolerance && line.bottom <= row.bottom + tolerance, `line clipped at ${dpr}/${zoom}: ${JSON.stringify(row)}`);
             assert(line.textTop >= row.top - tolerance && line.textBottom <= row.bottom + tolerance, `text bounds clipped at ${dpr}/${zoom}: ${JSON.stringify({ row, line })}`);
             assert(line.textTop >= line.top - tolerance && line.textBottom <= line.bottom + tolerance, `glyph clipped by its own ellipsis box at ${dpr}/${zoom}: ${JSON.stringify({ row, line })}`);
             assert(row.title.includes(line.value), "tooltip retains the complete primary and host text");

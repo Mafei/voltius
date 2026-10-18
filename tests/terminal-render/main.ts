@@ -9,6 +9,14 @@ import "@/styles/globals.css";
 const parameters = new URLSearchParams(location.search);
 const reference = parameters.get("precision") === "highp-reference";
 const sampleReference = parameters.get("precision") === "nearest-stable-reference";
+const filterReference = parameters.get("precision") === "linear-minification-reference";
+if (filterReference) {
+  const originalTextureUpload = WebGL2RenderingContext.prototype.texImage2D;
+  WebGL2RenderingContext.prototype.texImage2D = function (this: WebGL2RenderingContext, ...args: any[]) {
+    (originalTextureUpload as any).apply(this, args);
+    if (args[5] instanceof HTMLCanvasElement) this.texParameteri(this.TEXTURE_2D, this.TEXTURE_MIN_FILTER, this.LINEAR);
+  };
+}
 const seconds = Number(parameters.get("seconds") ?? 120);
 const streams = new WeakMap<Terminal, OutputDecoder>();
 const utf8 = new TextEncoder(); let wireBytes = 0, wireChunks = 0, wireMessages = 0;
@@ -204,7 +212,7 @@ async function run() {
   pooled.forEach((term) => term.dispose()); elements.forEach((element) => element.remove());
   await nativeSnapshot("after-context-pool-recovery");
   const debug = gl!.getExtension("WEBGL_debug_renderer_info");
-  const result = { phase: "complete", reference, mode: sampleReference ? "fixture-nearest-stable-reference" : reference ? "fixture-highp-reference" : "production", elapsed_seconds: (performance.now() - started) / 1000,
+  const result = { phase: "complete", reference, mode: filterReference ? "fixture-linear-minification-reference" : sampleReference ? "fixture-nearest-stable-reference" : reference ? "fixture-highp-reference" : "production", elapsed_seconds: (performance.now() - started) / 1000,
     soak_seconds: (performance.now() - soakStart) / 1000, iterations, glyph_combinations: combinations, synthetic_bytes_written: bytes, additions, removals, max_atlas_size: maxAtlas,
     glyph_shaders: glyphShaders, webgl_vendor: gl!.getParameter(gl!.VENDOR), webgl_renderer: gl!.getParameter(gl!.RENDERER),
     unmasked_renderer: debug ? gl!.getParameter(debug.UNMASKED_RENDERER_WEBGL) : "unavailable",

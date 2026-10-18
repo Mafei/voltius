@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.59.0] - 2026-10-18
+
+### Added
+
+- Hold Volume Down as Ctrl in the Android terminal. Turn on **Use Volume Down as Ctrl** in **Settings → Terminal** (off by default): while the terminal has the keyboard, Volume Down + C sends Ctrl+C and the volume doesn't change. It combines with the on-screen Alt key. Outside the terminal the button changes the volume as usual (#648)
+
+### Fixed
+
+- On self-hosted servers, the invite panel read "1 used · 2 available · 3 total" for an owner with no seat cap and offered Buy seats. Without billing it now reads "1 used · unlimited", and a cap the operator set is still shown and enforced. Buy seats, Manage billing, View all plans and the subscription status are hidden, and reaching the seat limit asks you to contact the server administrator (#649)
+
 ## [0.58.0] - 2026-10-16
 
 ### Added

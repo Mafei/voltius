@@ -6,7 +6,8 @@ import { normalizeSavedSystemSshAuth, type SavedSystemSshAuth, type SystemSshAut
 interface State {
   byConnection: Record<string, SavedSystemSshAuth>;
   invalid: Record<string, boolean>;
-  setInvalid: (connectionId: string, invalid: boolean) => void;
+  invalidOwners: Record<string, Record<string, true>>;
+  setInvalid: (connectionId: string, invalid: boolean, owner?: string) => void;
   set: (connectionId: string, value: SystemSshAuth | undefined) => void;
 }
 
@@ -19,8 +20,16 @@ function normalizePolicies(value: unknown): Record<string, SavedSystemSshAuth> {
 
 /** Account-scoped device preference. Excluded from vault, export and settings sync. No secrets. */
 export const useSystemSshAuthStore = create<State>()(persist((set) => ({
-  byConnection: {}, invalid: {},
-  setInvalid: (id, invalid) => set((s) => ({ invalid: { ...s.invalid, [id]: invalid } })),
+  byConnection: {}, invalid: {}, invalidOwners: {},
+  setInvalid: (id, blocked, owner = "legacy") => set((s) => {
+    const owners: Record<string, true> = s.invalid[id] ? { ...s.invalidOwners[id] } : {};
+    if (blocked === !!owners[owner]) return s;
+    if (blocked) owners[owner] = true; else delete owners[owner];
+    const invalid = { ...s.invalid }, invalidOwners = { ...s.invalidOwners };
+    if (Object.keys(owners).length) { invalid[id] = true; invalidOwners[id] = owners; }
+    else { delete invalid[id]; delete invalidOwners[id]; }
+    return { invalid, invalidOwners };
+  }),
   set: (id, value) => set((s) => {
     const byConnection = { ...s.byConnection };
     const normalized = normalizeSavedSystemSshAuth(value);

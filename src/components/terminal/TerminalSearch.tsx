@@ -1,3 +1,4 @@
+import { isCompositionKey } from "@/services/terminalKeyPolicy";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Icon } from "@iconify/react";
@@ -77,6 +78,7 @@ export function TerminalSearch({ sessionId }: { sessionId: string }) {
         : t("terminal.search.resultCounter", { index: resultIndex + 1, count: resultCount });
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (isCompositionKey(e.nativeEvent)) return;
     if (e.key === "Escape") {
       e.preventDefault();
       controller!.close();

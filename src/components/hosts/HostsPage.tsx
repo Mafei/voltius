@@ -1,3 +1,4 @@
+import { launchHost, chooseHostSessions, isSessionConnection, goToTerminal } from "@/services/launch";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cardGridProps } from "@/components/shared/cardGrid";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -87,7 +88,7 @@ export default function HostsPage() {
   const { keys, updateKey } = useKeyStore();
   const { pending: cascadePending, request: requestCascade, confirm: confirmCascade, cancel: cancelCascade } = useVaultCascade();
   const crossVaultPaste = useCrossVaultPasteConfirm();
-  const { connect, connectMany, connectLocal, connectSerialEphemeral, sessions } = useSessionStore();
+  const { connectMany, connectLocal, connectSerialEphemeral, sessions } = useSessionStore();
   const setOmniOpen = useUIStore((s) => s.setOmniOpen);
   const bgContributions = useUIContributions("home.bgContextMenu");
   const { pos: bgMenuPos, open: openBgMenu, close: closeBgMenu } = useContextMenu();
@@ -448,8 +449,11 @@ export default function HostsPage() {
     setError(null);
     setActiveNav("terminal");
     try {
-      const sessionIds = await connectMany(connectionIds);
-      if (sessionIds.length > 0) openSessions(sessionIds);
+      const ssh = conns.filter(isSessionConnection);
+      const other = conns.filter((c) => !isSessionConnection(c)).map((c) => c.id);
+      const opened = other.length ? await connectMany(other) : [];
+      if (ssh.length) chooseHostSessions(ssh, (ids) => { openSessions([...opened, ...ids]); goToTerminal(); });
+      else if (opened.length) openSessions(opened);
     } catch (err) {
       setError(describeError(err, t));
     }
@@ -465,13 +469,8 @@ export default function HostsPage() {
     // Persist any pending edits (e.g. a just-typed inline password) before
     // connecting, so credential resolution sees them.
     formRef.current?.flush();
-    setActiveNav("terminal");
-    try {
-      await connect(conn.id);
-    } catch {
-      // Error is shown in ConnectionOverlay
-    }
-  }, [connect, handleBulkConnect, selectedConnections, selectedIdSet, setActiveNav]);
+    launchHost(conn.id);
+  }, [handleBulkConnect, selectedConnections, selectedIdSet, setActiveNav]);
 
   const handleDeleteConnection = useCallback((id: string) => {
     const targetIds = getHostDeleteTargetIds(id, selectedIdSet, selectedConnections.map((c) => c.id));

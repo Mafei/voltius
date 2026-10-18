@@ -1,8 +1,11 @@
+import { systemSshInvoke } from "./systemSshUnlock";
 import { invoke } from "@/lib/invoke";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { openSystemDialog as dialogOpen } from "@/services/systemDialog";
 import type { ProxySpec } from "@/services/proxy";
 import type { KnockSpec } from "@/services/portKnock";
+import type { SystemSshAuth } from "./systemSshAuth";
+import type { JumpHostConnect } from "./ssh";
 
 export interface RemoteFile {
   name: string;
@@ -30,7 +33,8 @@ export async function sftpConnect(params: {
   password?: string;
   privateKey?: string;
   passphrase?: string;
-  jumpHosts?: Array<{ host: string; port: number; username: string; password?: string; privateKey?: string; passphrase?: string }>;
+  systemAuth?: SystemSshAuth;
+  jumpHosts?: JumpHostConnect[];
   keepaliveIntervalSecs: number;
   keepaliveMax: number;
   legacyAlgorithms?: boolean;
@@ -39,7 +43,7 @@ export async function sftpConnect(params: {
   /** A lost session's id to reconnect into, so its transfers resume. */
   relink?: string;
 }): Promise<string> {
-  return invoke("sftp_connect", {
+  return systemSshInvoke("sftp_connect", {
     connectId: params.connectId,
     host: params.host,
     port: params.port,
@@ -47,6 +51,7 @@ export async function sftpConnect(params: {
     password: params.password ?? null,
     privateKey: params.privateKey ?? null,
     passphrase: params.passphrase ?? null,
+    ...(params.systemAuth && { systemAuth: params.systemAuth }),
     jumpHosts: params.jumpHosts ?? null,
     keepaliveIntervalSecs: params.keepaliveIntervalSecs,
     keepaliveMax: params.keepaliveMax,

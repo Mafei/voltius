@@ -4,6 +4,9 @@ pub mod control_mode;
 pub mod exec;
 pub mod live_cells;
 pub mod session;
+pub mod system_auth;
+#[cfg(test)]
+mod system_auth_tests;
 #[cfg(test)]
 pub mod test_docker;
 #[cfg(test)]

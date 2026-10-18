@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
+import { isCompositionKey } from "@/services/terminalKeyPolicy";
 
 interface Props {
   onClose: () => void;
@@ -12,6 +13,7 @@ interface Props {
 export function Modal({ onClose, onEnter, children, blur = true }: Props) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || isCompositionKey(e)) return;
       if (e.key === "Escape") onClose();
       if (e.key === "Enter" && onEnter) { e.stopPropagation(); onEnter(); }
     };

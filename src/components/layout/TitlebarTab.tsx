@@ -10,6 +10,16 @@ import type { ContextMenuItem } from "@/components/shared/ContextMenu";
 import { useDragStore } from "@/stores/dragStore";
 import { sessionLabel } from "@/utils/sessionLabel";
 
+export function SessionTabLabel({ session }: { session: TerminalSession }) {
+  const mode = session.sshMode;
+  return <span className="flex flex-col min-w-0 text-left">
+    <span className="truncate">{sessionLabel(session)}</span>
+    {(mode?.kind === "tmux" || mode?.kind === "zellij") && <span className="truncate text-[10px] opacity-70">
+      {mode.kind === "tmux" ? "Tmux" : "Zellij"} · {session.customTitle && session.customTitle !== mode.session.name ? `${mode.session.name} · ` : null}{session.connectionName} · {mode.username}@{mode.endpoint}
+    </span>}
+  </span>;
+}
+
 export function sessionTabIcon(
   session: TerminalSession,
   connection: Connection | undefined,

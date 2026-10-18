@@ -1,4 +1,4 @@
-import { findLeaf, firstLeaf, useLayoutStore } from "@/stores/layoutStore";
+import { findLeaf, firstLeaf, findSessionPane, useLayoutStore } from "@/stores/layoutStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useUIStore } from "@/stores/uiStore";
 
@@ -7,6 +7,13 @@ export function activateSessionTab(sessionId: string): void {
   useLayoutStore.getState().setSplitTabActive(false);
   useSessionStore.getState().setActive(sessionId);
   useUIStore.getState().setActiveNav("terminal");
+}
+
+/** Focus the existing owning tab/pane without creating another terminal for the same target. */
+export function activateOwnedSession(sessionId: string): void {
+  const pane = findSessionPane(useLayoutStore.getState().splitTabs, sessionId);
+  if (pane) activateSplitTabPane(pane.tabId, pane.paneId);
+  else activateSessionTab(sessionId);
 }
 
 export function activateSplitTabPane(tabId: string, paneId?: string): void {

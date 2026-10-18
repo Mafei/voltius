@@ -1187,6 +1187,7 @@
       }
     },
     "shortcuts": {
+      "allowInTerminal": "Also enable this app shortcut in terminal focus (Ctrl+C always sends interrupt)",
       "searchPlaceholder": "Поиск сочетаний клавиш…",
       "clearSearch": "Очистить поиск",
       "resetAll": "Сбросить всё",

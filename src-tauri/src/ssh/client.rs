@@ -24,6 +24,7 @@ pub struct JumpHostConnect {
     pub password: Option<String>,
     pub private_key: Option<String>,
     pub passphrase: Option<String>,
+    pub system_auth: Option<super::system_auth::SystemAuth>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -208,14 +209,14 @@ async fn open_agent_channel(
 }
 
 #[cfg(unix)]
-async fn connect_local_agent() -> std::io::Result<tokio::net::UnixStream> {
+pub(super) async fn connect_local_agent() -> std::io::Result<tokio::net::UnixStream> {
     let path = std::env::var_os("SSH_AUTH_SOCK").ok_or(std::io::ErrorKind::NotFound)?;
     tokio::net::UnixStream::connect(path).await
 }
 
 #[cfg(windows)]
-async fn connect_local_agent() -> std::io::Result<tokio::net::windows::named_pipe::NamedPipeClient>
-{
+pub(super) async fn connect_local_agent(
+) -> std::io::Result<tokio::net::windows::named_pipe::NamedPipeClient> {
     tokio::net::windows::named_pipe::ClientOptions::new().open(r"\\.\pipe\openssh-ssh-agent")
 }
 
@@ -342,7 +343,7 @@ const AUTH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 /// authoritative — including `None`, which is an explicit "ssh-rsa only", not a guess.
 /// The outer `None` means the server said nothing at all, so we try the modern hash
 /// and let the caller retry ssh-rsa if it's refused.
-fn choose_rsa_hash(reported: Option<Option<HashAlg>>) -> Option<HashAlg> {
+pub(super) fn choose_rsa_hash(reported: Option<Option<HashAlg>>) -> Option<HashAlg> {
     reported.unwrap_or(Some(HashAlg::Sha256))
 }
 
@@ -523,8 +524,9 @@ async fn authenticate_handle_inner<H: client::Handler>(
     password: Option<&str>,
     private_key: Option<&str>,
     passphrase: Option<&str>,
+    system: Option<(&str, &super::system_auth::SystemAuth)>,
 ) -> Result<(), AppError> {
-    if password.is_none() && private_key.is_none() {
+    if password.is_none() && private_key.is_none() && system.is_none() {
         return Err("No authentication method provided".into());
     }
     let Some(mut remaining) = rejected(handle.authenticate_none(username).await.map_err(auth_err)?)
@@ -532,6 +534,16 @@ async fn authenticate_handle_inner<H: client::Handler>(
         return Ok(());
     };
     let mut key_rejected = false;
+
+    if let Some((host, spec)) = system {
+        if !remaining.contains(&MethodKind::PublicKey) {
+            return Err(
+                "SYSTEM_SSH_AUTH_UNSUPPORTED: Server does not accept public-key authentication."
+                    .into(),
+            );
+        }
+        return super::system_auth::authenticate(handle, username, host, spec, passphrase).await;
+    }
 
     if let Some(key) = private_key.filter(|_| remaining.contains(&MethodKind::PublicKey)) {
         let Some(m) = rejected(authenticate_key(handle, username, key, passphrase).await?) else {
@@ -576,6 +588,7 @@ async fn authenticate_handle_inner<H: client::Handler>(
     .with_param("methods", accepted))
 }
 
+#[cfg(test)]
 pub async fn authenticate_handle<H: client::Handler>(
     handle: &mut client::Handle<H>,
     username: &str,
@@ -583,9 +596,20 @@ pub async fn authenticate_handle<H: client::Handler>(
     private_key: Option<&str>,
     passphrase: Option<&str>,
 ) -> Result<(), AppError> {
+    authenticate_handle_with_system(handle, username, password, private_key, passphrase, None).await
+}
+
+pub async fn authenticate_handle_with_system<H: client::Handler>(
+    handle: &mut client::Handle<H>,
+    username: &str,
+    password: Option<&str>,
+    private_key: Option<&str>,
+    passphrase: Option<&str>,
+    system: Option<(&str, &super::system_auth::SystemAuth)>,
+) -> Result<(), AppError> {
     tokio::time::timeout(
         AUTH_TIMEOUT,
-        authenticate_handle_inner(handle, username, password, private_key, passphrase),
+        authenticate_handle_inner(handle, username, password, private_key, passphrase, system),
     )
     .await
     .map_err(|_| {
@@ -844,16 +868,25 @@ impl JumpHostConnect {
     pub(crate) async fn authenticate(
         &self,
         handle: &mut client::Handle<SshClient>,
-    ) -> Result<(), String> {
-        authenticate_handle(
+    ) -> Result<(), AppError> {
+        authenticate_handle_with_system(
             handle,
             &self.username,
             self.password.as_deref(),
             self.private_key.as_deref(),
             self.passphrase.as_deref(),
+            self.system_auth
+                .as_ref()
+                .map(|spec| (self.host.as_str(), spec)),
         )
         .await
-        .map_err(|e| format!("Jump host {} auth failed: {e}", self.host))
+        .map_err(|e| {
+            if e.code().is_some() {
+                self.failed(e)
+            } else {
+                format!("Jump host {} auth failed: {e}", self.host).into()
+            }
+        })
     }
 
     pub(crate) async fn reach_through(
@@ -898,6 +931,7 @@ pub async fn authenticate_connection(
     keepalive_max: usize,
     legacy_algorithms: bool,
     route: HopRoute,
+    system_auth: Option<&super::system_auth::SystemAuth>,
 ) -> Result<AuthenticatedConnection, AppError> {
     let config = Arc::new(client_config(
         keepalive_interval_secs,
@@ -1008,12 +1042,13 @@ pub async fn authenticate_connection(
         SshStep::Authenticating,
         format!("as {}", username),
     );
-    if let Err(error) = authenticate_handle(
+    if let Err(error) = authenticate_handle_with_system(
         &mut final_handle,
         username,
         password,
         private_key,
         passphrase,
+        system_auth.map(|spec| (host, spec)),
     )
     .await
     {
@@ -1398,6 +1433,7 @@ pub fn client_config(
 }
 
 /// One-shot connect + auth for headless commands (no PTY, no jump hosts).
+#[cfg(test)]
 pub async fn connect_authenticated(
     known_hosts: Arc<KnownHostsStore>,
     host: &str,
@@ -1409,6 +1445,34 @@ pub async fn connect_authenticated(
     legacy_algorithms: bool,
     route: &HopRoute,
 ) -> Result<client::Handle<SshClient>, String> {
+    connect_authenticated_with_system(
+        known_hosts,
+        host,
+        port,
+        username,
+        password,
+        private_key,
+        passphrase,
+        legacy_algorithms,
+        route,
+        None,
+    )
+    .await
+    .map_err(Into::into)
+}
+
+pub async fn connect_authenticated_with_system(
+    known_hosts: Arc<KnownHostsStore>,
+    host: &str,
+    port: u16,
+    username: &str,
+    password: Option<&str>,
+    private_key: Option<&str>,
+    passphrase: Option<&str>,
+    legacy_algorithms: bool,
+    route: &HopRoute,
+    system_auth: Option<&super::system_auth::SystemAuth>,
+) -> Result<client::Handle<SshClient>, AppError> {
     let config = Arc::new(client_config(
         0,
         client::Config::default().keepalive_max,
@@ -1417,7 +1481,15 @@ pub async fn connect_authenticated(
     let (mut handle, _via) = connect_first_hop_plain(&config, route, &known_hosts, host, port, 1)
         .await
         .map_err(|e| e.describe("Connection failed"))?;
-    authenticate_handle(&mut handle, username, password, private_key, passphrase).await?;
+    authenticate_handle_with_system(
+        &mut handle,
+        username,
+        password,
+        private_key,
+        passphrase,
+        system_auth.map(|spec| (host, spec)),
+    )
+    .await?;
     Ok(handle)
 }
 
@@ -1882,6 +1954,7 @@ mod tests {
             password: Some("p".into()),
             private_key: None,
             passphrase: None,
+            system_auth: None,
         };
         let (mut via, _) = jump
             .connect_first(&config, &HopRoute::default(), &known_hosts, 1)

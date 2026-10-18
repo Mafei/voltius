@@ -59,6 +59,7 @@ error_codes! {
     RemoteForwardDenied,
     // SSH authentication. Params: `prompt` / `methods` / `seconds`.
     SshKeyRejected,
+    SshKeyPassphrase,
     SshPasswordRejected,
     SshPasswordExpired,
     SshPromptUnanswerable,

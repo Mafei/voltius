@@ -1,17 +1,29 @@
 import { useSessionStore } from "@/stores/sessionStore";
-import { useUIStore } from "@/stores/uiStore";
+import { goToTerminal } from "@/services/terminalNavigation";
 import { buildQuickConnectConnection, type QuickConnectIntent } from "@/services/quickConnect";
+import { findAnyConnection } from "@/stores/connectionStore";
+import { useSessionConnectionStore } from "@/stores/sessionConnectionStore";
+import { isMobileShell } from "@/utils/platform";
+import type { Connection } from "@/types";
+export { goToTerminal } from "@/services/terminalNavigation";
 
-/** Bring the terminal view forward, closing the panels that would cover it. */
-export function goToTerminal(): void {
-  const ui = useUIStore.getState();
-  ui.setSidebarOpen(false);
-  ui.setSftpPanelOpen(false);
-  ui.setActiveNav("terminal");
+export function isSessionConnection(connection: Connection): boolean {
+  return (connection.connection_type ?? "ssh") === "ssh";
 }
+
+export function chooseHostSessions(connections: Connection[], complete: (ids: string[]) => void = () => goToTerminal(), direct = false): void {
+  useSessionConnectionStore.getState().request(connections, complete, direct);
+}
+
+export function launchConnection(connection: Connection): void { launchHost(connection.id); }
 
 /** Connect to a saved host by id, then switch to the terminal view. */
 export function launchHost(connectionId: string): void {
+  const connection = findAnyConnection(connectionId);
+  if (!isMobileShell() && connection && isSessionConnection(connection)) {
+    chooseHostSessions([connection]);
+    return;
+  }
   useSessionStore.getState().connect(connectionId).catch(() => {});
   goToTerminal();
 }
@@ -20,7 +32,9 @@ export function launchHost(connectionId: string): void {
 export function launchQuickConnect(intent: Exclude<QuickConnectIntent, null>): void {
   const s = useSessionStore.getState();
   if (intent.kind === "ssh") {
-    s.connectDirect(buildQuickConnectConnection(intent)).catch(() => {});
+    const connection = buildQuickConnectConnection(intent, !isMobileShell());
+    if (!isMobileShell()) { chooseHostSessions([connection], () => goToTerminal(), true); return; }
+    s.connectDirect(connection).catch(() => {});
   } else if (intent.kind === "serial") {
     s.connectSerialEphemeral(intent.port).catch(() => {});
   } else {

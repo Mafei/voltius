@@ -9,8 +9,12 @@ import GlobalPanelHost from "@/components/layout/GlobalPanelHost";
 import RightPanel from "@/components/terminal/RightPanel";
 import { EmailVerificationBanner } from "@/components/notifications/EmailVerificationBanner";
 import { useUIStore } from "@/stores/uiStore";
+import { SessionConnectionDialogHost } from "@/components/connections/SessionConnectionDialogHost";
+import { useTerminalBrowserKeys } from "@/hooks/useTerminalBrowserKeys";
+import { SystemSshUnlockHost } from "@/components/connections/SystemSshUnlockHost";
 
 export default function DesktopShell() {
+  useTerminalBrowserKeys();
   const omniOpen = useUIStore((s) => s.omniOpen);
   const setOmniOpen = useUIStore((s) => s.setOmniOpen);
   const homeView = useUIStore((s) => s.homeView);
@@ -47,6 +51,8 @@ export default function DesktopShell() {
       </div>
       {omniOpen && <OmniSearch onClose={() => setOmniOpen(false)} />}
       <GlobalPanelHost />
+      <SessionConnectionDialogHost />
+      <SystemSshUnlockHost />
     </>
   );
 }

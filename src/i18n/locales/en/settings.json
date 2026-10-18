@@ -1173,6 +1173,7 @@
       }
     },
     "shortcuts": {
+      "allowInTerminal": "Also enable this app shortcut in terminal focus (Ctrl+C always sends interrupt)",
       "searchPlaceholder": "Search shortcuts…",
       "clearSearch": "Clear search",
       "resetAll": "Reset all",

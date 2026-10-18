@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { pushSettingsChange, settingsStamp } from "./remoteApplyGuard";
+import { deferTerminalKey, isCompositionKey } from "@/services/terminalKeyPolicy";
 
 export interface ShortcutAlias {
   key: string;
@@ -11,6 +12,8 @@ export interface ShortcutAlias {
 }
 
 export interface Shortcut {
+  /** Explicit opt-in: this app binding may run while a desktop terminal has focus. */
+  allowInTerminal?: boolean;
   id: string;
   /** i18n key resolving to the display label, translated at render time (see ShortcutsSection.tsx) */
   labelKey: string;
@@ -78,6 +81,7 @@ interface ShortcutStore {
   setKey: (id: string, key: string, ctrl: boolean, shift: boolean, alt: boolean) => void;
   reset: (id: string) => void;
   resetAll: () => void;
+  setTerminalAllowed: (id: string, allowed: boolean) => void;
 }
 
 export const useShortcutStore = create<ShortcutStore>()(
@@ -85,6 +89,10 @@ export const useShortcutStore = create<ShortcutStore>()(
     (set) => ({
       shortcuts: DEFAULTS.map(toShortcut),
       shortcutsUpdatedAt: new Date(0).toISOString(),
+      setTerminalAllowed: (id, allowed) => {
+        set((s) => ({ shortcutsUpdatedAt: settingsStamp(), shortcuts: s.shortcuts.map((sc) => sc.id === id ? { ...sc, allowInTerminal: allowed } : sc) }));
+        pushSettingsChange();
+      },
 
       setKey: (id, key, ctrl, shift, alt) => {
         set((s) => ({ shortcutsUpdatedAt: settingsStamp(), shortcuts: s.shortcuts.map((sc) => sc.id === id ? { ...sc, key, ctrl, shift, alt } : sc) }));
@@ -97,7 +105,7 @@ export const useShortcutStore = create<ShortcutStore>()(
           shortcuts: s.shortcuts.map((sc) => {
             if (sc.id !== id) return sc;
             const def = DEFAULTS.find((d) => d.id === id)!;
-            return { ...sc, key: def.defaultKey, ctrl: def.ctrl, shift: def.shift, alt: def.alt };
+            return { ...sc, key: def.defaultKey, ctrl: def.ctrl, shift: def.shift, alt: def.alt, allowInTerminal: false };
           }),
         }));
         pushSettingsChange();
@@ -146,6 +154,7 @@ function normalizeKey(k: string): string {
 export function matchShortcut(id: string, e: KeyboardEvent): boolean {
   const sc = useShortcutStore.getState().shortcuts.find((s) => s.id === id);
   if (!sc) return false;
+  if (isCompositionKey(e) || deferTerminalKey(e, sc.allowInTerminal === true)) return false;
   const ctrl = e.ctrlKey || e.metaKey;
 
   // Check primary
@@ -155,6 +164,10 @@ export function matchShortcut(id: string, e: KeyboardEvent): boolean {
   return ALIASES[id]?.some(
     (a) => ctrl === a.ctrl && e.shiftKey === a.shift && e.altKey === (a.alt ?? false) && normalizeKey(e.key) === normalizeKey(a.key),
   ) ?? false;
+}
+
+export function terminalShortcutAllowed(id: string): boolean {
+  return useShortcutStore.getState().shortcuts.find((s) => s.id === id)?.allowInTerminal === true;
 }
 
 export function getShortcutHint(id: string): string | undefined {

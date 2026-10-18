@@ -42,6 +42,7 @@ pub async fn sftp_connect(
     password: Option<String>,
     private_key: Option<String>,
     passphrase: Option<String>,
+    system_auth: Option<crate::ssh::system_auth::SystemAuth>,
     jump_hosts: Option<Vec<JumpHostConnect>>,
     keepalive_interval_secs: u64,
     keepalive_max: usize,
@@ -49,7 +50,7 @@ pub async fn sftp_connect(
     proxy: Option<ProxySpec>,
     relink: Option<String>,
     knock: Option<KnockSpec>,
-) -> Result<String, String> {
+) -> Result<String, crate::error::AppError> {
     sftp_state
         .connect(
             &app,
@@ -67,6 +68,7 @@ pub async fn sftp_connect(
             legacy_algorithms.unwrap_or(false),
             HopRoute { proxy, knock },
             relink.as_deref(),
+            system_auth.as_ref(),
         )
         .await
 }

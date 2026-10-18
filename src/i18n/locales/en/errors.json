@@ -16,6 +16,7 @@
     "bind-address-unavailable": "This computer has no address {{address}}",
     "remote-forward-denied": "The server refused the remote forward — the port may already be in use there, or forwarding is not allowed",
     "ssh-key-rejected": "Public key authentication rejected",
+    "ssh-key-passphrase": "The encrypted system key needs a valid passphrase, used only for this connection.",
     "ssh-password-rejected": "Password authentication rejected — check the username and password",
     "ssh-password-expired": "The server requires a new password — sign in once from a terminal and change it there",
     "ssh-prompt-unanswerable": "The server asked \"{{prompt}}\", which can't be answered automatically",

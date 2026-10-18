@@ -10,6 +10,7 @@ import { credentialSnapshotFromStores } from "@/services/credentialSnapshot";
 import { withEphemeralCredentials } from "@/services/ephemeralCredentials";
 import { canConnect, canFromStoresAsync } from "@/services/permissionsFromStores";
 import i18n from "@/i18n";
+import { systemSshAuthFor } from "@/stores/systemSshAuthStore";
 
 export type { ResolvedCredentials } from "@/services/credentialLogic";
 
@@ -27,6 +28,7 @@ export interface ResolvedJumpHost {
   password?: string;
   privateKey?: string;
   passphrase?: string;
+  systemAuth?: ResolvedCredentials["systemAuth"];
 }
 
 async function findIdentity(id: string) {
@@ -37,8 +39,8 @@ async function findIdentity(id: string) {
 }
 
 function toJumpHost(host: string, port: number, creds: ResolvedCredentials, fallbackUsername = ""): ResolvedJumpHost {
-  const { password, privateKey, passphrase } = creds;
-  return { host, port, username: creds.username || fallbackUsername, password, privateKey, passphrase };
+  const { password, privateKey, passphrase, systemAuth } = creds;
+  return { host, port, username: creds.username || fallbackUsername, password, privateKey, passphrase, ...(systemAuth && { systemAuth }) };
 }
 
 export const findConnection = findAnyConnection;
@@ -82,6 +84,8 @@ export async function resolveConnectionCredentials(
   { skipPick = false }: { skipPick?: boolean } = {},
 ): Promise<ResolvedCredentials> {
   if (!(await canConnect(conn.vault_id, conn.id))) throw new ConnectNotAllowedError();
+  const systemAuth = (!conn.connection_type || conn.connection_type === "ssh") ? systemSshAuthFor(conn.id) : undefined;
+  if (systemAuth) return { username: conn.username, systemAuth: { ...systemAuth, credentialId: conn.id } };
   const snapshot = credentialSnapshotFromStores();
   const plan = planCredentials(buildCredentialScope(conn, snapshot, await canFromStoresAsync()), { skipPick });
   if (plan.kind === "unavailable") {

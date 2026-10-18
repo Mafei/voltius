@@ -63,6 +63,7 @@ import {
   formIdentifierProps,
 } from "@/components/shared/Panel";
 import { YouConnectAsRow } from "./YouConnectAsRow";
+import { SystemSshAuthFields } from "./SystemSshAuthFields";
 import { SecretInput, TagsAndFolderFields } from "@/components/shared/vaultObjectForm";
 import { normalizeNotes } from "@/components/notes/notesText";
 import {
@@ -662,6 +663,7 @@ const ConnectionFormEditor = forwardRef<ConnectionFormHandle, Props & EditAccess
           </FormSection>
 
           <FormSection label={fileOnly ? t("connections.form.sectionCredentials") : t("connections.form.sectionIdentity")}>
+            {!hideChrome && !fileOnly && initial?.id && <SystemSshAuthFields connectionId={initial.id} />}
             {!fileOnly && (
             <LockedField
               label={<>{t("connections.form.keychainIdentity")}{isTeamHost && <span className="font-normal text-(--t-text-dim)"> · {t("connections.form.sharedWithTeam")}</span>}</>}

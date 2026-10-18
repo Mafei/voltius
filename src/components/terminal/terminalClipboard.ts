@@ -4,10 +4,14 @@ import { writeClipboard, readClipboard } from "@/utils/clipboard";
 import { getToggle } from "@/stores/toggleSettingsStore";
 import { logFailure } from "@/lib/logger";
 import { getPlatformSync } from "@/utils/platform";
+import { matchShortcut } from "@/stores/shortcutStore";
+import { deferTerminalKey, isCompositionKey } from "@/services/terminalKeyPolicy";
 
 const MOUSE_MOVE = 32;
 
 export interface TerminalClipboardHandle {
+  copySelection(): Promise<void>;
+  pasteClipboard(): Promise<void>;
   /** Returns false to consume the event, true to let xterm process it,
    *  or null when the event is not a clipboard shortcut. */
   handleKeyEvent(e: KeyboardEvent): boolean | null;
@@ -224,6 +228,10 @@ export function attachTerminalClipboard(
     if (text) term.paste(text);
     else await opts.pasteImage?.();
   };
+  const copySelection = async () => {
+    const selected = term.getSelection();
+    if (selected) await writeClipboard(selected);
+  };
 
   const handleContextMenu = (e: MouseEvent) => {
     e.preventDefault();
@@ -247,6 +255,22 @@ export function attachTerminalClipboard(
   }
 
   const handleKeyEvent = (e: KeyboardEvent): boolean | null => {
+    if (isCompositionKey(e)) return null;
+    if (getPlatformSync() !== "android") {
+      const metaAllowed = !e.metaKey || getPlatformSync() === "macos";
+      const copy = metaAllowed && matchShortcut("copy", e), paste = metaAllowed && matchShortcut("paste", e);
+      if (deferTerminalKey(e) && !copy && !paste) return true;
+      if (copy) {
+        const selection = term.getSelection();
+        if (e.type === "keydown" && selection) void writeClipboard(selection);
+        return false;
+      }
+      if (paste) {
+        e.preventDefault();
+        if (e.type === "keydown") void pasteClipboard();
+        return false;
+      }
+    }
     if (e.ctrlKey && e.shiftKey && e.key === "C") {
       if (e.type === "keydown") {
         const sel = term.getSelection();
@@ -277,6 +301,8 @@ export function attachTerminalClipboard(
   };
 
   return {
+    copySelection,
+    pasteClipboard,
     handleKeyEvent,
     dispose() {
       unpark();

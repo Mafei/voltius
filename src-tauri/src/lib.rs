@@ -37,6 +37,7 @@ mod shell_integration;
 mod ssh;
 mod storage;
 mod system_auth;
+mod terminal_browser_keys;
 mod terminal_kbd;
 mod terminal_output;
 mod tls;
@@ -272,6 +273,7 @@ pub fn run() {
         .manage(SftpManager::new())
         .manage(SerialSessionManager::new())
         .invoke_handler(tauri::generate_handler![
+            terminal_browser_keys::terminal_browser_keys,
             force_quit,
             updater::updater_restart,
             updater::updater_check,

@@ -1192,6 +1192,7 @@
       "mcpServer": { "label": "MCP 服务器" }
     },
     "shortcuts": {
+      "allowInTerminal": "终端焦点时也启用此应用快捷键（Ctrl+C 始终发送中断）",
       "searchPlaceholder": "搜索快捷键…",
       "clearSearch": "清除搜索",
       "resetAll": "重置全部",

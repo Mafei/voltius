@@ -261,6 +261,9 @@
       "identityChanged": "The host or SSH login changed. Select the tmux session again from Hosts."
     },
     "session": {
+      "authPassword": "SSH password",
+      "authPassphrase": "Private key passphrase",
+      "authHint": "Authenticate and load the session list. Used for this attempt only; not saved.",
       "title": "Connect to host",
       "type": "Session Type",
       "list": "Session List",

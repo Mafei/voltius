@@ -1,5 +1,6 @@
 import { writeClipboard } from "../../utils/clipboard";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { terminalClipboardAction, openTerminalSearch } from "@/hooks/useTerminal";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { invoke } from "@/lib/invoke";
@@ -410,7 +411,7 @@ export function TerminalStatusBar({ sessionId, sessionType, connectionId, connec
     ? t("panes.terminal.serialSubtitle", { port: serialConfig.port, baud: serialConfig.baud })
     : t("terminal.statusBar.serialFallback");
 
-  const ctxItems = useMemo<ContextMenuItem[]>(() => {
+  const hostCtxItems = useMemo<ContextMenuItem[]>(() => {
     if (sessionType === "ssh" && connection) {
       return [
         {
@@ -466,6 +467,13 @@ export function TerminalStatusBar({ sessionId, sessionType, connectionId, connec
     }
     return [];
   }, [sessionType, connection, userAtHost, serialConfig, connectionName, sessionId, toggleRightPanel, disconnect, t]);
+
+  const ctxItems = useMemo<ContextMenuItem[]>(() => [
+    { label: t("common.action.copy"), icon: "lucide:copy", onClick: () => { void terminalClipboardAction(sessionId, "copySelection").catch(() => {}); } },
+    { label: t("common.action.paste"), icon: "lucide:clipboard", onClick: () => { void terminalClipboardAction(sessionId, "pasteClipboard").catch(() => {}); } },
+    { label: t("settings.shortcuts.items.terminalSearch.label"), icon: "lucide:search", onClick: () => openTerminalSearch(sessionId) },
+    ...hostCtxItems,
+  ], [hostCtxItems, sessionId, t]);
 
   const statusBarContributionContext = useMemo<TerminalStatusBarContributionContext>(() => ({
     sessionId,

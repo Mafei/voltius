@@ -1,10 +1,10 @@
+import { launchConnection } from "@/services/launch";
 import { Icon } from "@iconify/react";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
 import { useAllConnections } from "@/hooks/useAllConnections";
 import { useVaultStore } from "@/stores/vaultStore";
 import { useUIStore } from "@/stores/uiStore";
-import { useSessionStore } from "@/stores/sessionStore";
 import { ConnectionAvatar } from "@/components/shared/ConnectionAvatar";
 import { cardGridProps } from "@/components/shared/cardGrid";
 import { useEffectivePinnedPredicate } from "@/hooks/useEffectivePinned";
@@ -85,15 +85,10 @@ export function VaultsOverview() {
   const connections = useAllConnections();
   const vaults = useVaultStore((s) => s.vaults);
   const selectVaultOnly = useVaultStore((s) => s.selectVaultOnly);
-  const connect = useSessionStore((s) => s.connect);
   const setActiveNav = useUIStore((s) => s.setActiveNav);
   const setHomeView = useUIStore((s) => s.setHomeView);
 
-  const handleConnect = (conn: Connection) => {
-    connect(conn.id).catch(() => {});
-    setHomeView(false);
-    setActiveNav("terminal");
-  };
+
 
   const openVault = (vaultId: string) => {
     selectVaultOnly(vaultId);
@@ -121,7 +116,7 @@ export function VaultsOverview() {
             name={vault.name}
             hosts={hosts}
             totalHosts={totalHosts}
-            onConnect={handleConnect}
+            onConnect={launchConnection}
             onOpen={() => openVault(vault.id)}
           />
         ))}

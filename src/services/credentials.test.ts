@@ -34,11 +34,13 @@ vi.mock("@/services/ephemeralCredentials", () => ({
 import { ConnectNotAllowedError, resolveConnectionCredentials, resolveJumpHosts } from "./credentials";
 import { VaultUnreadableError } from "./vaultErrors";
 import { IdentityPickUnavailableError } from "./credentialPlan";
+import { useSystemSshAuthStore } from "@/stores/systemSshAuthStore";
 
 const conn = (over: Partial<Connection> = {}) =>
   ({ id: "c1", username: "root", host: "h", port: 22, ...over }) as Connection;
 
 beforeEach(() => {
+  useSystemSshAuthStore.setState({ byConnection: {}, invalid: {} });
   h.getSecret.mockReset();
   h.getSecret.mockResolvedValue(null);
   h.identities = [];
@@ -49,6 +51,18 @@ beforeEach(() => {
     teams: [], vaults: [], ownIdentities: [], teamIdentities: {}, teamKeys: {},
     picks: { byObject: {}, byTeam: {} }, teamSecret: () => undefined, secretsHydrated: () => true,
   };
+});
+
+test("system authentication bypasses vault secret reads but keeps CONNECT permissions, including referenced jumps", async () => {
+  const policy = { mode: "keys" as const, identityFiles: ["~/.ssh/id_ed25519"], useConfig: false };
+  useSystemSshAuthStore.getState().set("c1", policy); useSystemSshAuthStore.getState().set("jump", { ...policy, mode: "agent" });
+  h.getSecret.mockRejectedValue(new VaultUnreadableError());
+  await expect(resolveConnectionCredentials(conn())).resolves.toEqual({ username: "root", systemAuth: { ...policy, credentialId: "c1" } });
+  h.connections = [conn({ id: "jump", username: "hop" })];
+  expect((await resolveJumpHosts(conn({ jump_hosts: [{ connection_id: "jump" }] })))[0]).toMatchObject({ username: "hop", systemAuth: { mode: "agent", credentialId: "jump" } });
+  expect(h.getSecret).not.toHaveBeenCalled(); h.can.mockReturnValue(false);
+  await expect(resolveConnectionCredentials(conn())).rejects.toThrow(ConnectNotAllowedError);
+  await expect(resolveJumpHosts(conn({ jump_hosts: [{ connection_id: "jump" }] }))).rejects.toThrow(ConnectNotAllowedError);
 });
 
 test("a host the member may not connect to yields no credentials at all", async () => {

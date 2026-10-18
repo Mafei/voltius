@@ -1,3 +1,4 @@
+import { normalizeTabTitle } from "@/utils/sessionLabel";
 // Pure logic for the workspace snapshot: building it from store state and
 // validating it back at launch. No zustand/tauri/"@/" imports so it runs
 // under plain node (`node --experimental-strip-types`), matching the
@@ -26,6 +27,8 @@ export interface SnapshotSession {
   connectionName: string;
   /** User-given tab name, so a rename survives a restart. */
   title?: string;
+  /** Explicit user rename; independent from terminal/automatic title updates. */
+  customTitle?: string;
   /** Whether persistence (tmux/screen) was active when it connected. */
   persist: boolean;
   sshMode?: import("@/services/ssh").SshMode;
@@ -63,6 +66,8 @@ export interface SessionInput {
   connectionId: string;
   connectionName: string;
   title?: string;
+  /** Explicit user rename; independent from terminal/automatic title updates. */
+  customTitle?: string;
   persist?: boolean;
   sshMode?: SnapshotSession["sshMode"];
   encoding?: string;
@@ -98,6 +103,7 @@ export function buildSnapshot(input: {
       connectionId: s.connectionId,
       connectionName: s.connectionName,
       title: s.title,
+      customTitle: s.customTitle,
       persist: s.sshMode ? false : s.persist ?? false,
       sshMode: s.sshMode,
       cwd: input.cwds[s.id],
@@ -182,6 +188,7 @@ export function parseSnapshot(raw: unknown): WorkspaceSnapshot | null {
     sessions: s.sessions.filter(isValidSession).map((x) => ({
       ...x,
       title: typeof x.title === "string" ? x.title : undefined,
+      customTitle: typeof x.customTitle === "string" ? normalizeTabTitle(x.customTitle) : undefined,
       persist: x.sshMode ? false : x.persist === true,
       sshMode: x.sshMode,
       scrollLinesFromBottom:

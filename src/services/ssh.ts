@@ -1,9 +1,11 @@
+import { systemSshInvoke } from "./systemSshUnlock";
 import { invoke } from "@/lib/invoke";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import type { ProxySpec } from "@/services/proxy";
 import { onTerminalClosed, onTerminalOutput } from "@/services/terminalOutput";
 import type { KnockSpec } from "@/services/portKnock";
 import { currentTerminalColors, type TerminalColors } from "@/utils/terminalColors";
+import type { SystemSshAuth } from "./systemSshAuth";
 
 export interface JumpHostConnect {
   host: string;
@@ -12,6 +14,7 @@ export interface JumpHostConnect {
   password?: string;
   privateKey?: string;
   passphrase?: string;
+  systemAuth?: SystemSshAuth;
 }
 
 export type TmuxChoice = { kind: "attach"; id: string; created: number; serverPid: number } | { kind: "create"; name: string };
@@ -34,6 +37,7 @@ export interface SshConnectParams {
   password?: string;
   privateKey?: string;
   passphrase?: string;
+  systemAuth?: SystemSshAuth;
   connectionId?: string;
   jumpHosts?: JumpHostConnect[];
   envVars?: [string, string][];
@@ -62,7 +66,7 @@ export interface SshConnectParams {
 }
 
 export async function sshConnect(params: SshConnectParams): Promise<SshConnectResult> {
-  return invoke("ssh_connect", {
+  return systemSshInvoke("ssh_connect", {
     prepareBackend: params.prepareBackend ?? null,
     preparedId: params.preparedId ?? null,
     sessionChoice: params.sessionChoice ?? null,
@@ -73,6 +77,7 @@ export async function sshConnect(params: SshConnectParams): Promise<SshConnectRe
     password: params.password ?? null,
     privateKey: params.privateKey ?? null,
     passphrase: params.passphrase ?? null,
+    ...(params.systemAuth && { systemAuth: params.systemAuth }),
     connectionId: params.connectionId ?? null,
     jumpHosts: params.jumpHosts && params.jumpHosts.length > 0 ? params.jumpHosts : null,
     envVars: params.envVars && params.envVars.length > 0 ? params.envVars : null,
@@ -92,7 +97,7 @@ export async function sshConnect(params: SshConnectParams): Promise<SshConnectRe
     proxy: params.proxy ?? null,
     knock: params.knock ?? null,
     terminalColors: currentTerminalColors(),
-  });
+  }, false);
 }
 
 /** Resolves to whether the persistent multiplexer session was confirmed
@@ -158,18 +163,20 @@ export async function sshExecCommand(params: {
   password?: string;
   privateKey?: string;
   passphrase?: string;
+  systemAuth?: SystemSshAuth;
   command: string;
   legacyAlgorithms?: boolean;
   proxy?: ProxySpec | null;
   knock?: KnockSpec | null;
 }): Promise<SshExecResult> {
-  return invoke("ssh_exec_command", {
+  return systemSshInvoke("ssh_exec_command", {
     host: params.host,
     port: params.port,
     username: params.username,
     password: params.password ?? null,
     privateKey: params.privateKey ?? null,
     passphrase: params.passphrase ?? null,
+    ...(params.systemAuth && { systemAuth: params.systemAuth }),
     command: params.command,
     legacyAlgorithms: params.legacyAlgorithms ?? false,
     proxy: params.proxy ?? null,
@@ -184,18 +191,20 @@ export async function sshKillPersistent(params: {
   password?: string;
   privateKey?: string;
   passphrase?: string;
+  systemAuth?: SystemSshAuth;
   sessionId: string;
   legacyAlgorithms?: boolean;
   proxy?: ProxySpec | null;
   knock?: KnockSpec | null;
 }): Promise<boolean> {
-  return invoke("ssh_kill_persistent", {
+  return systemSshInvoke("ssh_kill_persistent", {
     host: params.host,
     port: params.port,
     username: params.username,
     password: params.password ?? null,
     privateKey: params.privateKey ?? null,
     passphrase: params.passphrase ?? null,
+    ...(params.systemAuth && { systemAuth: params.systemAuth }),
     sessionId: params.sessionId,
     legacyAlgorithms: params.legacyAlgorithms ?? false,
     proxy: params.proxy ?? null,

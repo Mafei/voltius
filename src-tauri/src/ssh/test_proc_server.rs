@@ -45,6 +45,7 @@ pub struct ProcLog {
 }
 
 struct ProcServer {
+    expected_key: Option<russh::keys::ssh_key::PublicKey>,
     opts: ProcOptions,
     refused: usize,
     log: Arc<std::sync::Mutex<ProcLog>>,
@@ -95,7 +96,23 @@ impl russh::server::Handler for ProcServer {
     type Error = russh::Error;
 
     async fn auth_none(&mut self, _user: &str) -> Result<Auth, Self::Error> {
-        Ok(Auth::Accept)
+        Ok(self.decide_key(None))
+    }
+
+    async fn auth_publickey_offered(
+        &mut self,
+        _: &str,
+        key: &russh::keys::ssh_key::PublicKey,
+    ) -> Result<Auth, Self::Error> {
+        Ok(self.decide_key(Some(key)))
+    }
+
+    async fn auth_publickey(
+        &mut self,
+        _: &str,
+        key: &russh::keys::ssh_key::PublicKey,
+    ) -> Result<Auth, Self::Error> {
+        Ok(self.decide_key(Some(key)))
     }
 
     async fn channel_open_session(
@@ -175,6 +192,20 @@ impl russh::server::Handler for ProcServer {
 }
 
 impl ProcServer {
+    fn decide_key(&self, key: Option<&russh::keys::ssh_key::PublicKey>) -> Auth {
+        if self
+            .expected_key
+            .as_ref()
+            .is_none_or(|expected| key.is_some_and(|key| key.key_data() == expected.key_data()))
+        {
+            Auth::Accept
+        } else {
+            Auth::Reject {
+                proceed_with_methods: Some([russh::MethodKind::PublicKey].as_slice().into()),
+                partial_success: false,
+            }
+        }
+    }
     async fn spawn(&mut self, channel: ChannelId, cmd: &str, session: &mut Session) {
         let mut child = tokio::process::Command::new("sh")
             .args(["-c", cmd])
@@ -260,15 +291,14 @@ async fn cutting_relay(to: u16, limit: u64, hold: bool) -> u16 {
     port
 }
 
-pub async fn proc_server(
+async fn proc_server_port(
     opts: ProcOptions,
-) -> (
-    Arc<russh::client::Handle<TestClient>>,
-    Arc<std::sync::Mutex<ProcLog>>,
-) {
+    expected_key: Option<russh::keys::ssh_key::PublicKey>,
+) -> (u16, Arc<std::sync::Mutex<ProcLog>>) {
     let log = Arc::new(std::sync::Mutex::new(ProcLog::default()));
     let server = ProcServer {
         opts,
+        expected_key,
         refused: 0,
         log: log.clone(),
         stdins: Arc::default(),
@@ -283,6 +313,23 @@ pub async fn proc_server(
     } else if let Some(limit) = opts.blackhole_after_bytes {
         port = cutting_relay(port, limit, true).await;
     }
+    (port, log)
+}
+
+pub async fn keyed_proc_server(
+    opts: ProcOptions,
+    public: russh::keys::ssh_key::PublicKey,
+) -> (u16, Arc<std::sync::Mutex<ProcLog>>) {
+    proc_server_port(opts, Some(public)).await
+}
+
+pub async fn proc_server(
+    opts: ProcOptions,
+) -> (
+    Arc<russh::client::Handle<TestClient>>,
+    Arc<std::sync::Mutex<ProcLog>>,
+) {
+    let (port, log) = proc_server_port(opts, None).await;
     let mut handle = russh::client::connect(Default::default(), ("127.0.0.1", port), TestClient)
         .await
         .unwrap();

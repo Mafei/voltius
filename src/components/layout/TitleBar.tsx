@@ -40,7 +40,7 @@ import { sessionLabel, splitTabLabel } from "@/utils/sessionLabel";
 import { focusSession } from "@/hooks/useTerminal";
 import { splitTabMenuItems } from "@/utils/splitTabMenuItems";
 import { fadeMask, useTabStripScroll } from "@/hooks/useTabStripScroll";
-import { TitlebarTab, sessionTabIcon, tabSurfaceStyle } from "@/components/layout/TitlebarTab";
+import { TitlebarTab, SessionTabLabel, sessionTabIcon, tabSurfaceStyle } from "@/components/layout/TitlebarTab";
 import { StackTab } from "@/components/layout/StackTab";
 import { buildTitlebarItems, stackGroupKey, titlebarKeyGroupOf, visibleTitlebarKeys } from "@/utils/titlebarItems";
 import { useToggle } from "@/stores/toggleSettingsStore";
@@ -456,7 +456,7 @@ export default function TitleBar() {
                 itemKey={item.key}
                 active={isActive}
                 icon={tabIcon}
-                label={sessionLabel(session)}
+                label={<SessionTabLabel session={session} />}
                 title={mcpTooltip([session.id])}
                 mcpBar={renderMcpBar(session.id, [session.id])}
                 {...sessionTabHandlers(session, item.key, isActive, [pinListExtra(t, panelShowsThisSession, () => (panelShowsThisSession ? setHostPanelPinned(false) : pinHostList(session.id)))])}
@@ -689,7 +689,7 @@ function DetachedPanePreview({ session }: { session: ReturnType<typeof useSessio
       style={{ ...tabSurfaceStyle(true), boxShadow: "0 0 0 1px color-mix(in srgb, var(--t-accent) 35%, transparent)" }}
     >
       {sessionTabIcon(session, connection, true, sessionStatusTone(session.status))}
-      <span className="max-w-[140px] truncate">{sessionLabel(session)}</span>
+      <span className="max-w-[140px] truncate"><SessionTabLabel session={session} /></span>
     </div>
   );
 }

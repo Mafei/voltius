@@ -149,37 +149,11 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: ./.github/actions/prepare-desktop
-      - name: Build locked native application without updater signing or publication
-        run: |
-          mkdir -p desktop-platform-evidence
-          rustup target add '${{ matrix.target }}'
-          if [[ "$RUNNER_OS" == macOS ]]; then test "$(uname -m)" = arm64; fi
-          pnpm tauri build --ci --target '${{ matrix.target }}' --bundles '${{ matrix.bundles }}' --config '{"bundle":{"createUpdaterArtifacts":false}}' -- --locked 2>&1 | tee desktop-platform-evidence/native-build.log
-      - name: Check macOS local PTY, shell and synthetic system SSH regressions
-        if: runner.os == 'macOS'
-        run: |
-          cargo test --locked --lib ssh::system_auth 2>&1 | tee desktop-platform-evidence/system-ssh-tests.log
-          cargo test --locked --lib local:: 2>&1 | tee desktop-platform-evidence/local-tests.log
-          cargo test --locked --lib commands::local:: 2>&1 | tee desktop-platform-evidence/shell-tests.log
-      - name: Verify ARM64, ad-hoc signatures and ordinary LaunchServices startup
-        if: runner.os == 'macOS'
-        run: bash scripts/verify-desktop-app.sh target/aarch64-apple-darwin/release/bundle/macos/Voltius.app desktop-platform-evidence
-      - name: Check Windows authentication policy parsing
-        if: runner.os == 'Windows'
-        run: cargo test --locked --lib ssh::system_auth::tests 2>&1 | tee desktop-platform-evidence/system-ssh-tests.log
-      - name: Verify Windows PE, unsigned packages and normal cloud startup
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: ./scripts/verify-desktop-windows.ps1 -Binary target/x86_64-pc-windows-msvc/release/voltius.exe -BundleDirectory target/x86_64-pc-windows-msvc/release/bundle -Evidence desktop-platform-evidence
-      - name: Preserve platform test packages and evidence
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: ./.github/actions/build-desktop-platform
         with:
-          name: Voltius-${{ matrix.label }}-test-${{ github.sha }}
-          path: desktop-platform-evidence/
-          retention-days: 14
-          if-no-files-found: error
+          target: ${{ matrix.target }}
+          bundles: ${{ matrix.bundles }}
+          label: ${{ matrix.label }}
   rocky-vm:
     if: github.repository == 'Mafei/voltius'
     needs: linux

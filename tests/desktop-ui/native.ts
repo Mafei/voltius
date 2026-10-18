@@ -1,5 +1,5 @@
 /** Browser fixture only. No native calls, credentials, user host or network connection. */
-export async function invoke(command: string) { return command === "get_platform" ? new URLSearchParams(location.search).has("mobile-tabs") ? "android" : "linux" : null; }
+export async function invoke(command: string) { return command === "get_platform" ? new URLSearchParams(location.search).has("mobile-tabs") ? "android" : location.pathname.endsWith("/keyboard.html") ? "macos" : "linux" : null; }
 export async function listen() { return () => {}; }
 export async function emit() {}
 export async function emitTo() {}

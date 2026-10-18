@@ -1,0 +1,82 @@
+name: macOS terminal rendering and endurance
+on:
+  push:
+    branches: ['candidate/desktop-render-*']
+permissions:
+  contents: read
+concurrency:
+  group: terminal-render-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  CARGO_BUILD_JOBS: '4'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  CARGO_PROFILE_TEST_DEBUG: '0'
+  VOLTIUS_REQUIRE_SEEDED_PLUGINS: '1'
+jobs:
+  native-build:
+    if: github.repository == 'Mafei/voltius' && !contains(github.ref, '-probe-')
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/build-desktop-platform
+        with:
+          target: aarch64-apple-darwin
+          bundles: app
+          label: macos-arm64
+          frontend-tests: 'true'
+  native-render:
+    if: github.repository == 'Mafei/voltius'
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(contains(github.ref, '-context-') && '[{"entry":"context","seconds":0}]' || contains(github.ref, '-quick-') && '[{"entry":"index","seconds":60}]' || contains(github.ref, '-glyph-') && '[{"entry":"ambiguous","seconds":0},{"entry":"keyboard","seconds":0}]' || contains(github.ref, '-font-') && '[{"entry":"font","seconds":0}]' || contains(github.ref, '-probe-') && '[{"entry":"index","seconds":900}]' || '[{"entry":"index","seconds":900},{"entry":"font","seconds":0},{"entry":"ambiguous","seconds":0},{"entry":"keyboard","seconds":0},{"entry":"context","seconds":0}]') }}
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/prepare-frontend
+      - name: Compile the synthetic-only renderer fixture
+        run: |
+          test "$(uname -m)" = arm64
+          mkdir -p terminal-render-evidence
+          pnpm vite build --config scripts/desktop-ui.vite.config.ts 2>&1 | tee terminal-render-evidence/fixture-build.log
+          pnpm exec tsc --project tests/terminal-render/tsconfig.json
+          swiftc scripts/terminal-render-probe.swift -o terminal-render-evidence/render-probe
+      - name: Measure native WKWebView GPU rendering and sustained output
+        env:
+          DIAGNOSTIC: ${{ contains(github.ref, '-probe-') && '1' || '0' }}
+          PROBE_ENTRY: ${{ matrix.entry }}
+          PROBE_SECONDS: ${{ matrix.seconds }}
+        run: |
+          set -euo pipefail
+          pnpm vite --config scripts/desktop-ui.vite.config.ts > terminal-render-evidence/server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:1428/tests/terminal-render/index.html > /dev/null; then break; fi
+            sleep 1
+          done
+          args=("http://127.0.0.1:1428/tests/terminal-render/$PROBE_ENTRY.html" terminal-render-evidence)
+          if [[ "$PROBE_ENTRY" == font ]]; then modes=font-face,font-set; elif [[ "$GITHUB_REF" == *-filter-* ]]; then modes=production,linear-minification-reference; elif [[ "$GITHUB_REF" == *-quick-* ]]; then modes=production,nearest-stable-reference; else modes=production; fi
+          args+=("$PROBE_SECONDS" "$modes")
+          if [[ "$DIAGNOSTIC" == 1 ]]; then args+=(--diagnostic); fi
+          terminal-render-evidence/render-probe "${args[@]}" 2>&1 | tee terminal-render-evidence/native-render.log
+          cp LICENSE NOTICE.md terminal-render-evidence/
+      - name: Preserve only synthetic rendering evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: Voltius-macos-wkwebview-${{ matrix.entry }}-${{ github.sha }}
+          path: terminal-render-evidence/
+          retention-days: 14
+          if-no-files-found: error

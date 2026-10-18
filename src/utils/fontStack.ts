@@ -1,3 +1,5 @@
+import type { ITerminalOptions } from "@xterm/xterm";
+
 // Chromium/WebView2 on Windows can't render country flag emoji natively
 // (regional indicator pairs show as letter codes, e.g. "DE" for 🇩🇪).
 // `country-flag-emoji-polyfill` (wired up in app/main.tsx) registers a
@@ -41,10 +43,14 @@ function genericFamilyIndex(entries: string[]): number {
   );
 }
 
+export function fontStackEntries(fontFamily: string): string[] {
+  return fontFamily.split(",");
+}
+
 /** xterm sizes the cell from the stack's first loaded face, and WebKit ignores `unicode-range`
  *  there, so the glyph-only fallback faces must come after the always-resolving generic. */
 export function terminalFontStack(fontFamily: string): string {
-  const entries = fontFamily.split(",");
+  const entries = fontStackEntries(fontFamily);
   let genericIndex = genericFamilyIndex(entries);
   if (genericIndex === -1) {
     entries.push(" monospace");
@@ -52,4 +58,9 @@ export function terminalFontStack(fontFamily: string): string {
   }
   entries.splice(genericIndex + 1, 0, ` ${NERD_FONT_SYMBOLS_FAMILY}`, ` ${FLAG_EMOJI_FAMILY}`);
   return entries.join(",");
+}
+/** Keep single-cell fallback symbols inside their wcwidth cell; wide CJK,
+ * ASCII, emoji and powerline/Nerd glyphs retain xterm's existing treatment. */
+export function terminalFontOptions(fontFamily: string): Pick<ITerminalOptions, "fontFamily" | "rescaleOverlappingGlyphs"> {
+  return { fontFamily: terminalFontStack(fontFamily), rescaleOverlappingGlyphs: true };
 }

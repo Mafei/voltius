@@ -35,7 +35,7 @@ import { keyToBytes } from "@/services/terminalKeyCore";
 import { handleDuplicateShortcut } from "@/services/duplicateSession";
 import type { TerminalTheme } from "@/themes/types";
 import type { UnlistenFn } from "@tauri-apps/api/event";
-import { terminalFontStack } from "@/utils/fontStack";
+import { terminalFontOptions, terminalFontStack } from "@/utils/fontStack";
 import { applyTerminalTheme, clampTerminalLineHeight, subscribeTerminalCursor, subscribeTerminalTheme } from "@/utils/terminalTheme";
 import { getPlatform } from "@/utils/platform";
 import { createOutputDecoder, encodeTerminalInput, type OutputDecoder } from "@/utils/terminalEncoding";
@@ -818,7 +818,7 @@ export function useTerminal({ sessionId, sessionType, onClosed, inputGate, encod
         cursorStyle,
         fontSize: activeTheme.terminalFontSize,
         lineHeight: clampTerminalLineHeight(activeTheme.terminalLineHeight),
-        fontFamily: terminalFontStack(activeTheme.terminalFontFamily),
+        ...terminalFontOptions(activeTheme.terminalFontFamily),
         scrollback,
         theme: activeTheme.terminal,
         overviewRuler: { width: 4 },

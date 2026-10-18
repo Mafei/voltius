@@ -1,5 +1,5 @@
 import { terminalFontStack } from "@/utils/fontStack";
-import { createTerminal, write, nextFrame, captureFrame, renderer, emit, nativeViewSnapshot } from "./support";
+import { createTerminal, write, nextFrame, captureFrame, renderer, emit, nativeViewSnapshot, hash } from "./support";
 import "@xterm/xterm/css/xterm.css";
 import "@/styles/globals.css";
 
@@ -31,7 +31,7 @@ async function run() {
         results.push({ phase, enabled, font, font_size_css_px: size, dpr: devicePixelRatio, character, codepoint: "U+" + character.codePointAt(0)!.toString(16).toUpperCase(),
           logical_cells: logical, expected_wcwidth_narrow: expected, device_cell_width: cellWidth, glyph_advance_css_px: metrics.width,
           canvas_ink_css_px: metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight,
-          ...inkBounds(pixels, gl.drawingBufferWidth, 4 * cellWidth, (4 + logical) * cellWidth) });
+          pixel_hash: hash(pixels), ...inkBounds(pixels, gl.drawingBufferWidth, 4 * cellWidth, (4 + logical) * cellWidth) });
       }
       await write(term, "\x1b[?25l\x1b[0m\x1b[2J\x1b[H测试 ①②③④⑤ ABC 中文\r\n①③④⑤ / 0123456789 / Symbols\r\n┌────────┬───────────┐\r\n│ ①②③④⑤ │ 123456.78 │\r\n└────────┴───────────┘");
       await nextFrame();
@@ -40,10 +40,20 @@ async function run() {
     }
     term.dispose(); host.replaceChildren();
   }
-  const productionFailures = results.filter((r) => r.phase === "production" && (r.outside_cell_pixels > 0 || r.logical_cells !== r.expected_wcwidth_narrow));
-  const referenceFailures = results.filter((r) => r.phase === "rescale-reference" && (r.outside_cell_pixels > 0 || r.logical_cells !== r.expected_wcwidth_narrow));
+  const isControl = (r: Record<string, any>) => ["中", "A", "1"].includes(r.character);
+  const invalid = (r: Record<string, any>) => {
+    if (r.logical_cells !== r.expected_wcwidth_narrow) return true;
+    if (!isControl(r)) return r.outside_cell_pixels > 0;
+    const before = results.find((x) => x.phase === "legacy" && x.font === r.font && x.font_size_css_px === r.font_size_css_px && x.character === r.character)!;
+    // xterm deliberately preserves ASCII (including existing fractional-cell
+    // edge ink) and double-width CJK. Assert unchanged pixels, not rescaling.
+    return r.pixel_hash !== before.pixel_hash;
+  };
+  const productionFailures = results.filter((r) => r.phase === "production" && invalid(r));
+  const referenceFailures = results.filter((r) => r.phase === "rescale-reference" && invalid(r));
   const summary = ["legacy", "production", "rescale-reference"].map((phase) => ({ phase, cases: results.filter((r) => r.phase === phase).length,
     overflowing: results.filter((r) => r.phase === phase && r.outside_cell_pixels > 0).length,
+    enclosed_overflowing: results.filter((r) => r.phase === phase && !isControl(r) && r.outside_cell_pixels > 0).length,
     width_mismatches: results.filter((r) => r.phase === phase && r.logical_cells !== r.expected_wcwidth_narrow).length }));
   const result = { phase: "complete", case: "ambiguous-glyph-overlap", summary, results, native_images: images,
     failed_checks: productionFailures.length + referenceFailures.length,

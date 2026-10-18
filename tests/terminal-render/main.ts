@@ -1,6 +1,7 @@
 /** Synthetic-only GPU/endurance fixture. Never loads a host, credential or user data. */
 import { Terminal } from "@xterm/xterm";
 import { claimWebglRenderer } from "@/utils/webglAddon";
+import { createOutputDecoder, type OutputDecoder } from "@/utils/terminalEncoding";
 import { nextFrame, write, emit, renderer, hash, comparePixels, terminalOptions, createTerminal, captureFrame, nativeViewSnapshot } from "./support";
 import "@xterm/xterm/css/xterm.css";
 import "@/styles/globals.css";
@@ -8,6 +9,19 @@ import "@/styles/globals.css";
 const parameters = new URLSearchParams(location.search);
 const reference = parameters.get("precision") === "highp-reference";
 const seconds = Number(parameters.get("seconds") ?? 120);
+const streams = new WeakMap<Terminal, OutputDecoder>();
+const utf8 = new TextEncoder(); let wireBytes = 0, wireChunks = 0, wireMessages = 0;
+async function wireWrite(term: Terminal, text: string) {
+  let decoder = streams.get(term); if (!decoder) { decoder = createOutputDecoder(undefined); streams.set(term, decoder); }
+  const bytes = utf8.encode(text), starts: number[] = [];
+  for (let i = 0; i < bytes.length; i++) if (bytes[i] >= 0xC2) starts.push(i);
+  const start = starts.length ? starts[wireMessages % starts.length] : -1;
+  const length = start < 0 ? 1 : bytes[start] < 0xE0 ? 2 : bytes[start] < 0xF0 ? 3 : 4;
+  const cut = start < 0 ? bytes.length : start + 1 + wireMessages % (length - 1);
+  const cuts = [...new Set([0, cut, Math.min(cut + 1, bytes.length), bytes.length])];
+  for (let i = 1; i < cuts.length; i++) { await write(term, decoder.decode(bytes.subarray(cuts[i - 1], cuts[i]))); wireChunks++; }
+  wireMessages++; wireBytes += bytes.length;
+}
 const nativeSnapshots: Record<string, unknown>[] = [];
 // Diagnostic A/B only: production does not intercept shader compilation.
 const originalShaderSource = WebGL2RenderingContext.prototype.shaderSource;
@@ -82,6 +96,7 @@ const sentinel = [
   "Symbols → ← ↑ ↓ ± × ÷ ≤ ≥ ■ □ ╱ ╲ ┃ ╋",
   "Combining e\u0301 a\u0308 / \x1b[1mBold 012中文\x1b[0m / \x1b[3mItalic 345字形\x1b[0m",
   "Zellij-like redraw: synthetic panes, status and counters",
+  "测试 ①②③④⑤ ABC 中文 / ①③④⑤ / ⑩⑳⓪Ⓐ",
 ];
 const frame = "\x1b[?25l\x1b[0m\x1b[2J\x1b[H" + sentinel.join("\r\n");
 
@@ -102,18 +117,30 @@ async function run() {
   }
   bindRenderer();
   async function captureWrite(text: string): Promise<Uint8Array> {
-    return await captureFrame(primary, () => write(primary, text));
+    return await captureFrame(primary, () => wireWrite(primary, text));
   }
-  await write(primary, frame); await write(secondary, "\x1b[?25lSynthetic atlas trainer"); await nextFrame(); await nextFrame();
+  await wireWrite(primary, frame); await wireWrite(secondary, "\x1b[?25lSynthetic atlas trainer"); await nextFrame(); await nextFrame();
   if (atlas(primary) !== atlas(secondary)) throw Error("Trainer must share production texture atlas");
   const initial = await captureWrite(frame);
   if (!initial.some((x, i) => i % 4 !== 3 && x > 100)) throw Error("Empty baseline frame");
-  const checks: Record<string, unknown>[] = []; let maxAtlas = 0, additions = 0, removals = 0, bytes = 0, iterations = 0;
+  const checks: Record<string, unknown>[] = [], bufferChecks: Record<string, unknown>[] = [], secondaryLines: string[] = [""];
+  let secondaryReady = false;
+  let maxAtlas = 0, additions = 0, removals = 0, bytes = 0, iterations = 0;
   atlas(primary).onAddTextureAtlasCanvas((canvas: HTMLCanvasElement) => { additions++; maxAtlas = Math.max(maxAtlas, canvas.width); });
   atlas(primary).onRemoveTextureAtlasCanvas(() => { removals++; });
   function compare(label: string, pixels: Uint8Array) {
     const result = { label, ...comparePixels(initial, pixels), pages: pages(primary), gl_error: gl.getError() };
     checks.push(result); emit({ phase: "pixel-check", reference, ...result });
+    const expected = [...sentinel.map((line) => line.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "")), ...Array(Math.max(0, primary.rows - sentinel.length)).fill("")];
+    const buffer = primary.buffer.active;
+    const actual = Array.from({ length: primary.rows }, (_, i) => buffer.getLine(buffer.baseY + i)?.translateToString(true) ?? "");
+    const tail = secondaryLines.slice(-12), sb = secondary.buffer.active, last = sb.baseY + sb.cursorY;
+    const actualTail = tail.map((_, i) => sb.getLine(last - tail.length + 1 + i)?.translateToString(true) ?? "");
+    const check = { label, primary_text_matches: expected.join("\n") === actual.join("\n"),
+      secondary_text_matches: !secondaryReady || tail.join("\n") === actualTail.join("\n"),
+      expected_text_hash: hash(utf8.encode(expected.join("\n"))), actual_text_hash: hash(utf8.encode(actual.join("\n"))) };
+    bufferChecks.push(check);
+    if (!check.primary_text_matches || !check.secondary_text_matches) emit({ phase: "buffer-mismatch", ...check, expected, actual, expected_tail: tail, actual_tail: actualTail });
   }
   compare("stable-baseline", await captureWrite(frame));
   await nativeSnapshot("baseline"); await nativeSnapshot("stable-baseline");
@@ -121,21 +148,25 @@ async function run() {
   for (let base = 0; base < 512000; base += 96) {
     const color = Math.floor(base / 8000), chars = Array.from({ length: 96 }, (_, j) => String.fromCodePoint(0x4e00 + ((base + j) % 8000))).join("");
     const data = `\x1b[2J\x1b[H\x1b[38;2;${160 + color % 80};${200 + Math.floor(color / 80)};230m${chars}`;
-    bytes += new TextEncoder().encode(data).byteLength; await write(secondary, data); await nextFrame();
+    bytes += new TextEncoder().encode(data).byteLength; await wireWrite(secondary, data); await nextFrame();
     combinations = base + 96;
     if (base % 9600 === 0) { emit({ phase: "atlas-growth", reference, glyph_combinations: combinations, pages: pages(primary), additions, removals }); }
     if (pages(primary).some((p: { width: number }) => p.width >= 4096)) break;
   }
   compare("after-atlas-growth-incremental", await captureWrite("\x1b[2;9H000000"));
   await nativeSnapshot("after-atlas-growth");
+  await wireWrite(secondary, "\x1b[0m\x1b[2J\x1b[H"); secondaryReady = true;
   const soakStart = performance.now();
   while (performance.now() - soakStart < seconds * 1000) {
     const value = String(iterations % 1000000).padStart(6, "0");
-    await write(primary, "\x1b[2;9H" + value);
-    if (iterations % 10 === 0) { await write(secondary, `\r\nSynthetic ${iterations} 中文 0123456789 → ± │`); secondary.scrollLines(-2); secondary.scrollToBottom(); }
+    await wireWrite(primary, "\x1b[2;9H" + value);
+    if (iterations % 10 === 0) {
+      const line = `Synthetic ${iterations} 中① ABC é`; secondaryLines.push(line);
+      await wireWrite(secondary, "\r\n" + line); secondary.scrollLines(-2); secondary.scrollToBottom();
+    }
     if (iterations % 100 === 0) {
       const parent = primary.element!.parentElement!; primary.element!.remove(); parent.appendChild(primary.element!); claimWebglRenderer(primary);
-      await write(primary, "\x1b[6;3H\x1b[7m合成ab\x1b[0m\x1b[6;3H123456\x1b[6;1H\x1b[2K" + sentinel[5]);
+      await wireWrite(primary, "\x1b[6;3H\x1b[7m合成ab\x1b[0m\x1b[6;3H123456\x1b[6;1H\x1b[2K" + sentinel[5]);
       compare("soak-" + iterations, await captureWrite("\x1b[2;9H000000"));
     }
     iterations++; await nextFrame();
@@ -145,7 +176,7 @@ async function run() {
   compare("after-explicit-full-refresh", await captureFrame(primary, () => primary.refresh(0, primary.rows - 1)));
   const buffer = Array.from({ length: primary.rows }, (_, i) => primary.buffer.active.getLine(i)?.translateToString(true) ?? "");
   for (const fontSize of [16, 18, 12, 14]) { primary.options.fontSize = fontSize; await nextFrame(); await nextFrame(); }
-  await write(primary, frame); await nextFrame(); compare("after-font-resize-return", await captureWrite(frame));
+  await wireWrite(primary, frame); await nextFrame(); compare("after-font-resize-return", await captureWrite(frame));
   primary.resize(90, 22); await nextFrame(); primary.resize(80, 20); await nextFrame();
   compare("after-grid-resize-return", await captureWrite(frame));
   await nativeZoom(1.25); await nativeZoom(1.5); await nativeZoom(1);
@@ -166,8 +197,9 @@ async function run() {
     soak_seconds: (performance.now() - soakStart) / 1000, iterations, glyph_combinations: combinations, synthetic_bytes_written: bytes, additions, removals, max_atlas_size: maxAtlas,
     glyph_shaders: glyphShaders, webgl_vendor: gl!.getParameter(gl!.VENDOR), webgl_renderer: gl!.getParameter(gl!.RENDERER),
     unmasked_renderer: debug ? gl!.getParameter(debug.UNMASKED_RENDERER_WEBGL) : "unavailable",
-    dimensions: [gl!.drawingBufferWidth, gl!.drawingBufferHeight], buffer, checks, native_snapshots: nativeSnapshots, precision: micro,
-    failed_checks: checks.filter((x) => x.different_pixels !== 0 || !x.same_dimensions).length + nativeSnapshots.filter((x) => x.valid !== true || x.different_pixels !== 0).length,
+    dimensions: [gl!.drawingBufferWidth, gl!.drawingBufferHeight], buffer, checks, native_snapshots: nativeSnapshots, buffer_checks: bufferChecks,
+    utf8_stream: { bytes: wireBytes, chunks: wireChunks, messages: wireMessages, deliberately_split_multibyte: true }, precision: micro,
+    failed_checks: checks.filter((x) => x.different_pixels !== 0 || !x.same_dimensions).length + nativeSnapshots.filter((x) => x.valid !== true || x.different_pixels !== 0).length + bufferChecks.filter((x) => !x.primary_text_matches || !x.secondary_text_matches).length,
     scope: "Actual production xterm/WebGL/font stack in this engine; synthetic data only. No SSH, user host, server change or private screenshot." };
   (window as any).__terminalRenderResult = result; emit(result);
 }

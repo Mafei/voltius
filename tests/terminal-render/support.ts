@@ -1,10 +1,10 @@
 import { Terminal } from "@xterm/xterm";
 import { claimWebglRenderer } from "@/utils/webglAddon";
-import { terminalFontStack } from "@/utils/fontStack";
+import { terminalFontOptions } from "@/utils/fontStack";
 import { synchronizeTerminalFonts } from "@/utils/terminalFonts";
 
 export const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-export const write = (term: Terminal, text: string) => new Promise<void>((resolve) => term.write(text, resolve));
+export const write = (term: Terminal, text: string | Uint8Array) => new Promise<void>((resolve) => term.write(text, resolve));
 export function emit(value: Record<string, unknown>) {
   console.log(JSON.stringify(value));
   (window as any).webkit?.messageHandlers.renderProbe.postMessage(value);
@@ -30,7 +30,7 @@ export function comparePixels(baseline: Uint8Array, actual: Uint8Array) {
 type FixtureOptions = NonNullable<ConstructorParameters<typeof Terminal>[0]>;
 export function terminalOptions(overrides: FixtureOptions = {}): FixtureOptions {
   return { allowProposedApi: true, cols: 80, rows: 20, cursorBlink: false, fontSize: 14, lineHeight: 1,
-    fontFamily: terminalFontStack("'Source Code Pro', monospace"), scrollback: 5000,
+    ...terminalFontOptions("'Source Code Pro', monospace"), scrollback: 5000,
     theme: { background: "#111827", foreground: "#e5e7eb", cursor: "#ffffff" }, ...overrides };
 }
 export function createTerminal(host: HTMLElement, overrides: FixtureOptions = {}) {

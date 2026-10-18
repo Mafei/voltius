@@ -8,6 +8,7 @@ import "@/styles/globals.css";
 
 const parameters = new URLSearchParams(location.search);
 const reference = parameters.get("precision") === "highp-reference";
+const sampleReference = parameters.get("precision") === "nearest-stable-reference";
 const seconds = Number(parameters.get("seconds") ?? 120);
 const streams = new WeakMap<Terminal, OutputDecoder>();
 const utf8 = new TextEncoder(); let wireBytes = 0, wireChunks = 0, wireMessages = 0;
@@ -27,6 +28,8 @@ const nativeSnapshots: Record<string, unknown>[] = [];
 const originalShaderSource = WebGL2RenderingContext.prototype.shaderSource;
 const glyphShaders: string[] = [];
 WebGL2RenderingContext.prototype.shaderSource = function (shader, source) {
+  if (sampleReference && source.includes("texture(u_texture[")) source = source.replace(/texture\(u_texture\[(\d+)\], v_texcoord\)/g,
+    "texture(u_texture[$1], v_texcoord + vec2(0.001, 0.0) / vec2(textureSize(u_texture[$1], 0)))");
   if (source.includes("u_texture[") && source.includes("precision lowp float;")) {
     glyphShaders.push(reference ? "highp-reference" : "production-lowp");
     if (reference) source = source.replace("precision lowp float;", "precision highp float;");
@@ -201,7 +204,7 @@ async function run() {
   pooled.forEach((term) => term.dispose()); elements.forEach((element) => element.remove());
   await nativeSnapshot("after-context-pool-recovery");
   const debug = gl!.getExtension("WEBGL_debug_renderer_info");
-  const result = { phase: "complete", reference, mode: reference ? "fixture-highp-reference" : "production", elapsed_seconds: (performance.now() - started) / 1000,
+  const result = { phase: "complete", reference, mode: sampleReference ? "fixture-nearest-stable-reference" : reference ? "fixture-highp-reference" : "production", elapsed_seconds: (performance.now() - started) / 1000,
     soak_seconds: (performance.now() - soakStart) / 1000, iterations, glyph_combinations: combinations, synthetic_bytes_written: bytes, additions, removals, max_atlas_size: maxAtlas,
     glyph_shaders: glyphShaders, webgl_vendor: gl!.getParameter(gl!.VENDOR), webgl_renderer: gl!.getParameter(gl!.RENDERER),
     unmasked_renderer: debug ? gl!.getParameter(debug.UNMASKED_RENDERER_WEBGL) : "unavailable",

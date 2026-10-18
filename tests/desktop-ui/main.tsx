@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";

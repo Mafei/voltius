@@ -25,7 +25,7 @@ let simulatedVisualHeight: number | null = null;
 function setKeyboard(open: boolean) {
   simulatedVisualHeight = innerHeight - (open ? Math.min(300, Math.round(innerHeight * 0.45)) : 0);
   Object.defineProperty(window.visualViewport, "height", { configurable: true, get: () => simulatedVisualHeight ?? innerHeight });
-  window.visualViewport.dispatchEvent(new Event("resize"));
+  window.visualViewport?.dispatchEvent(new Event("resize"));
 }
 function setLayout(layout: string) {
   const sessions = layout === "single-short" ? [cases[0]] : layout === "single-long" ? [cases[2]] : layout === "single-plain" ? [cases[5]] : cases;

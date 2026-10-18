@@ -10,7 +10,7 @@ export default function MobileGesturesFixture() {
   useApplyTheme();
   const { attach, fit } = useTerminal({ sessionId: id, sessionType: "local" });
   useEffect(() => {
-    const session = { id, connectionName: "Synthetic local shell", title: "Gesture fixture", type: "local" as const, status: "connected" as const };
+    const session = { id, connectionId: "synthetic-local", connectionName: "Synthetic local shell", title: "Gesture fixture", type: "local" as const, status: "connected" as const };
     useSessionStore.setState({ sessions: [session], activeSessionId: id }); fit();
     const write = async (text: string) => { nativeFixture.write(id, text); await new Promise(r => setTimeout(r, 80)); };
     Object.assign(window, { __mobileGestures: { write, api: () => getTerminalApi(id), inputs: nativeFixture.inputs,

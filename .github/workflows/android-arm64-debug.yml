@@ -33,8 +33,8 @@ jobs:
           verifier: scripts/verify-android-mobile.mjs
           evidence-root: android-mobile-ui-evidence
           artifact-name: Voltius-mobile-browser-${{ github.sha }}
-      - name: Typecheck the actual xterm cursor fixture
-        run: pnpm exec tsc --project tests/desktop-ui/tsconfig.cursor.json
+      - name: Typecheck all production mobile browser fixtures
+        run: pnpm exec tsc --project tests/desktop-ui/tsconfig.mobile.json
   build:
     if: github.repository == 'Mafei/voltius' && !startsWith(github.ref, 'refs/heads/candidate/android-ui-check-')
     needs: mobile-ui

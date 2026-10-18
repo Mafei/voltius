@@ -32,7 +32,8 @@ import org.json.JSONObject
 object TerminalKeyboard {
   private const val TAG = "TerminalKeyboard"
   private var inputView: TerminalInputView? = null
-  private var webView: WebView? = null
+  internal var webView: WebView? = null
+    private set
   @Volatile private var volumeCtrl = false
   private var volumeCtrlHeld = false
 
@@ -68,16 +69,20 @@ object TerminalKeyboard {
     }
   }
 
-  /** JS asked to dismiss the keyboard (terminal blurred / session closed). */
+  /** JS asked to dismiss the keyboard. [focusWebView]: native text selection needs WebView focus. */
   @JvmStatic
-  fun hide() {
+  fun hide(focusWebView: Boolean) {
     val view = inputView ?: return
     view.post {
       volumeCtrlHeld = false
       val imm = view.context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
       imm?.hideSoftInputFromWindow(view.windowToken, 0)
       view.clearFocus()
-      webView?.let { it.isFocusable = true; it.isFocusableInTouchMode = true }
+      webView?.let {
+        it.isFocusable = true
+        it.isFocusableInTouchMode = true
+        if (focusWebView) it.requestFocus()
+      }
     }
   }
 
@@ -109,7 +114,10 @@ object TerminalKeyboard {
     eval("window.__voltiusTermKey", JSONObject.quote(name))
   }
 
-  private fun eval(fn: String, vararg jsArgs: String) {
+  @JvmStatic
+  fun setSelectionTouchFeed(on: Boolean) = SelectionTouchFeed.setEnabled(on)
+
+  internal fun eval(fn: String, vararg jsArgs: String) {
     val wv = webView ?: return
     val js = "if(typeof $fn==='function'){$fn(${jsArgs.joinToString(",")});}"
     wv.post { wv.evaluateJavascript(js, null) }

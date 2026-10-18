@@ -75,9 +75,14 @@ export function showAndroidKeyboard(sessionId: string): void {
   void invoke("terminal_show_keyboard", { volumeCtrl: getToggle("volume-down-ctrl") }).catch(() => {});
 }
 
-/** Dismiss the native keyboard. */
-export function hideAndroidKeyboard(): void {
-  void invoke("terminal_hide_keyboard").catch(() => {});
+/** Dismiss the native keyboard; `focusWebView` hands Android focus to the WebView for native selection. */
+export function hideAndroidKeyboard(focusWebView = false): void {
+  void invoke("terminal_hide_keyboard", { focusWebView }).catch(() => {});
+}
+
+/** Native finger reports (`window.__voltiusSelTouch`) for terminal selection autoscroll. */
+export function setSelectionTouchFeed(on: boolean): void {
+  void invoke("terminal_selection_touch_feed", { on }).catch(() => {});
 }
 
 /** Point native input at a session without toggling keyboard visibility (e.g. tab switch). */

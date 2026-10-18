@@ -41,10 +41,14 @@ function genericFamilyIndex(entries: string[]): number {
   );
 }
 
+export function fontStackEntries(fontFamily: string): string[] {
+  return fontFamily.split(",");
+}
+
 /** xterm sizes the cell from the stack's first loaded face, and WebKit ignores `unicode-range`
  *  there, so the glyph-only fallback faces must come after the always-resolving generic. */
 export function terminalFontStack(fontFamily: string): string {
-  const entries = fontFamily.split(",");
+  const entries = fontStackEntries(fontFamily);
   let genericIndex = genericFamilyIndex(entries);
   if (genericIndex === -1) {
     entries.push(" monospace");

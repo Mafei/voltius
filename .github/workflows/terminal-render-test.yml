@@ -7,7 +7,27 @@ permissions:
 concurrency:
   group: terminal-render-${{ github.ref }}
   cancel-in-progress: true
+env:
+  CARGO_BUILD_JOBS: '4'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  CARGO_PROFILE_TEST_DEBUG: '0'
+  VOLTIUS_REQUIRE_SEEDED_PLUGINS: '1'
 jobs:
+  native-build:
+    if: github.repository == 'Mafei/voltius' && !contains(github.ref, '-probe-')
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/build-desktop-platform
+        with:
+          target: aarch64-apple-darwin
+          bundles: app
+          label: macos-arm64
+          frontend-tests: 'true'
   native-render:
     if: github.repository == 'Mafei/voltius'
     runs-on: macos-15

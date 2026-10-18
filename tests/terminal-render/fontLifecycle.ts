@@ -18,13 +18,14 @@ async function run() {
   await write(cold, frame); await nextFrame();
   const expected = await captureFrame(cold, () => { void write(cold, frame); });
   const afterLoad = comparePixels(expected, live);
+  const afterLoadDimensions = [renderer(term)._gl.drawingBufferWidth, renderer(term)._gl.drawingBufferHeight];
   const afterLoadImage = await nativeViewSnapshot("font-after-load", document.getElementById("primary")!, true);
   term.clearTextureAtlas();
   const afterClear = await captureFrame(term, () => { void write(term, frame); });
   term.options.fontFamily = terminalFontStack(' "Synthetic Delayed Mono", monospace');
   const afterRemeasure = await captureFrame(term, () => { void write(term, frame); });
   const afterRemeasureImage = await nativeViewSnapshot("font-after-remeasure", document.getElementById("primary")!, true);
-  const result = { phase: "complete", case: "delayed-font-availability", initial, final_font_status: face.status,
+  const result = { phase: "complete", case: "delayed-font-availability", initial, after_load_dimensions: afterLoadDimensions, final_font_status: face.status,
     dimensions: { live: [renderer(term)._gl.drawingBufferWidth, renderer(term)._gl.drawingBufferHeight], cold: [renderer(cold)._gl.drawingBufferWidth, renderer(cold)._gl.drawingBufferHeight] },
     after_load_vs_cold: afterLoad, after_cache_clear_vs_cold: comparePixels(expected, afterClear), after_option_remeasure_vs_cold: comparePixels(expected, afterRemeasure),
     pre_post_load: comparePixels(before, live), failed_checks: afterLoad.different_pixels === 0 && afterLoad.same_dimensions ? 0 : 1,

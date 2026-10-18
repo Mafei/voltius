@@ -1,6 +1,7 @@
 import { Terminal } from "@xterm/xterm";
 import { claimWebglRenderer } from "@/utils/webglAddon";
 import { terminalFontStack } from "@/utils/fontStack";
+import { synchronizeTerminalFonts } from "@/utils/terminalFonts";
 
 export const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 export const write = (term: Terminal, text: string) => new Promise<void>((resolve) => term.write(text, resolve));
@@ -33,7 +34,7 @@ export function terminalOptions(overrides: FixtureOptions = {}): FixtureOptions 
     theme: { background: "#111827", foreground: "#e5e7eb", cursor: "#ffffff" }, ...overrides };
 }
 export function createTerminal(host: HTMLElement, overrides: FixtureOptions = {}) {
-  const term = new Terminal(terminalOptions(overrides)); term.open(host); claimWebglRenderer(term); return term;
+  const term = new Terminal(terminalOptions(overrides)); term.open(host); claimWebglRenderer(term); synchronizeTerminalFonts(term, () => {}); return term;
 }
 /** Read the actual default framebuffer in the rendering call stack, before compositor clearing. */
 export async function captureFrame(term: Terminal, trigger: () => void): Promise<Uint8Array> {

@@ -1,5 +1,8 @@
 import { useEffect } from "react";
 import MobileTerminalScreen from "@/components/mobile/screens/MobileTerminalScreen";
+import MobileTerminalPanelsRow from "@/components/mobile/MobileTerminalPanelsRow";
+import { terminalPanelsVisible } from "@/components/mobile/terminalChromeState";
+import { useUIStore } from "@/stores/uiStore";
 import MobileExtraKeysRow from "@/components/mobile/MobileExtraKeysRow";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useMobileNavStore } from "@/stores/mobileNavStore";
@@ -38,11 +41,14 @@ function setLayout(layout: string) {
 export default function MobileTabFixture() {
   useApplyTheme();
   const { usableHeight, keyboardVisible } = useVisualViewport();
+  const panelsNormal = useUIStore((s) => s.terminalPanelsRowOpen);
+  const panelsKeyboard = useUIStore((s) => s.terminalPanelsRowKeyboardOpen);
   useEffect(() => {
     document.documentElement.dataset.mobileTabFixture = "";
     setLayout("many");
     setKeyboard(false);
     Object.assign(window, { __mobileTabFixture: { setLayout, setKeyboard, metrics, inputMetrics,
+      setPanels: (open: boolean) => useUIStore.setState({ terminalPanelsRowOpen: open, terminalPanelsRowKeyboardOpen: open }),
       resetInput: () => { inputMetrics.length = 0; useModifierLatchStore.setState({ ctrl: "off", alt: "off" }); },
       state: () => ({ active: useSessionStore.getState().activeSessionId, tab: useMobileNavStore.getState().tab, ctrl: useModifierLatchStore.getState().ctrl }) } });
     return () => { delete document.documentElement.dataset.mobileTabFixture; };
@@ -50,7 +56,7 @@ export default function MobileTabFixture() {
   return <><main data-mobile-tab-fixture data-keyboard-open={keyboardVisible} className="chrome-frame h-screen w-full flex flex-col overflow-hidden" style={{ height: usableHeight || undefined }}>
     <style>{`
       [data-mobile-tab-fixture] [data-mobile-session-label]{font-size:calc(var(--text-xs) * var(--fixture-font-scale,1))}
-      [data-mobile-tab-fixture] [data-mobile-extra-keys] button{font-size:calc(var(--text-xs) * var(--fixture-font-scale,1))}
+      [data-mobile-tab-fixture] :is([data-mobile-extra-keys],[data-mobile-panels-row]) button{font-size:calc(var(--text-xs) * var(--fixture-font-scale,1))}
       /* Before-image emulation: old heights/inherited lines on the same production component. */
       [data-mobile-legacy] [data-mobile-terminal-topbar]{height:2.75rem;min-height:0;border-bottom:1px solid var(--t-border);box-shadow:none}
       [data-mobile-legacy] [data-mobile-session-strip]{height:100%;padding-block:0}
@@ -77,6 +83,7 @@ export default function MobileTabFixture() {
         <p>No real SSH, user host, screenshot or credentials.</p>
       </div>
     </div>
+    {terminalPanelsVisible(panelsNormal, panelsKeyboard, keyboardVisible) && <MobileTerminalPanelsRow />}
     <MobileExtraKeysRow keyboardOpen={keyboardVisible} />
   </main>{keyboardVisible && <div data-simulated-ime className="fixed bottom-0 left-0 w-full bg-slate-800 text-white p-2" style={{ height: innerHeight - usableHeight }}>Simulated IME viewport inset — no OS keyboard.</div>}</>;
 }

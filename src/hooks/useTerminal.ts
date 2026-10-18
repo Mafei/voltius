@@ -35,7 +35,8 @@ import { keyToBytes } from "@/services/terminalKeyCore";
 import { handleDuplicateShortcut } from "@/services/duplicateSession";
 import type { TerminalTheme } from "@/themes/types";
 import type { UnlistenFn } from "@tauri-apps/api/event";
-import { terminalFontStack } from "@/utils/fontStack";
+import { scrollTerminalByTouch } from "@/utils/terminalTouchScroll";
+import { terminalFontOptions, terminalFontStack } from "@/utils/fontStack";
 import { applyTerminalTheme, clampTerminalLineHeight, subscribeTerminalCursor, subscribeTerminalTheme } from "@/utils/terminalTheme";
 import { getPlatform } from "@/utils/platform";
 import { synchronizeAndroidCursorFocus } from "@/utils/androidCursorFocus";
@@ -560,6 +561,7 @@ export function getAppCursorMode(sessionId: string): boolean {
 
 export interface TerminalApi {
   scrollLines(delta: number): void;
+  scrollByTouch(deltaY: number, x: number, y: number): void;
   cols(): number;
   rows(): number;
   /** Absolute buffer line at the top of the viewport. */
@@ -595,6 +597,7 @@ export function getTerminalApi(sessionId: string): TerminalApi | null {
   const term = entry.terminal;
   return {
     scrollLines: (delta) => term.scrollLines(delta),
+    scrollByTouch: (deltaY, x, y) => scrollTerminalByTouch(term, deltaY, x, y),
     cols: () => term.cols,
     rows: () => term.rows,
     viewportTop: () => term.buffer.active.viewportY,
@@ -819,7 +822,7 @@ export function useTerminal({ sessionId, sessionType, onClosed, inputGate, encod
         cursorStyle,
         fontSize: activeTheme.terminalFontSize,
         lineHeight: clampTerminalLineHeight(activeTheme.terminalLineHeight),
-        fontFamily: terminalFontStack(activeTheme.terminalFontFamily),
+        ...terminalFontOptions(activeTheme.terminalFontFamily),
         scrollback,
         theme: activeTheme.terminal,
         overviewRuler: { width: 4 },

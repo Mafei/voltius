@@ -1,3 +1,4 @@
+import { TwoFingerGesture } from "./twoFingerGesture";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getTerminalApi } from "@/hooks/useTerminal";
@@ -9,7 +10,6 @@ import {
   cellFromPoint,
   fontSizeFromPinch,
   linesFromPixelDelta,
-  touchDistance,
   wordRangeAt,
   isBlankCell,
   extendSelection,
@@ -33,7 +33,7 @@ type HandlePositions = { start: { x: number; y: number }; end: { x: number; y: n
 /**
  * Mobile-only unified terminal gesture layer. One-finger immediate drag scrolls;
  * a long-press selects (on text) or pastes (on blank). Double-tap sends Tab.
- * Two fingers pinch the terminal font size (#159), which is the only text on a
+ * Two fingers translate to scroll; a deliberate pinch changes font size (#159), the only text on a
  * phone that has to stay readable independently of the surrounding UI.
  * Single taps pass through to xterm (focus → keyboard). Attaches capture-phase
  * touch listeners to the terminal container so it can pre-empt xterm's own
@@ -58,7 +58,7 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
   const lastTap = useRef<TapPoint | null>(null);
-  const pinch = useRef<{ dist: number; size: number } | null>(null);
+  const pinch = useRef<{ gesture: TwoFingerGesture; size: number } | null>(null);
   const dragHandle = useRef<"start" | "end" | null>(null);
   const dragFixed = useRef<Cell | null>(null);
 
@@ -168,12 +168,16 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
         getTerminalApi(sessionId)?.clearSelection();
         closeToolbar();
       }
+      if (pinch.current) {
+        e.preventDefault(); e.stopPropagation(); pinch.current.gesture.cancel(); return;
+      }
       if (e.touches.length === 2) {
+        e.preventDefault(); e.stopPropagation(); lastTap.current = null;
         clearLongPress();
         longPressFired.current = false;
         phase.current = "pinching";
         pinch.current = {
-          dist: touchDistance(e.touches[0], e.touches[1]),
+          gesture: new TwoFingerGesture(e.touches[0], e.touches[1]),
           size: useThemeStore.getState().getActiveTheme().terminalFontSize,
         };
         return;
@@ -211,17 +215,14 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
       }
       if (phase.current === "pinching") {
         const p = pinch.current;
-        if (!p || e.touches.length < 2) return;
-        e.preventDefault();
-        const size = fontSizeFromPinch(
-          p.size,
-          p.dist,
-          touchDistance(e.touches[0], e.touches[1]),
-          MIN_TERMINAL_FONT_SIZE,
-          MAX_TERMINAL_FONT_SIZE,
-        );
-        if (size !== useThemeStore.getState().getActiveTheme().terminalFontSize) {
-          useUIStore.getState().setTerminalFontSize(size);
+        if (!p) return;
+        e.preventDefault(); e.stopPropagation();
+        const motion = p.gesture.move(e.touches);
+        if (motion.intent === "scroll") {
+          getTerminalApi(sessionId)?.scrollByTouch(-motion.dy, motion.x, motion.y);
+        } else if (motion.intent === "pinch") {
+          const size = fontSizeFromPinch(p.size, 1, motion.ratio, MIN_TERMINAL_FONT_SIZE, MAX_TERMINAL_FONT_SIZE);
+          if (size !== useThemeStore.getState().getActiveTheme().terminalFontSize) useUIStore.getState().setTerminalFontSize(size);
         }
         return;
       }
@@ -275,6 +276,7 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
 
       if (wasPhase === "pinching") {
         e.preventDefault();
+        e.stopPropagation(); pinch.current?.gesture.cancel();
         // The lifted finger must not be read as the start of a tap or a scroll.
         if (e.touches.length === 0) reset();
         return;
@@ -319,6 +321,8 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
     };
 
     const onTouchCancel = () => reset();
+    const cancelViewportGesture = () => { pinch.current?.gesture.cancel(); clearLongPress(); };
+    window.visualViewport?.addEventListener("resize", cancelViewportGesture);
 
     const opts: AddEventListenerOptions = { capture: true, passive: false };
     container.addEventListener("touchstart", onTouchStart, opts);
@@ -331,6 +335,7 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
       container.removeEventListener("touchmove", onTouchMove, rm);
       container.removeEventListener("touchend", onTouchEnd, rm);
       container.removeEventListener("touchcancel", onTouchCancel, rm);
+      window.visualViewport?.removeEventListener("resize", cancelViewportGesture);
       clearLongPress();
       lastTap.current = null;
       getTerminalApi(sessionId)?.clearSelection();

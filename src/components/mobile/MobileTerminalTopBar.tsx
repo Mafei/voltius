@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties } from "react";
+import { useRef, useState } from "react";
 import { Icon } from "@iconify/react";
 import { useTranslation } from "react-i18next";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -12,6 +12,7 @@ import { StatusDot } from "@/components/shared/StatusDot";
 import { sessionLabel } from "@/utils/sessionLabel";
 import { sessionStatusTone } from "@/utils/statusTone";
 import "./terminalChrome.css";
+import { terminalChromeFaceStyle } from "./terminalChrome";
 
 const iconButtonClass = "inline-flex size-(--mobile-touch-size) shrink-0 items-center justify-center";
 
@@ -82,14 +83,11 @@ export default function MobileTerminalTopBar() {
               data-mobile-session-chip={s.id}
               data-active={active}
               className="mobile-chrome-face min-w-0 max-w-full shrink-0 flex items-center gap-[6px] rounded-full pl-[8px] pr-[2px] font-medium whitespace-nowrap"
-              style={{
-                "--mobile-face-bg": active ? "var(--t-bg-elevated)" : "var(--t-bg-card)",
-                color: active ? "var(--t-text-bright)" : "var(--t-text-primary)",
-              } as CSSProperties}
+              style={terminalChromeFaceStyle(active ? "var(--t-bg-elevated)" : "var(--t-bg-card)", active ? "var(--t-text-bright)" : "var(--t-text-primary)")}
             >
               <StatusDot tone={sessionStatusTone(s.status)} size="sm" />
               <button data-mobile-session-label onClick={() => setActive(s.id)}
-                className="min-w-0 max-w-[16rem] min-h-(--mobile-touch-size) flex-1 flex flex-col justify-center py-[2px] text-left text-xs leading-[1.3]"
+                className="min-w-0 max-w-[16rem] min-h-(--mobile-touch-size) flex-1 flex flex-col justify-center text-left text-xs leading-[1.3]"
                 aria-label={fullTitle} aria-pressed={active} title={fullTitle}>
                 <span data-mobile-session-primary className="block w-full truncate leading-[1.3]">{primary}</span>
                 {secondary && <span data-mobile-session-secondary className="block w-full truncate text-[0.85em] leading-[1.3] opacity-75">{secondary}</span>}

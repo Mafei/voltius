@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import {mkdir,writeFile} from 'node:fs/promises';
+import path from 'node:path';
+import {launchFixtureBrowser,createFixtureContext} from './desktop-ui-browser.mjs';
+const output=process.env.VOLTIUS_UI_EVIDENCE||'mobile-gesture-evidence';await mkdir(output,{recursive:true});const b=await launchFixtureBrowser(),results=[];
+try{const c=await createFixtureContext(b,{viewport:{width:393,height:852},isMobile:true,hasTouch:true,userAgent:'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/131.0.0.0 Mobile Safari/537.36'}),p=await c.newPage();const errors=[];p.on('pageerror',e=>errors.push(String(e)));await p.goto('http://127.0.0.1:1428/tests/desktop-ui/index.html?mobile-gestures=1');await p.waitForFunction(()=>window.__mobileGestures?.api()?.cols()>0);const cdp=await c.newCDPSession(p);
+const state=()=>p.evaluate(()=>({size:window.__mobileGestures.size(),top:window.__mobileGestures.api().viewportTop(),inputs:window.__mobileGestures.inputs.flat(),zoom:visualViewport.scale}));
+const dispatch=async(type,points)=>{await cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points.map(([x,y],i)=>({x,y,id:i+1}))});await p.waitForTimeout(35);};
+const parallel=async()=>{await dispatch('touchStart',[[90,230],[210,230]]);for(const [dy,jitter] of [[-15,2],[-40,-3],[-80,4],[-120,-2]])await dispatch('touchMove',[[90-jitter,230+dy],[210+jitter,230+dy]]);await dispatch('touchEnd',[]);};
+for(const mode of ['shell','zellij-mouse','alternate-arrows']){await p.evaluate(()=>window.__mobileGestures.reset());if(mode!=='shell')await p.evaluate(mode=>window.__mobileGestures.write(mode==='zellij-mouse'?'\x1b[?1049h\x1b[?1000h\x1b[?1006h':'\x1b[?1049h'),mode);const before=await state();await parallel();const after=await state();assert.equal(after.size,before.size,'parallel span jitter cannot zoom');assert.equal(after.zoom,1,'native viewport zoom suppressed');if(mode==='shell'){// Drag down to scroll back from the bottom.
+ await dispatch('touchStart',[[90,200],[210,200]]);await dispatch('touchMove',[[92,250],[208,250]]);await dispatch('touchMove',[[90,320],[210,320]]);await dispatch('touchEnd',[]);assert((await state()).top<before.top,'shell scrollback changes '+JSON.stringify({before,after:await state(),screen:await p.evaluate(()=>({text:window.__mobileGestures.api().lineText(0),rows:window.__mobileGestures.api().rows()}))}));}else{assert(after.inputs.length>before.inputs.length,'TUI receives input');const text=String.fromCharCode(...after.inputs);assert(mode==='zellij-mouse'?/\x1b\[<6[45];/.test(text):/\x1b(?:\[|O)[AB]/.test(text),'appropriate mouse wheel or alternate arrows');}results.push({mode,before,after:await state()});}
+await p.evaluate(()=>window.__mobileGestures.reset());const before=await state();await dispatch('touchStart',[[90,240],[210,240]]);await dispatch('touchMove',[[60,240],[240,240]]);await dispatch('touchMove',[[40,240],[260,240]]);await dispatch('touchEnd',[]);assert((await state()).size>before.size,'clear pinch changes terminal font');assert.equal((await state()).zoom,1);
+// A locked diagonal translation never becomes zoom when span subsequently changes.
+const start=await state();await dispatch('touchStart',[[90,230],[210,230]]);await dispatch('touchMove',[[110,260],[230,260]]);await dispatch('touchMove',[[80,300],[280,300]]);await dispatch('touchEnd',[]);assert.equal((await state()).size,start.size);
+// Contact removal, third contact and cancellation must not synthesize taps/Tab/zoom.
+for(const kind of ['remove','third','cancel','viewport']){
+ const before=await state();await p.evaluate(kind=>{
+  const n=window.__mobileGestures.api().screenEl(),touch=(id,x,y)=>new Touch({identifier:id,target:n,clientX:x,clientY:y});
+  const send=(type,touches)=>n.dispatchEvent(new TouchEvent(type,{touches,targetTouches:touches,changedTouches:touches,bubbles:true,cancelable:true}));
+  const initial=[touch(1,90,230),touch(2,210,230)];send('touchstart',initial);
+  if(kind==='third')send('touchstart',[...initial,touch(3,300,250)]);
+  else if(kind==='remove')send('touchend',[initial[0]]);
+  else if(kind==='cancel')send('touchcancel',[]);
+  else visualViewport.dispatchEvent(new Event('resize'));
+  if(kind!=='cancel')send('touchmove',kind==='remove'?[touch(1,90,280)]:[touch(1,60,230),touch(2,250,230)]);
+  send('touchend',[]);
+ },kind);await p.waitForTimeout(50);const after=await state();assert.equal(after.size,before.size,kind);assert.equal(after.inputs.length,before.inputs.length,kind);results.push({kind,before,after});
+}
+// Retain one-finger scroll and long-press selection through the same component.
+await p.evaluate(()=>window.__mobileGestures.reset());const one=await state();await dispatch('touchStart',[[90,200]]);await dispatch('touchMove',[[90,230]]);await dispatch('touchMove',[[90,330]]);await dispatch('touchEnd',[]);assert((await state()).top<one.top);await dispatch('touchStart',[[70,130]]);await p.waitForTimeout(450);await dispatch('touchEnd',[]);assert((await p.evaluate(()=>window.__mobileGestures.api().getSelection())).length>0,'one finger long press selects');
+assert.deepEqual(errors,[]);await p.screenshot({path:path.join(output,'gestures-synthetic.png')});await writeFile(path.join(output,'GESTURE-VALIDATION.json'),JSON.stringify({scope:'Actual production gesture component, xterm, wheel routing; synthetic local transport and TUI escape sequences. No Android device/WebView/native IME or real Zellij process.',results,pinch:true,diagonal:true,errors},null,2));console.log(JSON.stringify({gestures:'passed',routing_modes:3,lifecycle_cases:4}));await c.close();}finally{await b.close();}

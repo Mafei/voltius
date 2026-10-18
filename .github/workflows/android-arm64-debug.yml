@@ -30,7 +30,7 @@ jobs:
           fc-match ':lang=zh'
       - uses: ./.github/actions/verify-browser-ui
         with:
-          verifier: scripts/verify-mobile-tabs.mjs
+          verifier: scripts/verify-android-mobile.mjs
           evidence-root: android-mobile-ui-evidence
           artifact-name: Voltius-mobile-browser-${{ github.sha }}
       - name: Typecheck the actual xterm cursor fixture

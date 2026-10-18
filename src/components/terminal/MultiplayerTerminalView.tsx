@@ -9,7 +9,7 @@ import { useTerminalSettingsStore } from "@/stores/terminalSettingsStore";
 import { getToggle } from "@/stores/toggleSettingsStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { attachGuestOutput, useTeamSessionStore } from "@/stores/teamSessionStore";
-import { terminalFontStack } from "@/utils/fontStack";
+import { terminalFontOptions } from "@/utils/fontStack";
 import { clampTerminalLineHeight, subscribeTerminalCursor, subscribeTerminalTheme } from "@/utils/terminalTheme";
 import "@xterm/xterm/css/xterm.css";
 
@@ -43,7 +43,7 @@ function mountGuestTerminal(localSessionId: string, container: HTMLDivElement): 
     cursorStyle,
     fontSize: activeTheme.terminalFontSize,
     lineHeight: clampTerminalLineHeight(activeTheme.terminalLineHeight),
-    fontFamily: terminalFontStack(activeTheme.terminalFontFamily),
+    ...terminalFontOptions(activeTheme.terminalFontFamily),
     scrollback,
     theme: activeTheme.terminal,
     allowProposedApi: true,

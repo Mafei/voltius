@@ -16,6 +16,7 @@ import type { Connection } from "@/types";
 import TabLabelFixture from "./tabLabels";
 import { preloadIcons } from "@/utils/icons";
 import MobileTabFixture from "./mobileTabs";
+import MobileGesturesFixture from "./mobileGestures";
 import AndroidCursorFixture from "./androidCursor";
 
 preloadIcons();
@@ -46,5 +47,9 @@ function App() {
     {chooser && <SessionConnectionForm connection={host} presentation="dialog" onClose={() => setChooser(false)} onOpened={(id) => { setOpened(id); setChooser(false); }} />}
   </div>;
 }
+function MobileGlyphFixture() {
+  useEffect(() => { void import("../terminal-render/ambiguous"); }, []);
+  return <main><p>Synthetic Android font/renderer probe — no device or private screenshot.</p><div id="primary" /></main>;
+}
 const parameters = new URLSearchParams(location.search);
-createRoot(document.getElementById("root")!).render(parameters.has("android-cursor") ? <AndroidCursorFixture /> : parameters.has("mobile-tabs") ? <MobileTabFixture /> : parameters.has("tab-labels") ? <TabLabelFixture /> : <App />);
+createRoot(document.getElementById("root")!).render(parameters.has("mobile-glyphs") ? <MobileGlyphFixture /> : parameters.has("mobile-gestures") ? <MobileGesturesFixture /> : parameters.has("android-cursor") ? <AndroidCursorFixture /> : parameters.has("mobile-tabs") ? <MobileTabFixture /> : parameters.has("tab-labels") ? <TabLabelFixture /> : <App />);

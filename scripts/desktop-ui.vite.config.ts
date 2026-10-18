@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import svgr from "vite-plugin-svgr";
 import path from "node:path";
+import { realpathSync } from "node:fs";
 import { iconSubsets } from "../vite-plugin-icon-subsets";
 const root = path.resolve(import.meta.dirname, "..");
 export default defineConfig({
@@ -16,6 +17,6 @@ export default defineConfig({
     { find: "@voltius/tools", replacement: path.join(root, "src/plugins/toolSurface/index.ts") },
     { find: "@", replacement: path.join(root, "src") },
   ] },
-  server: { host: "127.0.0.1", port: 1428, strictPort: true, watch: { ignored: ["**/target/**", "**/node_modules/**"] } },
+  server: { fs: { allow: [root, realpathSync(path.join(root, "node_modules"))] }, host: "127.0.0.1", port: 1428, strictPort: true, watch: { ignored: ["**/target/**", "**/node_modules/**"] } },
   build: { outDir: path.join(root, "node_modules/.cache/voltius-desktop-ui"), rollupOptions: { input: path.join(root, "tests/desktop-ui/index.html") } },
 });

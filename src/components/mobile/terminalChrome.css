@@ -1,5 +1,8 @@
 /* Shared mobile chrome density; font sizes remain user-scalable. */
-.mobile-terminal-chrome { --mobile-touch-size: 40px; }
+.mobile-terminal-chrome { --mobile-touch-size: 40px; --mobile-toolbar-gap: 6px; --mobile-toolbar-padding-x: 3px; --mobile-face-inset: 2px; --mobile-tab-text-top: 2px; --mobile-tab-text-bottom: 8px; }
+.mobile-terminal-toolbar { box-sizing: border-box; min-width: 0; flex-shrink: 0; display: flex; align-items: center; gap: var(--mobile-toolbar-gap); padding: 0 var(--mobile-toolbar-padding-x); border-block: 1px solid var(--t-border); background: var(--t-bg-chrome); }
+.mobile-terminal-toolbar-strip { display: flex; align-items: center; gap: var(--mobile-toolbar-gap); }
+.mobile-terminal-toolbar-button { box-sizing: border-box; flex-shrink: 0; display: flex; align-items: center; justify-content: center; gap: var(--mobile-toolbar-gap); min-width: var(--mobile-touch-size); min-height: var(--mobile-touch-size); height: max(var(--mobile-touch-size), calc(1.25em + 4px)); padding: 2px 6px; border-radius: var(--radius-lg); font-size: var(--text-xs); line-height: 1.25; white-space: nowrap; }
 .mobile-terminal-chrome-scroll { scrollbar-width: none; }
 .mobile-terminal-chrome-scroll::-webkit-scrollbar { display: none; }
 .mobile-terminal-chrome button:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
@@ -8,7 +11,7 @@
    the row: only the background is inset; labels are never scaled or clipped. */
 .mobile-chrome-face { position: relative; isolation: isolate; }
 .mobile-chrome-face::before {
-  content: ""; position: absolute; inset: 2px 0; z-index: -1;
+  content: ""; position: absolute; inset: var(--mobile-face-inset) 0; z-index: -1;
   border-radius: inherit; background: var(--mobile-face-bg, var(--t-bg-card));
   box-shadow: inset 0 0 0 1px var(--t-border); pointer-events: none;
 }
@@ -16,6 +19,7 @@
   content: ""; position: absolute; bottom: 3px; left: 10px; right: 10px; height: 2px;
   background: var(--t-accent); border-radius: 2px; pointer-events: none;
 }
+[data-mobile-session-label] { padding-top: var(--mobile-tab-text-top); padding-bottom: var(--mobile-tab-text-bottom); }
 [data-mobile-session-close] { border-left: 1px solid var(--t-border); border-radius: 0 999px 999px 0; }
 .mobile-key-scroll-wrap { min-width: 0; flex: 1; position: relative; }
 .mobile-key-scroll-wrap::after {

@@ -1,5 +1,11 @@
 /** Browser fixture only. No native calls, credentials, user host or network connection. */
-export async function invoke(command: string) { return command === "get_platform" ? new URLSearchParams(location.search).has("mobile-tabs") ? "android" : "linux" : null; }
+export const nativeFixture = { outputs: new Map<string, { onmessage: (value: unknown) => void }>(), inputs: [] as number[][],
+  write(sessionId: string, text: string) { this.outputs.get(sessionId)?.onmessage(Array.from(new TextEncoder().encode(text))); } };
+export async function invoke(command: string, args?: Record<string, unknown>) {
+  if (command === "terminal_output_attach") nativeFixture.outputs.set(args!.sessionId as string, args!.channel as { onmessage: (value: unknown) => void });
+  if (command.endsWith("_send_input")) nativeFixture.inputs.push(args!.data as number[]);
+  return command === "get_platform" ? /mobile-tabs|mobile-gestures/.test(location.search) ? "android" : "linux" : null;
+}
 export async function listen() { return () => {}; }
 export async function emit() {}
 export async function emitTo() {}

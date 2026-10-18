@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "@iconify/react";
 import { useSessionStore } from "@/stores/sessionStore";
 import { isActive, type Modifier } from "@/stores/modifierLatchCore";
@@ -8,6 +8,7 @@ import type { SpecialKey } from "@/services/terminalKeyCore";
 import { useUIStore } from "@/stores/uiStore";
 import { useTranslation } from "react-i18next";
 import "./terminalChrome.css";
+import { terminalChromeFaceStyle as keyFace } from "./terminalChrome";
 import { terminalPanelsVisible } from "./terminalChromeState";
 
 type KeyDef = { key: SpecialKey; label?: string; icon?: string };
@@ -19,12 +20,11 @@ const KEYS: KeyDef[] = [
   { key: "Home", label: "Home" }, { key: "End", label: "End" }, { key: "PgUp", label: "PgUp" }, { key: "PgDn", label: "PgDn" },
 ];
 const MODS: { mod: Modifier; label: string }[] = [ { mod: "ctrl", label: "Ctrl" }, { mod: "alt", label: "Alt" } ];
-const keyClass = "mobile-chrome-face shrink-0 min-w-(--mobile-touch-size) min-h-(--mobile-touch-size) px-[6px] py-[2px] rounded-lg text-xs leading-[1.25] whitespace-nowrap flex items-center justify-center";
+const keyClass = "mobile-chrome-face mobile-terminal-toolbar-button";
 function clearPressTimer(timer: { current: ReturnType<typeof setTimeout> | null }) {
   if (timer.current) clearTimeout(timer.current);
   timer.current = null;
 }
-const keyFace = (background: string, color = "var(--t-text-primary)"): CSSProperties => ({ "--mobile-face-bg": background, color }) as CSSProperties;
 // Touchend already handles taps; detail=0 preserves keyboard/assistive activation.
 const isActivationClick = (event: React.MouseEvent) => !("ontouchstart" in window) || event.detail === 0;
 
@@ -72,18 +72,13 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
   const keepKeyboardClosed = () => { if (!keyboardOpen) (document.activeElement as HTMLElement | null)?.blur(); };
 
   return (
+    // Keep system navigation inset outside both identically measured toolbars.
+    <div className="shrink-0 min-w-0" style={{ paddingBottom: keyboardOpen ? 0 : "env(safe-area-inset-bottom)", background: "var(--t-bg-chrome)" }}>
     <div ref={rootRef} data-mobile-extra-keys data-modifiers-pinned={pinned} data-mobile-key-scroll={!pinned || undefined}
-      className="mobile-terminal-chrome mobile-terminal-chrome-scroll min-w-0 shrink-0 flex items-center gap-[6px] px-[4px]"
-      style={{
-        overflowX: pinned ? "visible" : "auto",
-        background: "var(--t-bg-chrome)", boxShadow: "inset 0 1px var(--t-border)",
-        // Keyboard closed: the shell spans edge-to-edge, so inset the row above the Android
-        // system nav bar. Keyboard open: stay flush above the keyboard (no inset; the nav bar
-        // is behind the keyboard).
-        paddingBottom: keyboardOpen ? 0 : "env(safe-area-inset-bottom)",
-      }}
+      className="mobile-terminal-chrome mobile-terminal-toolbar mobile-terminal-chrome-scroll"
+      style={{ overflowX: pinned ? "visible" : "auto" }}
       onMouseDown={noFocusSteal} onTouchStart={(e) => { noFocusSteal(e); keepKeyboardClosed(); }}>
-      <div ref={modsRef} data-mobile-modifiers className="flex shrink-0 items-center gap-[6px]">
+      <div ref={modsRef} data-mobile-modifiers className="mobile-terminal-toolbar-strip shrink-0">
       {MODS.map(({ mod, label }) => {
         const v = latch[mod];
         return (
@@ -116,7 +111,7 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
       </div>
       <div className={pinned ? "mobile-key-scroll-wrap" : "shrink-0"} data-at-end={atEnd}>
       <div data-mobile-key-scroll={pinned || undefined}
-        className="mobile-terminal-chrome-scroll flex items-center gap-[6px]"
+        className="mobile-terminal-chrome-scroll mobile-terminal-toolbar-strip"
         style={{ overflowX: pinned ? "auto" : "visible" }}
         onScroll={(e) => { const el = e.currentTarget; setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1); }}>
       {KEYS.map(({ key, label, icon }) => (
@@ -155,6 +150,7 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
       </button>
       </div>
       </div>
+    </div>
     </div>
   );
 }

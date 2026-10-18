@@ -98,7 +98,7 @@ try {
         latest = entry;
         await writeFile(path.join(output, "MOBILE-LAST-MEASUREMENTS.json"), JSON.stringify(entry, null, 2));
         const tag = `${viewport.width}x${viewport.height}/dpr${dpr}/${fontModel}${fontScale}/ime${keyboardOpen}/${layout}`;
-        const target = keyboardOpen || viewport.width > viewport.height ? 40 : 44;
+        const target = 40;
         assert(m.header.right <= viewport.width + 1 && m.bodyWidth <= viewport.width + 1, `page width overflow ${tag}`);
         assert.notEqual(m.strip.overflowY, "hidden", "the fix must not hide vertical clipping");
         assert(m.strip.scrollHeight <= m.strip.clientHeight + 1 && m.strip.scrollTop === 0, `vertical scroll range ${tag}: ${JSON.stringify(m.strip)}`);

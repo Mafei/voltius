@@ -16,7 +16,7 @@ import "./terminalChrome.css";
 const iconButtonClass = "inline-flex size-(--mobile-touch-size) shrink-0 items-center justify-center";
 
 /** Persistent slim terminal chrome: exit chevron / scrollable session tabs / new / panels menu. */
-export default function MobileTerminalTopBar({ compact = false }: { compact?: boolean } = {}) {
+export default function MobileTerminalTopBar() {
   const { t } = useTranslation();
   // Select the raw array (stable ref) and filter in render — a filtering selector
   // returns a fresh array each store update and defeats selector memoization.
@@ -45,7 +45,6 @@ export default function MobileTerminalTopBar({ compact = false }: { compact?: bo
   return (
     <div
       data-mobile-terminal-topbar
-      data-compact={compact || undefined}
       className="mobile-terminal-chrome w-full min-w-0 shrink-0 flex items-center min-h-(--mobile-touch-size)"
       style={{ background: "var(--t-bg-chrome)", boxShadow: "inset 0 -1px var(--t-border)" }}
     >

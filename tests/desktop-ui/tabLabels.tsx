@@ -2,16 +2,7 @@ import { useState } from "react";
 import { TitlebarTab, SessionTabLabel, sessionTabIcon } from "@/components/layout/TitlebarTab";
 import { useApplyTheme } from "@/hooks/useApplyTheme";
 import type { Connection, TerminalSession } from "@/types";
-
-function mux(id: string, name: string, backend: "tmux" | "zellij", customTitle?: string): TerminalSession {
-  const target = { username: "alice", endpoint: "synthetic.example.invalid:22" };
-  return {
-    id, connectionId: "synthetic-tab-layout", connectionName: "合成主机 / Synthetic host", type: "ssh", status: "connected", customTitle,
-    sshMode: backend === "tmux"
-      ? { kind: backend, ...target, session: { id: "$1", name, windows: 1, attached: 0, created: 1, server_pid: 1 } }
-      : { kind: backend, ...target, session: { name, socket_dir: "/synthetic", socket_id: "1:2" } },
-  };
-}
+import { muxSessionFixture as mux } from "./sessionFixtures";
 const cases: TerminalSession[] = [
   mux("tmux-short", "test", "tmux"),
   mux("zellij-cn", "工作会话", "zellij"),

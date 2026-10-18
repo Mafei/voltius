@@ -8,13 +8,7 @@ import type { TerminalSession } from "@/types";
 import { useVisualViewport } from "@/hooks/useVisualViewport";
 import { useModifierLatchStore } from "@/stores/modifierLatchStore";
 import { inputMetrics } from "./mobileInput";
-
-function mux(id: string, name: string, backend: "tmux" | "zellij", customTitle?: string): TerminalSession {
-  return { id, connectionId: "synthetic-mobile", connectionName: "合成主机 / Synthetic host", type: "ssh", status: "connected", customTitle,
-    sshMode: backend === "tmux"
-      ? { kind: backend, username: "alice", endpoint: "synthetic.example.invalid:22", session: { id: "$1", name, windows: 1, attached: 0, created: 1, server_pid: 1 } }
-      : { kind: backend, username: "alice", endpoint: "synthetic.example.invalid:22", session: { name, socket_dir: "/synthetic", socket_id: "1:2" } } };
-}
+import { muxSessionFixture as mux } from "./sessionFixtures";
 const cases: TerminalSession[] = [
   mux("short", "mobile-work", "zellij"),
   mux("chinese", "工作会话", "tmux"),
@@ -76,7 +70,7 @@ export default function MobileTabFixture() {
       [data-mobile-legacy][data-keyboard-open="true"] [data-mobile-extra-keys]{padding-bottom:.375rem!important}
       [data-mobile-legacy] [data-mobile-extra-keys] button{min-width:2.75rem;min-height:0;padding:.375rem .625rem;line-height:var(--text-xs--line-height)}
     `}</style>
-    <MobileTerminalScreen compact={keyboardVisible} />
+    <MobileTerminalScreen />
     <div data-mobile-terminal-viewport className="relative flex-1 min-h-0 bg-(--t-bg-terminal) text-(--t-text-primary)">
       <div className="absolute inset-0 overflow-hidden p-3 text-[12px]">
         <p>Synthetic Android mobile layout fixture.</p>

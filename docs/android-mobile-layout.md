@@ -9,8 +9,8 @@ independent of desktop TitlebarTab. Its old fixed h-11 header could not contain
 two inherited line heights plus chip padding and borders. A horizontal auto
 scroller computes vertical overflow as auto, producing a vertical scroll range.
 The fix uses intrinsic header/strip height, unitless compact line heights,
-shrink-free chips with bounded ellipsis labels, and 44 CSS-px touch controls
-(40 CSS px in landscape or while the keyboard is open). It does
+shrink-free chips with bounded ellipsis labels, and minimum 40x40 CSS-px touch
+controls in every orientation/keyboard state. It does
 not hide vertical overflow or limit accessibility font enlargement. Horizontal
 scrolling remains available for multiple tabs; complete titles stay accessible.
 

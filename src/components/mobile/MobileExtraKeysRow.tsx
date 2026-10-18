@@ -54,7 +54,7 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
   const keepKeyboardClosed = () => { if (!keyboardOpen) (document.activeElement as HTMLElement | null)?.blur(); };
 
   return (
-    <div data-mobile-extra-keys data-compact={keyboardOpen || undefined} className="mobile-terminal-chrome mobile-terminal-chrome-scroll min-w-0 shrink-0 flex items-center gap-[4px] overflow-x-auto px-[4px]"
+    <div data-mobile-extra-keys className="mobile-terminal-chrome mobile-terminal-chrome-scroll min-w-0 shrink-0 flex items-center gap-[4px] overflow-x-auto px-[4px]"
       style={{
         background: "var(--t-bg-chrome)", boxShadow: "inset 0 1px var(--t-border)",
         // Keyboard closed: the shell spans edge-to-edge, so inset the row above the Android

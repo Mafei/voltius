@@ -392,13 +392,7 @@ pub(super) async fn authenticate_at<H: client::Handler>(
                 }
                 offered.push(key.public_key().key_data().clone());
                 attempts += 1;
-                let hash = if matches!(key.algorithm(), russh::keys::Algorithm::Rsa { .. }) {
-                    super::client::choose_rsa_hash(
-                        handle.best_supported_rsa_hash().await.ok().flatten(),
-                    )
-                } else {
-                    None
-                };
+                let hash = super::client::key_hash(handle, key.algorithm()).await;
                 let result = handle
                     .authenticate_publickey(username, PrivateKeyWithHashAlg::new(key, hash))
                     .await
@@ -484,11 +478,7 @@ where
     }
     for key in keys.into_iter().take(MAX_IDENTITIES) {
         *attempts += 1;
-        let hash = if matches!(key.algorithm(), russh::keys::Algorithm::Rsa { .. }) {
-            super::client::choose_rsa_hash(handle.best_supported_rsa_hash().await.ok().flatten())
-        } else {
-            None
-        };
+        let hash = super::client::key_hash(handle, key.algorithm()).await;
         let result: AuthResult = handle
             .authenticate_publickey_with(username, key, hash, &mut agent)
             .await

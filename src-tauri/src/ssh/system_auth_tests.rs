@@ -100,11 +100,20 @@ fn spec(mode: Mode) -> SystemAuth {
     }
 }
 fn generate(home: &Path, name: &str, passphrase: &str) -> (std::path::PathBuf, PublicKey) {
+    generate_kind(home, name, passphrase, "ed25519")
+}
+
+fn generate_kind(
+    home: &Path,
+    name: &str,
+    passphrase: &str,
+    kind: &str,
+) -> (std::path::PathBuf, PublicKey) {
     let directory = home.join(".ssh");
     std::fs::create_dir_all(&directory).unwrap();
     let file = directory.join(name);
     let result = std::process::Command::new("ssh-keygen")
-        .args(["-q", "-t", "ed25519", "-N", passphrase, "-f"])
+        .args(["-q", "-t", kind, "-N", passphrase, "-f"])
         .arg(&file)
         .output()
         .expect("Install openssh-client for synthetic system-auth tests");
@@ -113,6 +122,26 @@ fn generate(home: &Path, name: &str, passphrase: &str) -> (std::path::PathBuf, P
         PublicKey::from_openssh(&std::fs::read_to_string(file.with_extension("pub")).unwrap())
             .unwrap();
     (file, public)
+}
+
+#[tokio::test]
+async fn default_rsa_and_ecdsa_files_authenticate_with_the_shared_signature_negotiation() {
+    for (kind, name) in [("rsa", "id_rsa"), ("ecdsa", "id_ecdsa")] {
+        let home = tempfile::tempdir().unwrap();
+        let (_, public) = generate_kind(home.path(), name, "", kind);
+        let (mut handle, _, signed) = connection(public).await;
+        authenticate_at(
+            &mut handle,
+            "synthetic-user",
+            "fixture",
+            &spec(Mode::Keys),
+            None,
+            home.path(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(signed.load(Ordering::SeqCst), 1);
+    }
 }
 
 #[tokio::test]

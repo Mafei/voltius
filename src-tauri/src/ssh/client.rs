@@ -452,6 +452,17 @@ fn answer_prompts(
         .collect()
 }
 
+pub(super) async fn key_hash<H: client::Handler>(
+    handle: &client::Handle<H>,
+    algorithm: russh::keys::Algorithm,
+) -> Option<HashAlg> {
+    if matches!(algorithm, russh::keys::Algorithm::Rsa { .. }) {
+        choose_rsa_hash(handle.best_supported_rsa_hash().await.ok().flatten())
+    } else {
+        None
+    }
+}
+
 async fn authenticate_key<H: client::Handler>(
     handle: &mut client::Handle<H>,
     username: &str,
@@ -468,11 +479,7 @@ async fn authenticate_key<H: client::Handler>(
     // (`server-sig-algs`, RFC 8308) instead of assuming: dropbear before
     // 2020.79 — still shipping on plenty of OpenWrt routers — only supports
     // ssh-rsa, and rejects the rsa-sha2-256 we used to send unconditionally.
-    let hash = if is_rsa {
-        choose_rsa_hash(handle.best_supported_rsa_hash().await.ok().flatten())
-    } else {
-        None
-    };
+    let hash = key_hash(handle, key_pair.algorithm()).await;
 
     let mut res = handle
         .authenticate_publickey(username, PrivateKeyWithHashAlg::new(key_pair.clone(), hash))

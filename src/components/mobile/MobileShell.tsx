@@ -117,7 +117,7 @@ export default function MobileShell() {
         style={{ overflow: "clip" }}
       >
         {/* Terminal chrome: chips row (sessions) or empty-state — only when terminal tab is foreground */}
-        {terminalVisible && <MobileTerminalScreen />}
+        {terminalVisible && <MobileTerminalScreen compact={keyboardVisible} />}
         <div className="flex-1 relative" style={{ overflow: "clip", overscrollBehavior: "contain" }}>
           {/* Always-mounted sessions; visibility toggled so xterm survives tab switches */}
           <MobileSessionLayer visible={terminalVisible && hasSessions} />

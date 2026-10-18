@@ -1,15 +1,12 @@
 // Controlled browser test. Native IPC and SSH are fixture-only; no user host/key is accessed.
 import assert from "node:assert/strict";
-import { pathToFileURL } from "node:url";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { createFixtureContext } from "./desktop-ui-browser.mjs";
+import { createFixtureContext, launchFixtureBrowser } from "./desktop-ui-browser.mjs";
 import { verifyTabLabels } from "./verify-tab-labels.mjs";
-const { chromium } = await import(pathToFileURL(path.join(process.env.VOLTIUS_BROWSER_TOOLS, "node_modules/playwright/index.mjs")));
 const output = path.resolve(process.env.VOLTIUS_UI_EVIDENCE ?? "desktop-ui-evidence"); await mkdir(output, { recursive: true });
-const browser = await chromium.launch({ headless: true, chromiumSandbox: true,
-  ...(process.env.VOLTIUS_BROWSER_EXECUTABLE && { executablePath: process.env.VOLTIUS_BROWSER_EXECUTABLE }) });
+const browser = await launchFixtureBrowser();
 const context = await createFixtureContext(browser, { viewport: { width: 1280, height: 900 } });
 const page = await context.newPage(); const errors = [];
 page.on("pageerror", (error) => { errors.push(String(error)); console.error("Browser page error:", String(error)); });

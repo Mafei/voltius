@@ -1,0 +1,45 @@
+name: Production browser UI verification
+description: Shared locked frontend, local synthetic fixture and normally sandboxed Chrome.
+inputs:
+  verifier:
+    description: Repository-local verification script
+    required: true
+  evidence-root:
+    description: Evidence directory
+    required: true
+  artifact-name:
+    description: Temporary Actions artifact name
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/prepare-frontend
+    - name: Verify production UI with normally sandboxed Chrome
+      shell: bash
+      env:
+        VOLTIUS_BROWSER_TOOLS: ${{ github.workspace }}/tests/desktop-ui/tools
+        VOLTIUS_BROWSER_EXECUTABLE: /usr/bin/google-chrome
+        VOLTIUS_UI_EVIDENCE: ${{ inputs.evidence-root }}/browser-ui
+        UI_EVIDENCE_ROOT: ${{ inputs.evidence-root }}
+        UI_VERIFIER: ${{ inputs.verifier }}
+      run: |
+        set -euo pipefail
+        mkdir -p "$UI_EVIDENCE_ROOT"
+        npm ci --prefix tests/desktop-ui/tools --ignore-scripts
+        pnpm vite build --config scripts/desktop-ui.vite.config.ts 2>&1 | tee "$UI_EVIDENCE_ROOT/fixture-build.log"
+        pnpm vite --config scripts/desktop-ui.vite.config.ts > "$UI_EVIDENCE_ROOT/browser-server.log" 2>&1 &
+        server_pid=$!
+        trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+        for attempt in $(seq 1 30); do
+          if curl --fail --silent http://127.0.0.1:1428/tests/desktop-ui/index.html > /dev/null; then break; fi
+          sleep 1
+        done
+        node "$UI_VERIFIER" 2>&1 | tee "$UI_EVIDENCE_ROOT/browser-tests.log"
+    - name: Preserve synthetic UI measurements and screenshots
+      if: always()
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.evidence-root }}/
+        retention-days: 14
+        if-no-files-found: error

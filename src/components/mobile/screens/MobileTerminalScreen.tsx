@@ -5,7 +5,7 @@ import { useMobileNavStore } from "@/stores/mobileNavStore";
 import MobileTerminalTopBar from "../MobileTerminalTopBar";
 
 /** Chrome around the (separately mounted) session layer: persistent top bar or empty state. */
-export default function MobileTerminalScreen() {
+export default function MobileTerminalScreen({ compact = false }: { compact?: boolean }) {
   const { t } = useTranslation();
   const hasSessions = useSessionStore((s) => s.sessions.some((x) => x.type !== "multiplayer"));
   const setTab = useMobileNavStore((s) => s.setTab);
@@ -27,5 +27,5 @@ export default function MobileTerminalScreen() {
     );
   }
 
-  return <MobileTerminalTopBar />;
+  return <MobileTerminalTopBar compact={compact} />;
 }

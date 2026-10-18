@@ -1,0 +1,9 @@
+/* Shared mobile chrome density; font sizes remain user-scalable. */
+.mobile-terminal-chrome { --mobile-touch-size: 44px; }
+.mobile-terminal-chrome[data-compact="true"] { --mobile-touch-size: 40px; }
+@media (orientation: landscape) {
+  .mobile-terminal-chrome { --mobile-touch-size: 40px; }
+}
+.mobile-terminal-chrome-scroll { scrollbar-width: none; }
+.mobile-terminal-chrome-scroll::-webkit-scrollbar { display: none; }
+.mobile-terminal-chrome button:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }

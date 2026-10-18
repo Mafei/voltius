@@ -1,6 +1,6 @@
 import { WebglAddon } from "@xterm/addon-webgl";
 import { claimWebglRenderer } from "@/utils/webglAddon";
-import { createTerminal, write, nextFrame, renderer, captureFrame, comparePixels, emit } from "./support";
+import { createTerminal, write, nextFrame, renderer, captureFrame, comparePixels, emit, waitForContextEvent } from "./support";
 import "@xterm/xterm/css/xterm.css";
 import "@/styles/globals.css";
 
@@ -48,12 +48,6 @@ function traceGl() {
   };
 }
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-function contextEvent(canvas: HTMLCanvasElement, name: string) {
-  return new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout(() => reject(Error(name + " timed out")), 10000);
-    canvas.addEventListener(name, () => { clearTimeout(timeout); resolve(); }, { once: true });
-  });
-}
 async function run() {
   await document.fonts.load('14px "Source Code Pro"'); await document.fonts.ready;
   const results: Record<string, any>[] = [];
@@ -68,17 +62,17 @@ async function run() {
     trace.stage("before-loss"); trace.drain("before-loss");
     canvas.addEventListener("webglcontextrestored", trace.beforeRestore, { capture: true, once: true });
     const loss = gl.getExtension("WEBGL_lose_context")!;
-    const lost = contextEvent(canvas, "webglcontextlost");
+    const lost = waitForContextEvent(canvas, "webglcontextlost");
     trace.stage("lose-request"); loss.loseContext(); trace.drain("loseContext"); await lost;
     await delay(500);
-    const restored = contextEvent(canvas, "webglcontextrestored");
+    const restored = waitForContextEvent(canvas, "webglcontextrestored");
     trace.stage("restore-request"); loss.restoreContext(); trace.drain("restoreContext"); await restored;
     trace.stage("after-restored-event"); await nextFrame(); await nextFrame();
     const after = await captureFrame(term, () => write(term, text)); trace.drain("after-redraw");
     const pixels = comparePixels(before, after, gl.drawingBufferWidth);
     trace.stage("dispose"); term.dispose(); trace.drain("after-dispose");
     trace.dispose(); host.replaceChildren();
-    const unexpected = trace.errors.filter((error) => error.error !== 0x9242);
+    const unexpected = trace.errors.filter((error) => error.error !== 0x9242 || error.context_lost !== true);
     const result = { production, rescale, ...pixels, errors: trace.errors, unexpected_errors: unexpected.length };
     results.push(result); emit({ phase: "context-case", ...result });
   }

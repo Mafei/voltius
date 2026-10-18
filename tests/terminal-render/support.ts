@@ -5,6 +5,13 @@ import { synchronizeTerminalFonts } from "@/utils/terminalFonts";
 
 export const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 export const write = (term: Terminal, text: string | Uint8Array) => new Promise<void>((resolve) => term.write(text, resolve));
+export function waitForContextEvent(canvas: HTMLCanvasElement, name: string) {
+  return new Promise<void>((resolve, reject) => {
+    const listener = () => { clearTimeout(timeout); resolve(); };
+    const timeout = setTimeout(() => { canvas.removeEventListener(name, listener); reject(Error(name + " timed out")); }, 10000);
+    canvas.addEventListener(name, listener, { once: true });
+  });
+}
 export function emit(value: Record<string, unknown>) {
   console.log(JSON.stringify(value));
   (window as any).webkit?.messageHandlers.renderProbe.postMessage(value);

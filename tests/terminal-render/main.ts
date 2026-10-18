@@ -2,7 +2,7 @@
 import { Terminal } from "@xterm/xterm";
 import { claimWebglRenderer } from "@/utils/webglAddon";
 import { createOutputDecoder, type OutputDecoder } from "@/utils/terminalEncoding";
-import { nextFrame, write, emit, renderer, hash, comparePixels, terminalOptions, createTerminal, captureFrame, nativeViewSnapshot } from "./support";
+import { nextFrame, write, emit, renderer, hash, comparePixels, terminalOptions, createTerminal, captureFrame, nativeViewSnapshot, waitForContextEvent } from "./support";
 import "@xterm/xterm/css/xterm.css";
 import "@/styles/globals.css";
 
@@ -215,16 +215,12 @@ async function run() {
   const canvas = renderer(primary)._canvas as HTMLCanvasElement;
   const loss = gl!.getExtension("WEBGL_lose_context");
   if (!loss) throw Error("Context restoration extension unavailable");
-  const contextEvent = (name: string) => new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout(() => reject(Error(name + " timed out")), 10000);
-    canvas.addEventListener(name, () => { clearTimeout(timeout); resolve(); }, { once: true });
-  });
-  const lost = contextEvent("webglcontextlost"); loss.loseContext(); await lost;
+  const lost = waitForContextEvent(canvas, "webglcontextlost"); loss.loseContext(); await lost;
   const lossError = gl!.getError();
   emit({ phase: "intentional-context-loss", gl_error: lossError });
-  if (lossError !== 0 && lossError !== gl!.CONTEXT_LOST_WEBGL) throw Error("Unexpected GL error during intentional context loss: " + lossError);
+  if (lossError !== 0 && !(lossError === gl!.CONTEXT_LOST_WEBGL && gl!.isContextLost())) throw Error("Unexpected GL error during intentional context loss: " + lossError);
   await new Promise((resolve) => setTimeout(resolve, 500));
-  const restored = contextEvent("webglcontextrestored"); loss.restoreContext(); await restored;
+  const restored = waitForContextEvent(canvas, "webglcontextrestored"); loss.restoreContext(); await restored;
   bindRenderer(); await nextFrame(); await nextFrame();
   compare("after-native-context-restoration", await captureWrite(frame));
   await nativeSnapshot("after-native-context-restoration");

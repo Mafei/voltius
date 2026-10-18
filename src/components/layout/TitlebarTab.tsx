@@ -19,8 +19,8 @@ export function SessionTabLabel({ session }: { session: TerminalSession }) {
   // Reserve room for glyph ascent/descent as well as the line boxes and borders.
   // Inheriting text-base's 1.6rem line-height on both lines clips session and host.
   return <span data-session-label className="flex min-w-0 flex-col text-left" title={[primary, secondary].filter(Boolean).join("\n")}>
-    <span data-session-primary className={secondary ? "truncate text-sm leading-[1.4rem]" : "truncate"}>{primary}</span>
-    {secondary && <span data-session-secondary className="truncate text-[0.667rem] leading-[0.8rem] opacity-70">{secondary}</span>}
+    <span data-session-primary className={secondary ? "truncate text-sm leading-[1.467rem]" : "truncate"}>{primary}</span>
+    {secondary && <span data-session-secondary className="truncate text-[0.667rem] leading-[0.933rem] opacity-70">{secondary}</span>}
   </span>;
 }
 
@@ -143,7 +143,7 @@ export function TitlebarTab({
   buttonRef?: React.Ref<HTMLButtonElement>;
 }) {
   const tabIcon = <span className="inline-flex shrink-0 items-center justify-center" aria-hidden="true">{icon}</span>;
-  const frameClassName = "relative flex items-center gap-2 h-10 px-2 rounded-xl text-base font-medium-bold shrink-0 overflow-hidden";
+  const frameClassName = "relative flex items-center gap-2 h-11 px-2 rounded-xl text-base font-medium-bold shrink-0 overflow-hidden";
   if (renaming) {
     return (
       <div

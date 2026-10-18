@@ -59,10 +59,10 @@ test("system authentication bypasses vault secret reads but keeps CONNECT permis
   h.getSecret.mockRejectedValue(new VaultUnreadableError());
   await expect(resolveConnectionCredentials(conn())).resolves.toEqual({ username: "root", systemAuth: { ...policy, credentialId: "c1" } });
   h.connections = [conn({ id: "jump", username: "hop" })];
-  expect((await resolveJumpHosts(conn({ jump_hosts: [{ connection_id: "jump" }] })))[0]).toMatchObject({ username: "hop", systemAuth: { mode: "agent", credentialId: "jump" } });
+  expect((await resolveJumpHosts(conn({ jump_hosts: [{ id: "synthetic-jump", connection_id: "jump" }] })))[0]).toMatchObject({ username: "hop", systemAuth: { mode: "agent", credentialId: "jump" } });
   expect(h.getSecret).not.toHaveBeenCalled(); h.can.mockReturnValue(false);
   await expect(resolveConnectionCredentials(conn())).rejects.toThrow(ConnectNotAllowedError);
-  await expect(resolveJumpHosts(conn({ jump_hosts: [{ connection_id: "jump" }] }))).rejects.toThrow(ConnectNotAllowedError);
+  await expect(resolveJumpHosts(conn({ jump_hosts: [{ id: "synthetic-jump", connection_id: "jump" }] }))).rejects.toThrow(ConnectNotAllowedError);
 });
 
 test("a host the member may not connect to yields no credentials at all", async () => {

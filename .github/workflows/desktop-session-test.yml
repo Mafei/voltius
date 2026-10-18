@@ -80,6 +80,9 @@ jobs:
     if: github.repository == 'Mafei/voltius'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -94,6 +97,7 @@ jobs:
           VOLTIUS_UI_EVIDENCE: desktop-browser-evidence/browser-ui
         run: |
           npm ci --prefix tests/desktop-ui/tools --ignore-scripts
+          pnpm vite build --config scripts/desktop-ui.vite.config.ts 2>&1 | tee desktop-browser-evidence/fixture-build.log
           pnpm vite --config scripts/desktop-ui.vite.config.ts > desktop-browser-evidence/browser-server.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT

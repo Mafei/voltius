@@ -10,7 +10,8 @@ const browser = await chromium.launch({ headless: true, chromiumSandbox: true,
   ...(process.env.VOLTIUS_BROWSER_EXECUTABLE && { executablePath: process.env.VOLTIUS_BROWSER_EXECUTABLE }) });
 const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 await context.route("**/*", (route) => ["127.0.0.1", "localhost"].includes(new URL(route.request().url()).hostname) ? route.continue() : route.abort());
-const page = await context.newPage(); const errors = []; page.on("pageerror", (error) => errors.push(String(error)));
+const page = await context.newPage(); const errors = [];
+page.on("pageerror", (error) => { errors.push(String(error)); console.error("Browser page error:", String(error)); });
 const checks = [];
 try {
   await page.goto("http://127.0.0.1:1428/tests/desktop-ui/index.html");
@@ -57,4 +58,8 @@ try {
   await page.screenshot({ path: path.join(output, "desktop-terminal.png") }); assert.deepEqual(errors, []);
   await writeFile(path.join(output, "UI-VALIDATION.json"), JSON.stringify({ source_sha: process.env.GITHUB_SHA ?? null, browser: browser.version(), platform: os.platform(), chromium_sandbox: true, checks, scope: "Browser fixture with real shared React form/shortcut handlers/xterm; simulated SSH listing and blocked native IPC. Not a native OS/IME/remote-SSH test." }, null, 2));
   console.log(JSON.stringify({ passed: checks, sandbox: true }));
+} catch (error) {
+  await writeFile(path.join(output, "UI-FAILURE.json"), JSON.stringify({ message: String(error), pageErrors: errors, completedChecks: checks }, null, 2));
+  await page.screenshot({ path: path.join(output, "failure.png") }).catch(() => {});
+  throw error;
 } finally { await context.close(); await browser.close(); }

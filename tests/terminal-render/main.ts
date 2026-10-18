@@ -120,6 +120,13 @@ async function run() {
     return await captureFrame(primary, () => wireWrite(primary, text));
   }
   await wireWrite(primary, frame); await wireWrite(secondary, "\x1b[?25lSynthetic atlas trainer"); await nextFrame(); await nextFrame();
+  // The sentinel itself requests bold/italic faces. Settle those actual font
+  // loads before a pixel baseline, rather than comparing different fonts.
+  await document.fonts.load('bold 14px "Source Code Pro"', sentinel.join(""));
+  await document.fonts.load('italic 14px "Source Code Pro"', sentinel.join(""));
+  await document.fonts.ready; await nextFrame(); await nextFrame();
+  const loadedFonts = () => { const faces: Record<string, string>[] = []; document.fonts.forEach((face) => faces.push({ family: face.family, weight: face.weight, style: face.style, status: face.status })); return faces; };
+  emit({ phase: "baseline-fonts", faces: loadedFonts() });
   if (atlas(primary) !== atlas(secondary)) throw Error("Trainer must share production texture atlas");
   const initial = await captureWrite(frame);
   if (!initial.some((x, i) => i % 4 !== 3 && x > 100)) throw Error("Empty baseline frame");
@@ -129,7 +136,7 @@ async function run() {
   atlas(primary).onAddTextureAtlasCanvas((canvas: HTMLCanvasElement) => { additions++; maxAtlas = Math.max(maxAtlas, canvas.width); });
   atlas(primary).onRemoveTextureAtlasCanvas(() => { removals++; });
   function compare(label: string, pixels: Uint8Array) {
-    const result = { label, ...comparePixels(initial, pixels), pages: pages(primary), gl_error: gl.getError() };
+    const result = { label, ...comparePixels(initial, pixels, gl!.drawingBufferWidth), pages: pages(primary), gl_error: gl.getError() };
     checks.push(result); emit({ phase: "pixel-check", reference, ...result });
     const expected = [...sentinel.map((line) => line.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "")), ...Array(Math.max(0, primary.rows - sentinel.length)).fill("")];
     const buffer = primary.buffer.active;
@@ -154,6 +161,7 @@ async function run() {
     if (pages(primary).some((p: { width: number }) => p.width >= 4096)) break;
   }
   compare("after-atlas-growth-incremental", await captureWrite("\x1b[2;9H000000"));
+  emit({ phase: "post-growth-fonts", faces: loadedFonts() });
   await nativeSnapshot("after-atlas-growth");
   await wireWrite(secondary, "\x1b[0m\x1b[2J\x1b[H"); secondaryReady = true;
   const soakStart = performance.now();

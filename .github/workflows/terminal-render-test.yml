@@ -34,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(contains(github.ref, '-glyph-') && '[{"entry":"ambiguous","seconds":0},{"entry":"keyboard","seconds":0}]' || contains(github.ref, '-font-') && '[{"entry":"font","seconds":0}]' || contains(github.ref, '-probe-') && '[{"entry":"index","seconds":900}]' || '[{"entry":"index","seconds":900},{"entry":"font","seconds":0},{"entry":"ambiguous","seconds":0},{"entry":"keyboard","seconds":0}]') }}
+        include: ${{ fromJSON(contains(github.ref, '-quick-') && '[{"entry":"index","seconds":60}]' || contains(github.ref, '-glyph-') && '[{"entry":"ambiguous","seconds":0},{"entry":"keyboard","seconds":0}]' || contains(github.ref, '-font-') && '[{"entry":"font","seconds":0}]' || contains(github.ref, '-probe-') && '[{"entry":"index","seconds":900}]' || '[{"entry":"index","seconds":900},{"entry":"font","seconds":0},{"entry":"ambiguous","seconds":0},{"entry":"keyboard","seconds":0}]') }}
     timeout-minutes: 40
     defaults:
       run:
@@ -67,7 +67,7 @@ jobs:
             sleep 1
           done
           args=("http://127.0.0.1:1428/tests/terminal-render/$PROBE_ENTRY.html" terminal-render-evidence)
-          if [[ "$PROBE_ENTRY" == font ]]; then modes=font-face,font-set; else modes=production; fi
+          if [[ "$PROBE_ENTRY" == font ]]; then modes=font-face,font-set; elif [[ "$GITHUB_REF" == *-quick-* ]]; then modes=production,highp-reference; else modes=production; fi
           args+=("$PROBE_SECONDS" "$modes")
           if [[ "$DIAGNOSTIC" == 1 ]]; then args+=(--diagnostic); fi
           terminal-render-evidence/render-probe "${args[@]}" 2>&1 | tee terminal-render-evidence/native-render.log

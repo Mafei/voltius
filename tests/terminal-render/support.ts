@@ -19,13 +19,19 @@ export async function nativeViewSnapshot(label: string, element: HTMLElement, sa
 }
 export function renderer(term: Terminal): any { return (term as any)._core._renderService._renderer.value; }
 export function hash(bytes: Uint8Array) { let h = 2166136261; for (const b of bytes) h = Math.imul(h ^ b, 16777619); return (h >>> 0).toString(16).padStart(8, "0"); }
-export function comparePixels(baseline: Uint8Array, actual: Uint8Array) {
+export function comparePixels(baseline: Uint8Array, actual: Uint8Array, width = 0) {
   let different = Math.max(baseline.length, actual.length) / 4;
+  let maximumChannelDelta = 0; const coordinates: number[][] = [];
   if (baseline.length === actual.length) {
     different = 0;
-    for (let i = 0; i < baseline.length; i += 4) if (baseline[i] !== actual[i] || baseline[i + 1] !== actual[i + 1] || baseline[i + 2] !== actual[i + 2]) different++;
+    for (let i = 0; i < baseline.length; i += 4) if (baseline[i] !== actual[i] || baseline[i + 1] !== actual[i + 1] || baseline[i + 2] !== actual[i + 2]) {
+      different++;
+      maximumChannelDelta = Math.max(maximumChannelDelta, ...[0, 1, 2].map((channel) => Math.abs(baseline[i + channel] - actual[i + channel])));
+      if (width && coordinates.length < 8) coordinates.push([i / 4 % width, Math.floor(i / 4 / width)]);
+    }
   }
-  return { different_pixels: different, same_dimensions: baseline.length === actual.length, baseline_hash: hash(baseline), current_hash: hash(actual) };
+  return { different_pixels: different, maximum_channel_delta: maximumChannelDelta, first_differing_device_pixels_bottom_origin: coordinates,
+    same_dimensions: baseline.length === actual.length, baseline_hash: hash(baseline), current_hash: hash(actual) };
 }
 type FixtureOptions = NonNullable<ConstructorParameters<typeof Terminal>[0]>;
 export function terminalOptions(overrides: FixtureOptions = {}): FixtureOptions {

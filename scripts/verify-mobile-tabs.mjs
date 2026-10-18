@@ -23,7 +23,9 @@ async function measure(page) {
     const canvas = document.createElement("canvas"), context = canvas.getContext("2d");
     const ink = (node) => {
       const range = document.createRange(); range.selectNodeContents(node); const fontBox = range.getBoundingClientRect();
-      if (!node.textContent.trim()) return { textTop: fontBox.top, textBottom: fontBox.bottom };
+      // A flex button positions an inline-block probe as another flex item;
+      // its DOM Range is the correct conservative bound for that case.
+      if (!node.textContent.trim() || getComputedStyle(node).display.includes("flex")) return { textTop: fontBox.top, textBottom: fontBox.bottom };
       // A DOM baseline plus actual canvas ink excludes unused fallback-font
       // ascent/descent. CJK font boxes can exceed a compact line while ink fits.
       const probe = document.createElement("span");

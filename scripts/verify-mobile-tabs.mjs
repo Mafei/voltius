@@ -36,6 +36,11 @@ async function measure(page) {
       return { textTop: baseline - metrics.actualBoundingBoxAscent, textBottom: baseline + metrics.actualBoundingBoxDescent, fontBoxTop: fontBox.top, fontBoxBottom: fontBox.bottom };
     };
     const header = document.querySelector("[data-mobile-terminal-topbar]"), strip = document.querySelector("[data-mobile-session-strip]"), keys = document.querySelector("[data-mobile-extra-keys]");
+    const luminance = (color) => {
+      let channels = color.match(/[\d.]+/g).slice(0, 3).map(Number);
+      if (!color.startsWith("color(srgb")) channels = channels.map((v) => v / 255);
+      return channels.map((v) => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4).reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
+    };
     const bounds = box(header), hs = getComputedStyle(header);
     return { viewportWidth: innerWidth, bodyWidth: document.body.scrollWidth, header: { ...bounds, contentBottom: bounds.bottom - parseFloat(hs.borderBottomWidth) },
       usableHeight: window.visualViewport.height, keyboardOpen: document.querySelector("main").dataset.keyboardOpen === "true",
@@ -47,7 +52,9 @@ async function measure(page) {
       controls: [...header.querySelectorAll("button")].map((node) => ({ name: node.getAttribute("aria-label") ?? node.title, ...box(node) })),
       rows: [...header.querySelectorAll("[data-mobile-session-chip]")].map((chip) => {
         const label = chip.querySelector("[data-mobile-session-label]"), close = chip.querySelector("[data-mobile-session-close]");
+        const bg = luminance(getComputedStyle(chip, "::before").backgroundColor), fg = luminance(getComputedStyle(label).color);
         return { id: chip.dataset.mobileSessionChip, ...box(chip), title: label.title, accessible: label.getAttribute("aria-label"), label: box(label), close: box(close),
+          active: chip.dataset.active === "true", activeTitleContrast: (Math.max(bg, fg) + 0.05) / (Math.min(bg, fg) + 0.05), underlineHeight: parseFloat(getComputedStyle(chip, "::after").height),
           decorations: [...chip.children].filter((node) => node !== label).map(box),
           lines: [...label.children].map((line) => { const style = getComputedStyle(line);
             return { value: line.textContent, ...box(line), ...ink(line), fontSize: parseFloat(style.fontSize), fontFamily: style.fontFamily, lineHeight: style.lineHeight, overflow: style.textOverflow, clientWidth: line.clientWidth, scrollWidth: line.scrollWidth }; }) };
@@ -117,6 +124,7 @@ try {
           assert(control.textTop >= control.top - 0.75 && control.textBottom <= control.bottom + 0.75, `key glyph outside touch target ${tag}`);
         }
         for (const row of m.rows) {
+          if (row.active) { assert(row.activeTitleContrast >= 4.5, `active title contrast ${tag}: ${row.activeTitleContrast}`); assert(row.underlineHeight >= 2, "active tab has an independent underline"); }
           assert(row.top >= m.header.top - 0.75 && row.bottom <= m.header.contentBottom + 0.75, `chip outside header ${tag}: ${JSON.stringify(row)}`);
           assert.equal(row.lines.length, row.id === "plain" ? 1 : 2);
           assert.equal(row.title, row.accessible);
@@ -198,6 +206,23 @@ try {
       throw error;
     } finally { await context.close(); }
   }
+  const interactionContext = await createFixtureContext(browser, { viewport: { width: 320, height: 640 }, isMobile: true, hasTouch: true });
+  try {
+    const page = await interactionContext.newPage();
+    await page.goto("http://127.0.0.1:1428/tests/desktop-ui/index.html?mobile-tabs=1"); await settle(page);
+    const close = await page.locator('[data-mobile-session-close="short"]').boundingBox();
+    const session = await interactionContext.newCDPSession(page), x = close.x + close.width / 2, y = close.y + close.height / 2;
+    await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+    for (const delta of [15, 30, 45]) { await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x - delta, y }] }); await page.waitForTimeout(30); }
+    await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] }); await settle(page);
+    assert.equal(await page.evaluate(() => window.__mobileTabFixture.metrics.closed.length), 0, "panning from a close target must never disconnect");
+    await page.evaluate(() => document.querySelector("main").style.setProperty("--fixture-font-scale", "3")); await settle(page);
+    await page.waitForFunction(() => document.querySelector("[data-mobile-extra-keys]").dataset.modifiersPinned === "false");
+    const narrow = await measure(page); assert(narrow.keys.scrollWidth > narrow.keys.clientWidth, "very large text uses one scrollable strip rather than cramming pinned modifiers");
+    for (const key of narrow.keys.controls) assert(key.textTop >= key.top - 0.75 && key.textBottom <= key.bottom + 0.75, "3x key text remains inside its grown target");
+    await writeFile(path.join(output, "ANDROID-CHROME-INTERACTION.json"), JSON.stringify({ close_drag_disconnected: false, very_large_text: narrow }, null, 2));
+    console.log(JSON.stringify({ close_drag: "passed", extreme_font_fallback: "passed", font_scale: 3, viewport_width: 320 }));
+  } finally { await interactionContext.close(); }
   const cursorContext = await createFixtureContext(browser, { viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
   try {
     const page = await cursorContext.newPage();

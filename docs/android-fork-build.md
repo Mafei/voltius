@@ -46,15 +46,52 @@ python3 scripts/verify-android-apk.py \
   android-ci-artifacts
 ```
 
-The `Android ARM64 debug` workflow runs on normal pushes to
+The `Android ARM64 build` workflow runs on normal pushes to
 `candidate/android-*`. It checks out the triggering SHA, runs the relevant
-regressions, builds a debug APK and verifies the package/version, minSdk 24,
+regressions, and builds Release on `candidate/android-release-*` branches or
+Debug on other candidate branches. Both modes verify package/version, minSdk 24,
 targetSdk 36, ARM64-only native library, public development signature, APK ZIP
 alignment and ELF LOAD/RELRO alignment for 16 KiB pages. It uploads only the APK,
 public metadata, license/notice and logs as a 14-day Actions artifact. It has
 read-only repository permissions and does not publish releases or use signing
 secrets. Static alignment checks are not a runtime test. Phone/emulator startup,
 InputConnection, biometric unlock and SSH/SFTP remain untested for this build.
+
+## Release-mode APK with the existing test identity
+
+The APK delivered from `41d2408ac5e4ec71a23e610f59bd2fe6a4747db0`
+(run 39100562454) is Debug: the CLI used `--debug`, Cargo used its unoptimized
+dev profile and the APK reports `debuggable=true`. A test certificate does not
+imply Debug mode: this Release candidate uses unchanged application code with
+Gradle universalRelease, Cargo's optimized release profile and debuggable=false.
+Its commit changes build/verification documentation and automation only.
+
+Reuse the already-public repository development keystore for this test build;
+do not generate a new key or use production signing secrets. In the toolchain
+environment described above:
+
+```bash
+export ANDROID_KEYSTORE_PATH="$PWD/keystore/voltius-debug.keystore"
+export ANDROID_KEYSTORE_PASSWORD=voltius
+export ANDROID_KEY_ALIAS=voltius-debug
+export ANDROID_KEY_PASSWORD=voltius
+mkdir -p android-ci-artifacts
+set -o pipefail
+pnpm tauri android build --target aarch64 --apk 2>&1 | tee android-ci-artifacts/android-build.log
+python3 scripts/verify-android-apk.py \
+  src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk \
+  android-ci-artifacts --mode release --build-log android-ci-artifacts/android-build.log
+(cd src-tauri/gen/android && ./gradlew :app:testUniversalReleaseUnitTest --tests com.voltius.app.TerminalKeyboardTest --console=plain)
+```
+
+The verifier requires optimized Cargo release log evidence, debuggable=false,
+the existing public test certificate, and APK/native alignment checks. It checks
+the newly built Cargo library, allowing only a matching Gradle-stripped output
+when AGP strips it before packaging. Release has R8 disabled by upstream to
+preserve JNI entry points; that does not make it Debug. No GitHub Release,
+device installation, persistent credential, or maintenance promotion occurs.
+The signature remains a development test identity, unsuitable for long-term
+production upgrades. Device/emulator execution remains unverified.
 
 Daily candidates also run the reconnect/rename/selection frontend regressions and
 the Linux-host SFTP resume/cancellation tests (`cargo test --locked -p voltius

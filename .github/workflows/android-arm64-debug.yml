@@ -1,4 +1,4 @@
-name: Android ARM64 debug
+name: Android ARM64 build
 
 on:
   push:
@@ -17,8 +17,9 @@ jobs:
   build:
     if: github.repository == 'Mafei/voltius'
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 90
     env:
+      ANDROID_BUILD_MODE: ${{ startsWith(github.ref, 'refs/heads/candidate/android-release-') && 'release' || 'debug' }}
       CARGO_PROFILE_DEV_DEBUG: '0'
       CARGO_PROFILE_TEST_DEBUG: '0'
       CARGO_BUILD_JOBS: '4'
@@ -85,15 +86,28 @@ jobs:
           pnpm test 2>&1 | tee android-ci-artifacts/frontend-tests.log
           cargo test --locked -p voltius-crypto 2>&1 | tee android-ci-artifacts/crypto-tests.log
 
-      - name: Build the development-signed ARM64 APK
+      - name: Build the test-signed ARM64 APK in the selected mode
         id: android_build
-        run: pnpm tauri android build --target aarch64 --apk --debug 2>&1 | tee android-ci-artifacts/android-build.log
+        run: |
+          args=(--target aarch64 --apk)
+          if [[ "$ANDROID_BUILD_MODE" == release ]]; then
+            # Reuse the repository's existing PUBLIC development identity only.
+            # Signing identity is independent of Gradle/Rust build mode.
+            export ANDROID_KEYSTORE_PATH="$GITHUB_WORKSPACE/keystore/voltius-debug.keystore"
+            export ANDROID_KEYSTORE_PASSWORD=voltius
+            export ANDROID_KEY_ALIAS=voltius-debug
+            export ANDROID_KEY_PASSWORD=voltius
+          else
+            args+=(--debug)
+          fi
+          pnpm tauri android build "${args[@]}" 2>&1 | tee android-ci-artifacts/android-build.log
 
       - name: Check Android IME composition contracts
         if: ${{ !cancelled() && steps.android_build.outcome == 'success' }}
         run: |
-          (cd src-tauri/gen/android && ./gradlew :app:testUniversalDebugUnitTest --tests com.voltius.app.TerminalKeyboardTest --console=plain) 2>&1 | tee android-ci-artifacts/android-ime-tests.log
-          cp src-tauri/gen/android/app/build/test-results/testUniversalDebugUnitTest/*.xml android-ci-artifacts/
+          variant="${ANDROID_BUILD_MODE^}"
+          (cd src-tauri/gen/android && ./gradlew ":app:testUniversal${variant}UnitTest" --tests com.voltius.app.TerminalKeyboardTest --console=plain) 2>&1 | tee android-ci-artifacts/android-ime-tests.log
+          cp "src-tauri/gen/android/app/build/test-results/testUniversal${variant}UnitTest/"*.xml android-ci-artifacts/
 
       - name: Check transfer safety regressions on the Linux host
         if: ${{ !cancelled() && steps.android_build.outcome == 'success' }}
@@ -141,7 +155,7 @@ jobs:
       - name: Verify and collect APK evidence
         if: ${{ !cancelled() && steps.android_build.outcome == 'success' }}
         run: |
-          python3 scripts/verify-android-apk.py src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk android-ci-artifacts
+          python3 scripts/verify-android-apk.py "src-tauri/gen/android/app/build/outputs/apk/universal/$ANDROID_BUILD_MODE/app-universal-$ANDROID_BUILD_MODE.apk" android-ci-artifacts --mode "$ANDROID_BUILD_MODE" --build-log android-ci-artifacts/android-build.log
           cp LICENSE NOTICE.md android-ci-artifacts/
           cp docs/android-fork-build.md android-ci-artifacts/BUILD-NOTICE.md
           cp docs/android-input-and-tmux.md android-ci-artifacts/INPUT-AND-TMUX-NOTICE.md
@@ -151,7 +165,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: Voltius-arm64-debug-${{ github.sha }}
+          name: Voltius-arm64-${{ env.ANDROID_BUILD_MODE }}-${{ github.sha }}
           path: android-ci-artifacts/
           if-no-files-found: error
           compression-level: 9

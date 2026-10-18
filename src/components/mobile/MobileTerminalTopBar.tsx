@@ -12,6 +12,7 @@ import { StatusDot } from "@/components/shared/StatusDot";
 import { sessionLabel } from "@/utils/sessionLabel";
 import { sessionStatusTone } from "@/utils/statusTone";
 import "./terminalChrome.css";
+import { useMobileChromeFit } from "./useMobileChromeFit";
 import { terminalChromeFaceStyle } from "./terminalChrome";
 
 const iconButtonClass = "inline-flex size-(--mobile-touch-size) shrink-0 items-center justify-center";
@@ -30,6 +31,7 @@ function SessionCloseButton({ id, label, disconnect }: { id: string; label: stri
 /** Persistent slim terminal chrome: exit chevron / scrollable session tabs / new / panels menu. */
 export default function MobileTerminalTopBar() {
   const { t } = useTranslation();
+  const headerRef = useMobileChromeFit();
   // Select the raw array (stable ref) and filter in render — a filtering selector
   // returns a fresh array each store update and defeats selector memoization.
   const allSessions = useSessionStore((s) => s.sessions);
@@ -56,6 +58,7 @@ export default function MobileTerminalTopBar() {
 
   return (
     <div
+      ref={headerRef}
       data-mobile-terminal-topbar
       className="mobile-terminal-chrome w-full min-w-0 shrink-0 flex items-center min-h-(--mobile-touch-size)"
       style={{ background: "var(--t-bg-chrome)", boxShadow: "inset 0 -1px var(--t-border)" }}

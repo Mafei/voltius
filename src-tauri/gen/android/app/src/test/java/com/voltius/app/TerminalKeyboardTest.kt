@@ -55,7 +55,9 @@ class TerminalKeyboardTest {
     view.onWindowFocusChanged(false)
     assertEquals(false, reported.last())
     assertEquals("nihao", input.getTextBeforeCursor(100, 0).toString())
-    view.clearFocus()
+    val other = android.view.View(activity).apply { isFocusable = true; isFocusableInTouchMode = true }
+    parent.addView(other)
+    assertTrue(other.requestFocus())
     assertEquals(false, reported.last())
   }
 

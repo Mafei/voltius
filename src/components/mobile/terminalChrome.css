@@ -21,6 +21,7 @@
 .mobile-key-scroll-wrap::after {
   content: "›"; position: absolute; right: 0; top: 2px; bottom: 2px; width: 12px;
   display: flex; align-items: center; justify-content: flex-end;
+  font-size: 14px; line-height: 1;
   color: var(--t-text-primary); background: linear-gradient(90deg, transparent, var(--t-bg-chrome) 65%);
   pointer-events: none;
 }

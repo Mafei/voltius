@@ -13,6 +13,7 @@ import { useHostKeyConflict } from "@/components/terminal/connection-overlay/hoo
 import { HostKeyConflictPanel } from "@/components/terminal/connection-overlay/HostKeyConflictPanel";
 import { SystemSshAuthFields } from "./SystemSshAuthFields";
 import { systemSshPassphraseTarget } from "@/services/systemSshUnlock";
+import { useIsAndroid } from "@/utils/platform";
 
 type Selection = { kind: "new" } | { kind: "existing"; remote: RemoteSession } | null;
 const NEW_VALUE = "create-new";
@@ -22,6 +23,7 @@ export default function SessionConnectionForm({ connection, onClose, onOpened, p
   presentation?: "sheet" | "dialog"; direct?: boolean;
 }) {
   const { t } = useTranslation();
+  const isAndroid = useIsAndroid();
   const translate = useRef(t); translate.current = t;
   const [type, setType] = useState<SessionType>(() => sessionTypeForHost(connection.id));
   const backend = type === "none" ? null : type;
@@ -187,7 +189,7 @@ export default function SessionConnectionForm({ connection, onClose, onOpened, p
           }}>
           <option value="" disabled>{loading ? t("mobile.session.loading") : t("mobile.session.choose")}</option>
           <option value={NEW_VALUE} style={{ fontWeight: "bold" }}>＋ New</option>
-          {!!listing?.sessions.length && <option value="separator" disabled>──────────</option>}
+          {!isAndroid && !!listing?.sessions.length && <option value="separator" disabled>──────────</option>}
           {!!listing?.sessions.length && <optgroup label={t("mobile.session.existing")}>
             {listing.sessions.map((remote, index) => <option key={`${remote.backend}:${index}`} value={`existing:${index}`}>
               {remote.session.name} · {remote.backend === "tmux" ? t("mobile.tmux.details", { windows: remote.session.windows, attached: remote.session.attached }) : t("mobile.session.running")}

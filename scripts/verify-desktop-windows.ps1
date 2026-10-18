@@ -44,6 +44,6 @@ $hashes = @($files | ForEach-Object { @{ file = $_.Name; sha256 = (Get-FileHash 
 $hashes | ForEach-Object { "$($_.sha256)  $($_.file)" } | Set-Content "$Evidence/SHA256SUMS"
 @{ source_sha=$sha; application_baseline='830ee0ce308560de1651755d46e53f88866659ee'; version=$applicationVersion;
   architecture='x86_64'; pe_product_version=$version.ProductVersion; signing='unsigned; Authenticode NotSigned; no private key';
-  launch=$launch; files=$hashes; unverified=@('user-machine SmartScreen','native keyboard/IME interaction','real-host SSH/SFTP','Windows agent runtime signing')
+  launch=$launch; files=$hashes; unverified=@('user-machine SmartScreen','native keyboard/IME interaction','real-host SSH/SFTP','existing agent forwarding')
 } | ConvertTo-Json -Depth 8 | Set-Content "$Evidence/BUILD-MANIFEST.json"
 Get-Content "$Evidence/BUILD-MANIFEST.json"

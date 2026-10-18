@@ -1,7 +1,7 @@
 //! Opt-in, device-local SSH authentication. No private material crosses IPC or is persisted.
 use crate::error::{AppError, ErrorCode};
-use russh::client::{self, AuthResult};
-use russh::keys::{agent::client::AgentClient, ssh_key::PublicKey, PrivateKeyWithHashAlg};
+use russh::client;
+use russh::keys::PrivateKeyWithHashAlg;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -18,6 +18,7 @@ pub struct SystemAuth {
     pub mode: Mode,
     #[serde(default)]
     pub identity_files: Vec<String>,
+    /// Legacy transport flag: lookup is now automatic even when an old client sends false.
     #[serde(default)]
     pub use_config: bool,
     pub config_host: Option<String>,
@@ -29,7 +30,9 @@ pub struct SystemAuth {
 #[serde(rename_all = "lowercase")]
 pub enum Mode {
     Keys,
-    Agent,
+    /// Decode old callers only to return an actionable error before any identity access.
+    #[serde(rename = "agent")]
+    RemovedAgent,
 }
 
 #[derive(Default, Debug, PartialEq, Eq)]
@@ -144,7 +147,7 @@ fn parse_config(text: &str, host: &str) -> Result<Config, AppError> {
                 active = matches_host(args, host);
             },
             // Ignoring these can apply the wrong IdentityFile/IdentitiesOnly. Fail closed instead.
-            "match" | "include" => return Err(problem("CONFIG_UNSUPPORTED", "Match and Include are unsupported. Disable config lookup and specify local identity paths.")),
+            "match" | "include" => return Err(problem("CONFIG_UNSUPPORTED", "Match and Include are unsupported. Use a supported config or choose vault credentials; no config commands are executed.")),
             "identityfile" if active => {
                 if args.len() != 1 { return Err(problem("CONFIG_INVALID", "IdentityFile requires one quoted path.")); }
                 config.identities_specified = true;
@@ -248,19 +251,15 @@ async fn identities(
             "Select at most three identity files per connection.",
         ));
     }
-    let config = if spec.use_config {
-        let path = home.join(".ssh/config");
-        if tokio::fs::try_exists(&path).await.unwrap_or(false) {
-            parse_config(
-                &read_bounded(&path, false).await?,
-                spec.config_host
-                    .as_deref()
-                    .filter(|s| !s.is_empty())
-                    .unwrap_or(host),
-            )?
-        } else {
-            Config::default()
-        }
+    let path = home.join(".ssh/config");
+    let config = if tokio::fs::try_exists(&path).await.unwrap_or(false) {
+        parse_config(
+            &read_bounded(&path, false).await?,
+            spec.config_host
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .unwrap_or(host),
+        )?
     } else {
         Config::default()
     };
@@ -290,30 +289,6 @@ async fn identities(
             .or(config.identities_only)
             .unwrap_or(false),
     ))
-}
-
-async fn public_identities(paths: &[PathBuf]) -> Vec<PublicKey> {
-    let mut keys = Vec::new();
-    for path in paths {
-        let public = if path.extension().is_some_and(|ext| ext == "pub") {
-            path.clone()
-        } else {
-            let mut name = path.as_os_str().to_os_string();
-            name.push(".pub");
-            PathBuf::from(name)
-        };
-        if let Ok(text) = read_bounded(&public, false).await {
-            if let Ok(key) = PublicKey::from_openssh(&text) {
-                if !keys
-                    .iter()
-                    .any(|k: &PublicKey| k.key_data() == key.key_data())
-                {
-                    keys.push(key);
-                }
-            }
-        }
-    }
-    keys
 }
 
 /// One public-key attempt per identity; no automatic legacy-RSA retry or password fallback.
@@ -349,155 +324,103 @@ pub(super) async fn authenticate_at<H: client::Handler>(
     passphrase: Option<&str>,
     home: &Path,
 ) -> Result<(), AppError> {
-    let (paths, identities_only) = identities(spec, host, home).await?;
+    if spec.mode == Mode::RemovedAgent {
+        return Err(problem("AGENT_REMOVED", "SSH agent login has been removed. Explicitly choose system private key files or vault credentials before connecting."));
+    }
+    let (paths, _identities_only) = identities(spec, host, home).await?;
     let mut attempts = 0;
     let mut local_error = None;
-    match spec.mode {
-        Mode::Keys => {
-            let mut offered = Vec::new();
-            for path in &paths {
-                if attempts >= MAX_IDENTITIES {
-                    break;
-                }
-                if !tokio::fs::try_exists(path).await.unwrap_or(false) {
-                    continue;
-                }
-                let text = match read_bounded(path, true).await {
-                    Ok(text) => text,
-                    Err(error) => {
-                        local_error.get_or_insert(error);
-                        continue;
-                    }
-                };
-                let key = match russh::keys::decode_secret_key(&text, passphrase) {
-                    Ok(key) => Arc::new(key),
-                    Err(_) => {
-                        let encrypted = ssh_key::PrivateKey::from_openssh(&text)
-                            .is_ok_and(|key| key.is_encrypted())
-                            || text.contains("ENCRYPTED");
-                        let error = if encrypted {
-                            AppError::coded(ErrorCode::SshKeyPassphrase, "SYSTEM_SSH_KEY_PASSPHRASE: Encrypted private key requires a valid passphrase.").with_param("authConnectionId", spec.credential_id.as_deref().unwrap_or(""))
-                        } else {
-                            problem(
-                                "KEY_INVALID",
-                                "Cannot decode local private key; check its format and passphrase.",
-                            )
-                        };
-                        local_error.get_or_insert(error);
-                        continue;
-                    }
-                };
-                if offered.contains(key.public_key().key_data()) {
-                    continue;
-                }
-                offered.push(key.public_key().key_data().clone());
-                attempts += 1;
-                let hash = super::client::key_hash(handle, key.algorithm()).await;
-                let result = handle
-                    .authenticate_publickey(username, PrivateKeyWithHashAlg::new(key, hash))
-                    .await
-                    .map_err(|_| {
-                        problem(
-                            "AUTH_FAILED",
-                            "System key authentication failed or the server closed the connection.",
-                        )
-                    })?;
-                if result.success() {
-                    return Ok(());
-                }
-            }
+    let mut offered = Vec::new();
+    for path in &paths {
+        if attempts >= MAX_IDENTITIES {
+            break;
         }
-        Mode::Agent => {
-            let stream = super::client::connect_local_agent().await.map_err(|_| problem("AGENT_UNAVAILABLE", "SSH agent is unavailable. Start your user agent and load a key, or choose another authentication mode."))?;
-            if authenticate_agent(
-                handle,
-                username,
-                &paths,
-                identities_only,
-                stream,
-                &mut attempts,
-            )
-            .await?
-            {
-                return Ok(());
+        if !tokio::fs::try_exists(path).await.unwrap_or(false) {
+            continue;
+        }
+        let text = match read_bounded(path, true).await {
+            Ok(text) => text,
+            Err(error) => {
+                local_error.get_or_insert(error);
+                continue;
             }
+        };
+        let key = match russh::keys::decode_secret_key(&text, passphrase) {
+            Ok(key) => Arc::new(key),
+            Err(_) => {
+                let encrypted = ssh_key::PrivateKey::from_openssh(&text)
+                    .is_ok_and(|key| key.is_encrypted())
+                    || text.contains("ENCRYPTED");
+                let error = if encrypted {
+                    AppError::coded(ErrorCode::SshKeyPassphrase, "SYSTEM_SSH_KEY_PASSPHRASE: Encrypted private key requires a valid passphrase.").with_param("authConnectionId", spec.credential_id.as_deref().unwrap_or(""))
+                } else {
+                    problem(
+                        "KEY_INVALID",
+                        "Cannot decode local private key; check its format and passphrase.",
+                    )
+                };
+                local_error.get_or_insert(error);
+                continue;
+            }
+        };
+        if offered.contains(key.public_key().key_data()) {
+            continue;
+        }
+        offered.push(key.public_key().key_data().clone());
+        attempts += 1;
+        let hash = super::client::key_hash(handle, key.algorithm()).await;
+        let result = handle
+            .authenticate_publickey(username, PrivateKeyWithHashAlg::new(key, hash))
+            .await
+            .map_err(|_| {
+                problem(
+                    "AUTH_FAILED",
+                    "System key authentication failed or the server closed the connection.",
+                )
+            })?;
+        if result.success() {
+            return Ok(());
         }
     }
     if let Some(error) = local_error {
         return Err(error);
     }
     if attempts == 0 {
-        return Err(problem("NO_IDENTITIES", "No usable local identities. Agent IdentitiesOnly needs matching .pub files; system keys support Ed25519, ECDSA and RSA."));
+        return Err(problem("NO_IDENTITIES", "No usable local private-key files. System keys support Ed25519, ECDSA and RSA; this mode does not use ssh-agent."));
     }
-    Err(problem("KEY_REJECTED", "Server rejected the selected identities. At most three keys are attempted; select one path with IdentitiesOnly to avoid server MaxAuthTries limits."))
-}
-
-pub(super) async fn authenticate_agent<H, S>(
-    handle: &mut client::Handle<H>,
-    username: &str,
-    paths: &[PathBuf],
-    identities_only: bool,
-    stream: S,
-    attempts: &mut usize,
-) -> Result<bool, AppError>
-where
-    H: client::Handler,
-    S: russh::keys::agent::client::AgentStream + Send + Unpin,
-{
-    let mut agent = AgentClient::connect(stream);
-    let identities = agent
-        .request_identities()
-        .await
-        .map_err(|_| problem("AGENT_UNAVAILABLE", "Cannot list SSH agent public keys."))?;
-    let identities: Vec<_> = identities
-        .into_iter()
-        .filter(|identity| {
-            matches!(
-                identity,
-                russh::keys::agent::AgentIdentity::PublicKey { .. }
-            )
-        })
-        .collect();
-    let preferred = public_identities(paths).await;
-    let mut keys = Vec::new();
-    for key in &preferred {
-        if identities
-            .iter()
-            .any(|identity| identity.public_key().key_data() == key.key_data())
-        {
-            keys.push(key.clone());
-        }
-    }
-    if !identities_only {
-        for identity in identities {
-            let key = identity.public_key().into_owned();
-            if !keys.iter().any(|k| k.key_data() == key.key_data()) {
-                keys.push(key);
-            }
-        }
-    }
-    for key in keys.into_iter().take(MAX_IDENTITIES) {
-        *attempts += 1;
-        let hash = super::client::key_hash(handle, key.algorithm()).await;
-        let result: AuthResult = handle
-            .authenticate_publickey_with(username, key, hash, &mut agent)
-            .await
-            .map_err(|_| {
-                problem(
-                    "AGENT_SIGN_FAILED",
-                    "SSH agent signing failed, was cancelled, or the server closed the connection.",
-                )
-            })?;
-        if result.success() {
-            return Ok(true);
-        }
-    }
-    Ok(false)
+    Err(problem("KEY_REJECTED", "Server rejected the selected local private-key identities. At most three keys are attempted, without agent or password fallback. Check the username and the identity accepted by OpenSSH."))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn config_lookup_is_automatic_for_old_false_and_missing_flags_and_explicit_paths_win() {
+        let home = tempfile::tempdir().unwrap();
+        std::fs::create_dir(home.path().join(".ssh")).unwrap();
+        std::fs::write(
+            home.path().join(".ssh/config"),
+            "Host synthetic\n IdentityFile ~/.ssh/config-key\n IdentitiesOnly yes\n",
+        )
+        .unwrap();
+        for flag in [None, Some(false), Some(true)] {
+            let mut raw = serde_json::json!({"mode":"keys","identityFiles":[]});
+            if let Some(flag) = flag {
+                raw["useConfig"] = flag.into();
+            }
+            let mut policy: SystemAuth = serde_json::from_value(raw).unwrap();
+            let (paths, only) = identities(&policy, "synthetic", home.path()).await.unwrap();
+            assert_eq!(paths, [home.path().join(".ssh/config-key")]);
+            assert!(only);
+            policy.identity_files = vec!["explicit-key".into()];
+            let (paths, only) = identities(&policy, "synthetic", home.path()).await.unwrap();
+            assert_eq!(paths, [home.path().join(".ssh/explicit-key")]);
+            assert!(only); // Explicit paths do not turn off IdentitiesOnly from config.
+        }
+        let old: SystemAuth =
+            serde_json::from_value(serde_json::json!({"mode":"agent","useConfig":false})).unwrap();
+        assert_eq!(old.mode, Mode::RemovedAgent);
+    }
     #[test]
     fn config_scope_negation_quotes_and_first_scalar() {
         let config = parse_config("Host *.example !blocked.example\n IdentityFile \"~/key one\"\n IdentitiesOnly yes\nHost *\n IdentityFile ~/.ssh/id_rsa\n IdentitiesOnly no", "lab.example").unwrap();

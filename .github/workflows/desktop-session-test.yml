@@ -43,7 +43,7 @@ jobs:
           cargo fmt --all --check 2>&1 | tee desktop-linux-evidence/rustfmt.log
           pnpm test 2>&1 | tee desktop-linux-evidence/frontend-tests.log
           pnpm build 2>&1 | tee desktop-linux-evidence/frontend-build.log
-      - name: Full native regressions including synthetic keys and real isolated agent
+      - name: Full native regressions including synthetic private keys
         run: cargo test --locked --workspace 2>&1 | tee desktop-linux-evidence/native-tests.log
       - name: Rust static checks
         run: cargo clippy --locked --workspace --all-targets -- -D warnings 2>&1 | tee desktop-linux-evidence/clippy.log

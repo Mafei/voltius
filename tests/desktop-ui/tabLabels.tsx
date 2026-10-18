@@ -29,6 +29,7 @@ export default function TabLabelFixture() {
   return <main data-tab-layout-fixture className="chrome-frame w-max min-w-full min-h-screen p-6">
     <style>{`html,body,#root{overflow:visible!important;height:auto!important}
       /* Reproduce the previous inherited styles without a second component implementation. */
+      [data-legacy-tab-lines] [data-titlebar-key]{height:2.25rem}
       [data-legacy-tab-lines] [data-session-primary]{font-size:var(--text-base);line-height:var(--text-base--line-height)}
       [data-legacy-tab-lines] [data-session-secondary]{font-size:10px;line-height:inherit}`}</style>
     <h1 className="text-xl mb-2">Synthetic titlebar layout verification</h1>

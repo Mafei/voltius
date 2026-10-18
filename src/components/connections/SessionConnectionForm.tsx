@@ -181,7 +181,7 @@ export default function SessionConnectionForm({ connection, onClose, onOpened, p
             else if (value.startsWith("existing:")) {
               const remote = listing?.sessions[Number(value.slice(9))];
               if (!remote) return;
-              setSelection({ kind: "existing", remote }); setName("");
+              setSelection({ kind: "existing", remote });
             } else return;
             setError("");
           }}>
@@ -197,15 +197,18 @@ export default function SessionConnectionForm({ connection, onClose, onOpened, p
         {listing && !listing.installed && <p role="status" className="text-sm mt-2">{t("mobile.session.missing", { backend: type === "tmux" ? "Tmux" : "Zellij" })}</p>}
         {listing?.installed && !listing.sessions.length && <p role="status" className="text-xs mt-2 text-(--t-text-dim)">{t("mobile.session.empty")}</p>}
         {backend === "zellij" && <p className="text-xs mt-2 text-(--t-text-dim)">{t("mobile.session.runningOnly")}</p>}
+        {selectedNew && <>
         <label className="block text-sm mt-4" htmlFor="ssh-session-name">{t("mobile.session.name")}</label>
-        <input id="ssh-session-name" type="text" autoCapitalize="none" autoCorrect="off" autoComplete="off" value={selectedNew ? name : ""}
-          disabled={!selectedNew || busy || loading || !listing?.installed} aria-invalid={!!duplicate || (selectedNew && !!name && invalidName)}
+        <input id="ssh-session-name" type="text" autoCapitalize="none" autoCorrect="off" autoComplete="off" value={name}
+          disabled={busy || loading || !listing?.installed} aria-invalid={!!duplicate || (!!name && invalidName)}
           onChange={(event) => { setName(event.target.value); setError(""); }}
           className="w-full rounded-lg border p-2 mt-1 bg-(--t-bg-card) border-(--t-border) disabled:opacity-50" />
         <p className="text-xs text-(--t-text-dim) mt-1">{t(backend === "tmux" ? "mobile.tmux.nameHint" : "mobile.session.zellijNameHint")}</p>
+        {duplicate && <p role="alert" className="text-sm text-(--t-danger) mt-2">{t("mobile.session.duplicate")}</p>}
+        </>}
       </>}
       {loading && <p role="status" className="text-sm mt-2">{t("mobile.session.loading")}</p>}
-      {(error || duplicate) && <p role="alert" className="text-sm text-(--t-danger) whitespace-pre-wrap mt-2">{duplicate ? t("mobile.session.duplicate") : error}</p>}
+      {error && <p role="alert" className="text-sm text-(--t-danger) whitespace-pre-wrap mt-2">{error}</p>}
       {conflict && <HostKeyConflictPanel conflict={conflict} resolving={resolving} onResolve={(action) => void resolveConflict(action)} />}
       <div className="flex gap-3 mt-5">
         <button type="button" onClick={close} className="flex-1 rounded-lg border border-(--t-border) px-3 py-2">{t("common.action.cancel")}</button>

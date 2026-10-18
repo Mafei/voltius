@@ -25,8 +25,8 @@ test("cancellation sends no retry and late/double answers cannot resurrect it", 
   expect(h.invoke).toHaveBeenCalledTimes(1); expect(useSystemSshUnlockStore.getState().pending).toEqual([]);
 });
 
-test("agent failure and an unknown challenge target never trigger a key prompt", async () => {
-  for (const error of [new Error("SYSTEM_SSH_AGENT_UNAVAILABLE"), challenge("unowned")]) {
+test("removed-agent policy and an unknown challenge target never trigger a key prompt", async () => {
+  for (const error of [new Error("SYSTEM_SSH_AGENT_REMOVED"), challenge("unowned")]) {
     h.invoke.mockRejectedValueOnce(error); await expect(systemSshInvoke("sftp_connect", params())).rejects.toBe(error);
     expect(useSystemSshUnlockStore.getState().pending).toEqual([]);
   }

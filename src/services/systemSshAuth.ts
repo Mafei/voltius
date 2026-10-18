@@ -1,12 +1,20 @@
 /** Paths and policy only. Private keys are read inside the desktop SSH backend. */
 export interface SystemSshAuth {
-  mode: "keys" | "agent";
+  mode: "keys";
   identityFiles: string[];
   useConfig: boolean;
   configHost?: string;
   identitiesOnly?: boolean;
   /** Transient routing for an encrypted-key challenge; excluded from saved preferences. */
   credentialId?: string;
+}
+export type SavedSystemSshAuth = SystemSshAuth | { mode: "removed-agent" | "invalid" };
+
+/** Preserve a blocking marker; an old agent choice must never silently become another identity. */
+export function normalizeSavedSystemSshAuth(value: unknown): SavedSystemSshAuth | undefined {
+  if (value === undefined) return;
+  if (value && typeof value === "object" && ["agent", "removed-agent"].includes(String((value as { mode?: unknown }).mode))) return { mode: "removed-agent" };
+  return normalizeSystemSshAuth(value) ?? { mode: "invalid" };
 }
 
 export interface SystemAuthEnvelope { systemAuth?: SystemSshAuth; passphrase?: string; jumpHosts?: SystemAuthEnvelope[] | null }
@@ -21,11 +29,12 @@ export function withSystemPassphrases<T extends SystemAuthEnvelope>(params: T, a
 export function normalizeSystemSshAuth(value: unknown): SystemSshAuth | undefined {
   if (!value || typeof value !== "object") return;
   const v = value as Record<string, unknown>;
-  if (v.mode !== "keys" && v.mode !== "agent") return;
+  if (v.mode !== "keys") return;
   const paths = Array.isArray(v.identityFiles) ? v.identityFiles.filter((p): p is string => typeof p === "string").map((p) => p.trim()).filter(Boolean) : [];
   if (paths.length > 3 || paths.some((p) => p.length > 4096 || /[\r\n\0]|PRIVATE KEY/.test(p))) return;
   return {
-    mode: v.mode, identityFiles: [...new Set(paths)], useConfig: v.useConfig === true,
+    // Config lookup is automatic. Migrate old false/omitted values as well.
+    mode: "keys", identityFiles: [...new Set(paths)], useConfig: true,
     ...(typeof v.configHost === "string" && { configHost: v.configHost.slice(0, 1024) }),
     ...(typeof v.identitiesOnly === "boolean" && { identitiesOnly: v.identitiesOnly }),
   };

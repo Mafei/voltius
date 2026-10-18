@@ -16,10 +16,10 @@ export function SessionTabLabel({ session }: { session: TerminalSession }) {
   const secondary = mode?.kind === "tmux" || mode?.kind === "zellij"
     ? `${mode.kind === "tmux" ? "Tmux" : "Zellij"} · ${session.customTitle && session.customTitle !== mode.session.name ? `${mode.session.name} · ` : ""}${session.connectionName} · ${mode.username}@${mode.endpoint}`
     : undefined;
-  // Both lines must fit inside a 2.25rem tab, including its borders. Inheriting
-  // text-base's 1.6rem line-height on both lines clips the session and host.
+  // Reserve room for glyph ascent/descent as well as the line boxes and borders.
+  // Inheriting text-base's 1.6rem line-height on both lines clips session and host.
   return <span data-session-label className="flex min-w-0 flex-col text-left" title={[primary, secondary].filter(Boolean).join("\n")}>
-    <span data-session-primary className={secondary ? "truncate text-[0.933rem] leading-[1.2rem]" : "truncate"}>{primary}</span>
+    <span data-session-primary className={secondary ? "truncate text-sm leading-[1.4rem]" : "truncate"}>{primary}</span>
     {secondary && <span data-session-secondary className="truncate text-[0.667rem] leading-[0.8rem] opacity-70">{secondary}</span>}
   </span>;
 }
@@ -143,11 +143,12 @@ export function TitlebarTab({
   buttonRef?: React.Ref<HTMLButtonElement>;
 }) {
   const tabIcon = <span className="inline-flex shrink-0 items-center justify-center" aria-hidden="true">{icon}</span>;
+  const frameClassName = "relative flex items-center gap-2 h-10 px-2 rounded-xl text-base font-medium-bold shrink-0 overflow-hidden";
   if (renaming) {
     return (
       <div
         data-titlebar-key={itemKey}
-        className="relative flex items-center gap-2 h-9 px-2 rounded-xl text-base font-medium-bold shrink-0 overflow-hidden"
+        className={frameClassName}
         style={tabSurfaceStyle(active)}
       >
         {tabIcon}
@@ -170,7 +171,7 @@ export function TitlebarTab({
       onContextMenu={onContextMenu}
       onDoubleClick={onDoubleClick}
       onPointerDown={onPointerDown}
-      className="group relative flex items-center gap-2 h-9 px-2 rounded-xl text-base font-medium-bold shrink-0 transition-all overflow-hidden"
+      className={`group ${frameClassName} transition-all`}
       title={title}
       style={tabSurfaceStyle(active)}
       onMouseEnter={(e) => {

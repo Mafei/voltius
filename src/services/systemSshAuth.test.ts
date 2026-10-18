@@ -17,13 +17,31 @@ test("local policy strips secrets and transient ids before persistence and rejec
 });
 
 test("Android behavior stays independent; invalid edits cannot silently use an old identity", () => {
-  useSystemSshAuthStore.getState().set("host", { mode: "agent", identityFiles: [], useConfig: false });
-  expect(systemSshAuthFor("host")?.mode).toBe("agent"); h.platform = "android"; expect(systemSshAuthFor("host")).toBeUndefined();
+  useSystemSshAuthStore.getState().set("host", { mode: "keys", identityFiles: [], useConfig: false });
+  expect(systemSshAuthFor("host")?.mode).toBe("keys"); h.platform = "android"; expect(systemSshAuthFor("host")).toBeUndefined();
   h.platform = "windows"; useSystemSshAuthStore.getState().setInvalid("host", true); expect(() => systemSshAuthFor("host")).toThrow(/paths are invalid/);
 });
 
 test("passphrase application preserves each hop's identity and never changes the original", () => {
-  const original = { passphrase: "final-existing", systemAuth: { mode: "keys" as const, credentialId: "final", useConfig: false, identityFiles: [] }, jumpHosts: [{ systemAuth: { mode: "agent" as const, credentialId: "jump", identityFiles: [], useConfig: false } }] };
+  const original = { passphrase: "final-existing", systemAuth: { mode: "keys" as const, credentialId: "final", useConfig: false, identityFiles: [] }, jumpHosts: [{ systemAuth: { mode: "keys" as const, credentialId: "jump", identityFiles: [], useConfig: false } }] };
   const next = withSystemPassphrases(original, { jump: "synthetic-hop" }); expect(next.passphrase).toBe("final-existing");
   expect(next.jumpHosts[0]).toHaveProperty("passphrase", "synthetic-hop"); expect(original.jumpHosts[0]).not.toHaveProperty("passphrase");
+});
+
+test("version-zero preferences migrate old false and block removed agent choices without saving secrets", async () => {
+  localStorage.setItem("voltius-system-ssh-auth", JSON.stringify({ version: 0, state: { byConnection: {
+    oldKeys: { mode: "keys", identityFiles: ["~/.ssh/explicit"], useConfig: false },
+    oldAgent: { mode: "agent", identityFiles: ["~/.ssh/agent.pub"], useConfig: false, passphrase: "synthetic-never-retained", privateKey: "synthetic-private" },
+    invalidKeys: { mode: "keys", identityFiles: ["-----BEGIN PRIVATE KEY-----"] },
+  } } }));
+  await useSystemSshAuthStore.persist.rehydrate();
+  expect(systemSshAuthFor("oldKeys")).toMatchObject({ mode: "keys", identityFiles: ["~/.ssh/explicit"], useConfig: true });
+  expect(useSystemSshAuthStore.getState().byConnection.oldAgent).toEqual({ mode: "removed-agent" });
+  expect(() => systemSshAuthFor("oldAgent")).toThrow(/agent login has been removed/);
+  expect(useSystemSshAuthStore.getState().byConnection.invalidKeys).toEqual({ mode: "invalid" });
+  expect(() => systemSshAuthFor("invalidKeys")).toThrow(/policy is invalid/);
+  const persisted = localStorage.getItem("voltius-system-ssh-auth")!;
+  for (const secret of ["synthetic-never-retained", "synthetic-private", "agent.pub", "PRIVATE KEY"]) expect(persisted).not.toContain(secret);
+  useSystemSshAuthStore.getState().set("oldAgent", { mode: "keys", identityFiles: [], useConfig: true });
+  expect(systemSshAuthFor("oldAgent")?.mode).toBe("keys");
 });

@@ -54,12 +54,12 @@ beforeEach(() => {
 });
 
 test("system authentication bypasses vault secret reads but keeps CONNECT permissions, including referenced jumps", async () => {
-  const policy = { mode: "keys" as const, identityFiles: ["~/.ssh/id_ed25519"], useConfig: false };
-  useSystemSshAuthStore.getState().set("c1", policy); useSystemSshAuthStore.getState().set("jump", { ...policy, mode: "agent" });
+  const policy = { mode: "keys" as const, identityFiles: ["~/.ssh/id_ed25519"], useConfig: true };
+  useSystemSshAuthStore.getState().set("c1", policy); useSystemSshAuthStore.getState().set("jump", { ...policy, mode: "keys" });
   h.getSecret.mockRejectedValue(new VaultUnreadableError());
   await expect(resolveConnectionCredentials(conn())).resolves.toEqual({ username: "root", systemAuth: { ...policy, credentialId: "c1" } });
   h.connections = [conn({ id: "jump", username: "hop" })];
-  expect((await resolveJumpHosts(conn({ jump_hosts: [{ id: "synthetic-jump", connection_id: "jump" }] })))[0]).toMatchObject({ username: "hop", systemAuth: { mode: "agent", credentialId: "jump" } });
+  expect((await resolveJumpHosts(conn({ jump_hosts: [{ id: "synthetic-jump", connection_id: "jump" }] })))[0]).toMatchObject({ username: "hop", systemAuth: { mode: "keys", credentialId: "jump" } });
   expect(h.getSecret).not.toHaveBeenCalled(); h.can.mockReturnValue(false);
   await expect(resolveConnectionCredentials(conn())).rejects.toThrow(ConnectNotAllowedError);
   await expect(resolveJumpHosts(conn({ jump_hosts: [{ id: "synthetic-jump", connection_id: "jump" }] }))).rejects.toThrow(ConnectNotAllowedError);

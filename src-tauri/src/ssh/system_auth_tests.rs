@@ -1,7 +1,7 @@
-//! Synthetic loopback SSH + isolated real OpenSSH agent. Never touches the user's home or agent.
+//! Synthetic loopback SSH and temporary private keys. Never touches the user's home or agent.
 #![cfg(unix)]
 use super::system_auth::*;
-use super::system_auth::{authenticate_agent, authenticate_at, read_bounded};
+use super::system_auth::{authenticate_at, read_bounded};
 use crate::port_forward::test_ssh::{host_key, serve_one};
 use russh::keys::{ssh_key::PublicKey, PublicKeyOrCertificate};
 use russh::server::Auth;
@@ -99,6 +99,111 @@ fn spec(mode: Mode) -> SystemAuth {
         credential_id: Some("synthetic-connection".into()),
     }
 }
+
+#[tokio::test]
+async fn removed_agent_is_blocked_before_config_keys_or_an_auth_offer() {
+    let home = tempfile::tempdir().unwrap();
+    let (_, public) = generate(home.path(), "id_ed25519", "");
+    let forbidden = home.path().join("must-not-execute");
+    std::fs::write(
+        home.path().join(".ssh/config"),
+        format!(
+            "Match exec touch {}\n IdentityFile ~/.ssh/id_ed25519\n",
+            forbidden.display()
+        ),
+    )
+    .unwrap();
+    let (mut handle, offered, signed) = connection(public).await;
+    let old: SystemAuth = serde_json::from_value(
+        serde_json::json!({"mode":"agent","useConfig":false,"identityFiles":["~/.ssh/id_ed25519"]}),
+    )
+    .unwrap();
+    let error = authenticate_at(
+        &mut handle,
+        "synthetic-user",
+        "fixture",
+        &old,
+        None,
+        home.path(),
+    )
+    .await
+    .unwrap_err();
+    assert!(error.to_string().contains("AGENT_REMOVED"));
+    assert_eq!(offered.load(Ordering::SeqCst), 0);
+    assert_eq!(signed.load(Ordering::SeqCst), 0);
+    assert!(!forbidden.exists());
+}
+
+#[tokio::test]
+async fn private_key_attempt_budget_is_three_and_explicit_identity_beats_config() {
+    let home = tempfile::tempdir().unwrap();
+    let wrong: Vec<_> = (0..3)
+        .map(|i| {
+            generate(home.path(), &format!("wrong-{i}"), "")
+                .0
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect();
+    let (wanted, public) = generate(home.path(), "wanted", "");
+    std::fs::write(
+        home.path().join(".ssh/config"),
+        "Host fixture\n IdentityFile ~/.ssh/wrong-0\n IdentitiesOnly yes\n",
+    )
+    .unwrap();
+    let mut policy = spec(Mode::Keys);
+    policy.identity_files = wrong;
+    let (mut handle, offered, signed) = connection(public.clone()).await;
+    assert!(authenticate_at(
+        &mut handle,
+        "synthetic-user",
+        "fixture",
+        &policy,
+        None,
+        home.path()
+    )
+    .await
+    .unwrap_err()
+    .to_string()
+    .contains("KEY_REJECTED"));
+    assert_eq!(offered.load(Ordering::SeqCst), 3);
+    assert_eq!(signed.load(Ordering::SeqCst), 0);
+    policy.identity_files = vec![wanted.to_string_lossy().into_owned()];
+    let (mut handle, offered, signed) = connection(public).await;
+    authenticate_at(
+        &mut handle,
+        "synthetic-user",
+        "fixture",
+        &policy,
+        None,
+        home.path(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(offered.load(Ordering::SeqCst), 1);
+    assert_eq!(signed.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn all_default_files_are_tried_in_a_three_identity_budget_with_rsa_last() {
+    let home = tempfile::tempdir().unwrap();
+    generate(home.path(), "id_ed25519", "");
+    generate_kind(home.path(), "id_ecdsa", "", "ecdsa");
+    let (_, public) = generate_kind(home.path(), "id_rsa", "", "rsa");
+    let (mut handle, offered, signed) = connection(public).await;
+    authenticate_at(
+        &mut handle,
+        "synthetic-user",
+        "fixture",
+        &spec(Mode::Keys),
+        None,
+        home.path(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(offered.load(Ordering::SeqCst), 3);
+    assert_eq!(signed.load(Ordering::SeqCst), 1);
+}
 fn generate(home: &Path, name: &str, passphrase: &str) -> (std::path::PathBuf, PublicKey) {
     generate_kind(home, name, passphrase, "ed25519")
 }
@@ -172,7 +277,7 @@ async fn config_alias_quoted_identity_and_none_are_honored_without_executing_com
     let forbidden = home.path().join("must-not-be-created");
     std::fs::write(home.path().join(".ssh/config"), format!("Host chosen\n IdentityFile \"~/.ssh/key one\"\n IdentitiesOnly yes\n ProxyCommand touch {}\n", forbidden.display())).unwrap();
     let mut policy = spec(Mode::Keys);
-    policy.use_config = true;
+    assert!(!policy.use_config); // Legacy false must not disable automatic config lookup.
     policy.config_host = Some("chosen".into());
     let (mut handle, _, signed) = connection(public.clone()).await;
     authenticate_at(
@@ -297,198 +402,31 @@ async fn invalid_permissions_invalid_key_and_rejected_auth_are_distinct() {
     assert_eq!(signed.load(Ordering::SeqCst), 0);
 }
 
-struct IsolatedAgent {
-    child: tokio::process::Child,
-    socket: std::path::PathBuf,
-}
-impl IsolatedAgent {
-    async fn start(home: &Path, keys: &[std::path::PathBuf]) -> Self {
-        let socket = home.join("agent.sock");
-        let child = tokio::process::Command::new("ssh-agent")
-            .args(["-D", "-a"])
-            .arg(&socket)
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .kill_on_drop(true)
-            .spawn()
-            .expect("Install openssh-client");
-        tokio::time::timeout(Duration::from_secs(5), async {
-            while !socket.exists() {
-                tokio::time::sleep(Duration::from_millis(10)).await;
-            }
-        })
-        .await
-        .unwrap();
-        let result = tokio::process::Command::new("ssh-add")
-            .env("SSH_AUTH_SOCK", &socket)
-            .args(keys)
-            .output()
-            .await
-            .unwrap();
-        assert!(
-            result.status.success(),
-            "Could not load isolated synthetic agent"
-        );
-        Self { child, socket }
-    }
-    async fn stream(&self) -> tokio::net::UnixStream {
-        tokio::net::UnixStream::connect(&self.socket).await.unwrap()
-    }
-}
-impl Drop for IsolatedAgent {
-    fn drop(&mut self) {
-        let _ = self.child.start_kill();
-    }
-}
-
 #[tokio::test]
-async fn real_agent_signs_without_a_private_file_and_identities_only_never_offers_unselected_keys()
-{
-    let home = tempfile::tempdir().unwrap();
-    let (file, public) = generate(home.path(), "id_ed25519", "");
-    let agent = IsolatedAgent::start(home.path(), std::slice::from_ref(&file)).await;
-    std::fs::remove_file(&file).unwrap(); // Only .pub remains; the app cannot obtain the private key from disk.
-    let (mut handle, _, signed) = connection(public.clone()).await;
-    let mut attempts = 0;
-    assert!(authenticate_agent(
-        &mut handle,
-        "synthetic-user",
-        std::slice::from_ref(&file),
-        true,
-        agent.stream().await,
-        &mut attempts
-    )
-    .await
-    .unwrap());
-    assert_eq!(attempts, 1);
-    assert_eq!(signed.load(Ordering::SeqCst), 1);
-    let (mut handle, offered, _) = connection(public).await;
-    let mut attempts = 0;
-    assert!(!authenticate_agent(
-        &mut handle,
-        "synthetic-user",
-        &[home.path().join("no-match")],
-        true,
-        agent.stream().await,
-        &mut attempts
-    )
-    .await
-    .unwrap());
-    assert_eq!(attempts, 0);
-    assert_eq!(offered.load(Ordering::SeqCst), 0);
-}
-
-#[tokio::test]
-async fn agent_attempt_budget_is_three_even_with_many_loaded_keys_and_disconnect_is_clear() {
-    let home = tempfile::tempdir().unwrap();
-    let mut files = Vec::new();
-    for index in 0..6 {
-        files.push(generate(home.path(), &format!("identity-{index}"), "").0);
-    }
-    let agent = IsolatedAgent::start(home.path(), &files).await;
-    let expected = tempfile::tempdir().unwrap();
-    let (_, public) = generate(expected.path(), "id_ed25519", "");
-    let (mut handle, offered, signed) = connection(public.clone()).await;
-    let mut attempts = 0;
-    assert!(!authenticate_agent(
-        &mut handle,
-        "synthetic-user",
-        &[],
-        false,
-        agent.stream().await,
-        &mut attempts
-    )
-    .await
-    .unwrap());
-    assert_eq!(attempts, 3);
-    assert_eq!(offered.load(Ordering::SeqCst), 3);
-    assert_eq!(signed.load(Ordering::SeqCst), 0);
-    let stream = agent.stream().await;
-    drop(agent);
-    let (mut handle, _, _) = connection(public).await;
-    let error = authenticate_agent(&mut handle, "synthetic-user", &[], false, stream, &mut 0)
-        .await
-        .unwrap_err()
-        .to_string();
-    assert!(error.contains("AGENT_UNAVAILABLE"));
-}
-
-#[tokio::test]
-async fn cancelling_a_stalled_agent_does_not_send_any_identity_and_reconnect_is_fresh() {
-    let home = tempfile::tempdir().unwrap();
-    let (_, public) = generate(home.path(), "id_ed25519", "");
-    let (mut handle, offered, signed) = connection(public.clone()).await;
-    let (stream, _never_answers) = tokio::io::duplex(4096);
-    let mut attempts = 0;
-    assert!(tokio::time::timeout(
-        Duration::from_millis(50),
-        authenticate_agent(
-            &mut handle,
-            "synthetic-user",
-            &[],
-            false,
-            stream,
-            &mut attempts
-        )
-    )
-    .await
-    .is_err());
-    assert_eq!(offered.load(Ordering::SeqCst), 0);
-    assert_eq!(signed.load(Ordering::SeqCst), 0);
-    drop(handle);
-    let (mut handle, _, signed) = connection(public).await;
-    authenticate_at(
-        &mut handle,
-        "synthetic-user",
-        "fixture",
-        &spec(Mode::Keys),
-        None,
-        home.path(),
-    )
-    .await
-    .unwrap();
-    assert_eq!(signed.load(Ordering::SeqCst), 1);
-}
-
-#[tokio::test]
-async fn system_key_and_agent_open_the_real_sftp_subsystem_and_jump_auth_keeps_host_key_checks() {
+async fn system_key_opens_the_real_sftp_subsystem_and_jump_auth_keeps_host_key_checks() {
     use crate::ssh::test_proc_server::{keyed_proc_server, ProcOptions};
     let home = tempfile::tempdir().unwrap();
     let (file, public) = generate(home.path(), "id_ed25519", "");
-    let agent = IsolatedAgent::start(home.path(), std::slice::from_ref(&file)).await;
     let marker = home.path().join("sftp-marker");
     std::fs::write(&marker, b"synthetic sftp fixture").unwrap();
-    for mode in [Mode::Keys, Mode::Agent] {
+    {
         let (port, _) = keyed_proc_server(ProcOptions::default(), public.clone()).await;
         let mut handle =
             russh::client::connect(Default::default(), ("127.0.0.1", port), PinnedClient)
                 .await
                 .unwrap();
-        if mode == Mode::Keys {
-            let mut policy = spec(mode);
-            policy.identity_files = vec![file.to_string_lossy().into_owned()];
-            crate::ssh::client::authenticate_handle_with_system(
-                &mut handle,
-                "synthetic-user",
-                None,
-                None,
-                None,
-                Some(("127.0.0.1", &policy)),
-            )
-            .await
-            .unwrap();
-        } else {
-            assert!(authenticate_agent(
-                &mut handle,
-                "synthetic-user",
-                std::slice::from_ref(&file),
-                true,
-                agent.stream().await,
-                &mut 0
-            )
-            .await
-            .unwrap());
-        }
+        let mut policy = spec(Mode::Keys);
+        policy.identity_files = vec![file.to_string_lossy().into_owned()];
+        crate::ssh::client::authenticate_handle_with_system(
+            &mut handle,
+            "synthetic-user",
+            None,
+            None,
+            None,
+            Some(("127.0.0.1", &policy)),
+        )
+        .await
+        .unwrap();
         let channel = handle.channel_open_session().await.unwrap();
         channel.request_subsystem(true, "sftp").await.unwrap();
         let sftp = russh_sftp::client::SftpSession::new(channel.into_stream())

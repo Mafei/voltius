@@ -44,7 +44,7 @@ export async function verifyTabLabels(browser, createContext, output) {
         assert(dual.length === 10 && dual.every((row) => row.labelTop < row.top - 1 && row.labelBottom > row.bottom + 1), "previous inherited two-line styles must reproduce vertical clipping");
         assert(legacy.filter((row) => row.lines.length === 1).every((row) => row.labelTop >= row.top && row.labelBottom <= row.bottom), "legacy single-line tabs stay inside");
         await page.screenshot({ path: path.join(output, "tab-labels-before-inherited-lines.png"), fullPage: true });
-        results.push({ reproduction: "previous inherited font/line-height applied to production components", dpr, rows: legacy });
+        results.push({ reproduction: "previous tab height and inherited font/line-height applied to production components", dpr, rows: legacy });
         await page.locator("main").evaluate((node) => node.removeAttribute("data-legacy-tab-lines"));
       }
       for (const zoom of [0.75, 1, 1.25, 1.5, 2]) {
@@ -56,6 +56,7 @@ export async function verifyTabLabels(browser, createContext, output) {
           for (const line of row.lines) {
             assert(line.top >= row.top - tolerance && line.bottom <= row.bottom + tolerance, `line clipped at ${dpr}/${zoom}: ${row.id}/${row.selected}`);
             assert(line.textTop >= row.top - tolerance && line.textBottom <= row.bottom + tolerance, `text bounds clipped at ${dpr}/${zoom}: ${JSON.stringify({ row, line })}`);
+            assert(line.textTop >= line.top - tolerance && line.textBottom <= line.bottom + tolerance, `glyph clipped by its own ellipsis box at ${dpr}/${zoom}: ${JSON.stringify({ row, line })}`);
             assert(row.title.includes(line.value), "tooltip retains the complete primary and host text");
           }
           for (const icon of row.decorations) assert(icon.top >= row.top - tolerance && icon.bottom <= row.bottom + tolerance, "icon/close stays inside the tab");

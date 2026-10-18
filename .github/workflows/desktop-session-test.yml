@@ -119,32 +119,11 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: ./.github/actions/prepare-frontend
-      - run: mkdir -p desktop-browser-evidence
-      - name: Browser fixture with normally sandboxed installed Chrome
-        env:
-          VOLTIUS_BROWSER_TOOLS: ${{ github.workspace }}/tests/desktop-ui/tools
-          VOLTIUS_BROWSER_EXECUTABLE: /usr/bin/google-chrome
-          VOLTIUS_UI_EVIDENCE: desktop-browser-evidence/browser-ui
-        run: |
-          npm ci --prefix tests/desktop-ui/tools --ignore-scripts
-          pnpm vite build --config scripts/desktop-ui.vite.config.ts 2>&1 | tee desktop-browser-evidence/fixture-build.log
-          pnpm vite --config scripts/desktop-ui.vite.config.ts > desktop-browser-evidence/browser-server.log 2>&1 &
-          server_pid=$!
-          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent http://127.0.0.1:1428/tests/desktop-ui/index.html > /dev/null; then break; fi
-            sleep 1
-          done
-          node scripts/verify-desktop-ui.mjs 2>&1 | tee desktop-browser-evidence/browser-tests.log
-      - name: Preserve browser fixture evidence
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: ./.github/actions/verify-browser-ui
         with:
-          name: Voltius-desktop-browser-${{ github.sha }}
-          path: desktop-browser-evidence/
-          retention-days: 14
-          if-no-files-found: error
+          verifier: scripts/verify-desktop-ui.mjs
+          evidence-root: desktop-browser-evidence
+          artifact-name: Voltius-desktop-browser-${{ github.sha }}
   native-platform:
     if: github.repository == 'Mafei/voltius' && startsWith(github.ref, 'refs/heads/candidate/desktop-sessions-')
     strategy:

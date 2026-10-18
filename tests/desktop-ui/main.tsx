@@ -15,6 +15,7 @@ import { metrics } from "./picker";
 import type { Connection } from "@/types";
 import TabLabelFixture from "./tabLabels";
 import { preloadIcons } from "@/utils/icons";
+import MobileTabFixture from "./mobileTabs";
 
 preloadIcons();
 
@@ -44,4 +45,5 @@ function App() {
     {chooser && <SessionConnectionForm connection={host} presentation="dialog" onClose={() => setChooser(false)} onOpened={(id) => { setOpened(id); setChooser(false); }} />}
   </div>;
 }
-createRoot(document.getElementById("root")!).render(new URLSearchParams(location.search).has("tab-labels") ? <TabLabelFixture /> : <App />);
+const parameters = new URLSearchParams(location.search);
+createRoot(document.getElementById("root")!).render(parameters.has("mobile-tabs") ? <MobileTabFixture /> : parameters.has("tab-labels") ? <TabLabelFixture /> : <App />);

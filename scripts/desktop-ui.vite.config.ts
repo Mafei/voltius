@@ -7,6 +7,7 @@ const root = path.resolve(import.meta.dirname, "..");
 export default defineConfig({
   root, plugins: [react(), svgr(), iconSubsets()],
   resolve: { alias: [
+    { find: "@/services/terminalInput", replacement: path.join(root, "tests/desktop-ui/mobileInput.ts") },
     { find: "@/services/tmuxPicker", replacement: path.join(root, "tests/desktop-ui/picker.ts") },
     { find: "@/components/terminal/connection-overlay/hooks", replacement: path.join(root, "tests/desktop-ui/native.ts") },
     { find: "@/lib/invoke", replacement: path.join(root, "tests/desktop-ui/native.ts") },

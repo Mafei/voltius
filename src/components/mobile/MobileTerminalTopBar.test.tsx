@@ -1,5 +1,5 @@
 import { describe, test, expect, afterEach, vi } from "vitest";
-import { render, cleanup } from "@testing-library/react";
+import { render, cleanup, fireEvent, screen } from "@testing-library/react";
 import { useSessionStore } from "@/stores/sessionStore";
 import { tmuxSession, tmuxTab } from "@/services/__fixtures__/tmux";
 
@@ -56,4 +56,25 @@ test("same session name on tmux and Zellij keeps a visible backend and the real 
   expect(container.querySelector('[data-mobile-session-chip="zellij"]')!.textContent).toContain("Zellij");
   expect(container.querySelector('[data-mobile-session-chip="zellij"]')!.textContent).toContain(tmuxSession().name);
   expect(container.textContent).not.toContain("ignored");
+});
+
+test("long mobile labels retain complete accessible identity and separate activate/close targets", async () => {
+  const original = { setActive: useSessionStore.getState().setActive, disconnect: useSessionStore.getState().disconnect };
+  const setActive = vi.fn(), disconnect = vi.fn(async () => {});
+  const name = "合成会话-gjpqy-é-very-long-mobile-session";
+  const session = tmuxTab({ id: "mobile-long", customTitle: name,
+    sshMode: { kind: "zellij", session: { name: "synthetic-remote", socket_dir: "/synthetic", socket_id: "1:2" }, username: "alice", endpoint: "synthetic.example.invalid:22" } });
+  useSessionStore.setState({ sessions: [session], activeSessionId: session.id, setActive, disconnect });
+  try {
+    const { default: MobileTerminalTopBar } = await import("./MobileTerminalTopBar");
+    render(<MobileTerminalTopBar />);
+    const label = screen.getByRole("button", { name: `${name} · Zellij · ${session.connectionName} · alice@synthetic.example.invalid:22` });
+    expect(label.getAttribute("title")).toContain(name);
+    expect(label.getAttribute("title")).toContain("alice@synthetic.example.invalid:22");
+    expect(label.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(label); expect(setActive).toHaveBeenCalledWith("mobile-long");
+    fireEvent.click(screen.getByRole("button", { name: `common.action.close: ${name}` }));
+    expect(disconnect).toHaveBeenCalledWith("mobile-long");
+    expect(setActive).toHaveBeenCalledTimes(1);
+  } finally { useSessionStore.setState(original); }
 });

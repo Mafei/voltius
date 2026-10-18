@@ -6,9 +6,10 @@ import type { RemoteSession, SessionBackend, SessionListing } from "@/services/s
 import { tmuxSession } from "@/services/__fixtures__/tmux";
 import { useSshSessionTypeStore } from "@/stores/sshSessionTypeStore";
 
-const h = vi.hoisted(() => ({ create: vi.fn(), t: (key: string) => key, listening: true }));
+const h = vi.hoisted(() => ({ create: vi.fn(), t: (key: string) => key, listening: true, android: false }));
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: h.t }), initReactI18next: { type: "3rdParty", init: () => {} } }));
 vi.mock("@/services/tmuxPicker", () => ({ createSessionPicker: h.create }));
+vi.mock("@/utils/platform", async (original) => ({ ...await original<typeof import("@/utils/platform")>(), useIsAndroid: () => h.android }));
 vi.mock("@/services/backendErrors", async (original) => ({ ...await original<typeof import("@/services/backendErrors")>(), describeError: (e: Error) => e.message }));
 vi.mock("@/components/terminal/connection-overlay/hooks", () => ({ useHostKeyConflict: () => ({ conflict: null, resolving: false, resolveConflict: vi.fn(), listening: h.listening }) }));
 vi.mock("@/components/terminal/connection-overlay/HostKeyConflictPanel", () => ({ HostKeyConflictPanel: () => null }));
@@ -38,10 +39,53 @@ async function choose(backend: SessionBackend) {
   await waitFor(() => expect((listSelect() as HTMLSelectElement).disabled).toBe(false));
 }
 beforeEach(() => {
-  vi.clearAllMocks(); h.listening = true; useSshSessionTypeStore.setState({ types: {} });
+  vi.clearAllMocks(); h.listening = true; h.android = false; useSshSessionTypeStore.setState({ types: {} });
   h.create.mockImplementation((_connection: Connection, backend: SessionBackend | null) => fake(backend ? listing(backend) : null));
 });
 afterEach(cleanup);
+
+async function renderAndroidPicker(backend: SessionBackend, sessions: RemoteSession[]) {
+  h.android = true;
+  const picker = fake(listing(backend, sessions));
+  h.create.mockImplementation((_connection, selectedBackend) => selectedBackend ? picker : fake(null));
+  render(<MobileSessionSheet connection={host} onClose={vi.fn()} onOpened={vi.fn()} />);
+  await choose(backend);
+  return { picker, select: listSelect() as HTMLSelectElement };
+}
+
+for (const backend of ["tmux", "zellij"] as const) {
+  test(`Android ${backend}: removes the divider row, retains the non-option group heading and attaches the exact session`, async () => {
+    const sessions = [remote(backend, "New"), remote(backend, "工作会话")];
+    const { picker, select } = await renderAndroidPicker(backend, sessions);
+    expect(Array.from(select.options, (option) => option.value)).toEqual(["", "create-new", "existing:0", "existing:1"]);
+    expect(Array.from(select.children, (child) => child.tagName)).toEqual(["OPTION", "OPTION", "OPTGROUP"]);
+    expect(select.options[1].textContent).toBe("＋ New");
+    const group = select.querySelector("optgroup")!;
+    expect(group.label).toBe("mobile.session.existing");
+    expect(group.disabled).toBe(false);
+    expect(group.hasAttribute("value")).toBe(false);
+    expect(Array.from(group.children, (option) => (option as HTMLOptionElement).disabled)).toEqual([false, false]);
+    fireEvent.change(select, { target: { value: "mobile.session.existing" } });
+    expect(connectButton().disabled).toBe(true);
+    expect(picker.open).not.toHaveBeenCalled(); expect(picker.attach).not.toHaveBeenCalled();
+    fireEvent.change(select, { target: { value: "create-new" } });
+    expect(nameInput()).toBeTruthy();
+    fireEvent.change(select, { target: { value: "existing:1" } });
+    expectNameGroupHidden(); fireEvent.click(connectButton());
+    await waitFor(() => expect(picker.attach).toHaveBeenCalledWith(sessions[1]));
+    expect(picker.open).not.toHaveBeenCalled();
+  });
+  test(`Android ${backend}: an empty list has no spacer or empty group and New still creates`, async () => {
+    const { picker, select } = await renderAndroidPicker(backend, []);
+    expect(Array.from(select.options, (option) => option.value)).toEqual(["", "create-new"]);
+    expect(select.querySelector("optgroup")).toBeNull();
+    fireEvent.change(select, { target: { value: "create-new" } });
+    fireEvent.change(nameInput(), { target: { value: "手机会话" } });
+    fireEvent.click(connectButton());
+    await waitFor(() => expect(picker.open).toHaveBeenCalledWith({ backend, choice: { kind: "create", name: "手机会话" } }));
+    expect(picker.attach).not.toHaveBeenCalled();
+  });
+}
 
 for (const presentation of ["sheet", "dialog"] as const) {
   function SessionSheet(props: { connection: Connection; onClose: () => void; onOpened: () => void }) {

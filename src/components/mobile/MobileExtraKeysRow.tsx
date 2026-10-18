@@ -6,6 +6,8 @@ import { useModifierLatchStore } from "@/stores/modifierLatchStore";
 import { sendSpecialKey } from "@/services/terminalInput";
 import type { SpecialKey } from "@/services/terminalKeyCore";
 import { useUIStore } from "@/stores/uiStore";
+import { useTranslation } from "react-i18next";
+import "./terminalChrome.css";
 
 type KeyDef = { key: SpecialKey; label?: string; icon?: string };
 const KEYS: KeyDef[] = [
@@ -16,8 +18,12 @@ const KEYS: KeyDef[] = [
   { key: "Home", label: "Home" }, { key: "End", label: "End" }, { key: "PgUp", label: "PgUp" }, { key: "PgDn", label: "PgDn" },
 ];
 const MODS: { mod: Modifier; label: string }[] = [ { mod: "ctrl", label: "Ctrl" }, { mod: "alt", label: "Alt" } ];
+const keyClass = "shrink-0 min-w-(--mobile-touch-size) min-h-(--mobile-touch-size) px-[8px] py-[2px] rounded-lg text-xs leading-[1.25] whitespace-nowrap flex items-center justify-center";
+// Touchend already handles taps; detail=0 preserves keyboard/assistive activation.
+const isActivationClick = (event: React.MouseEvent) => !("ontouchstart" in window) || event.detail === 0;
 
 export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: boolean }) {
+  const { t } = useTranslation();
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const panelsOpen = useUIStore((s) => s.terminalPanelsRowOpen);
   const togglePanels = useUIStore((s) => s.toggleTerminalPanelsRow);
@@ -48,19 +54,19 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
   const keepKeyboardClosed = () => { if (!keyboardOpen) (document.activeElement as HTMLElement | null)?.blur(); };
 
   return (
-    <div data-mobile-extra-keys className="shrink-0 flex items-center gap-1 overflow-x-auto px-1.5 py-1.5 border-t"
+    <div data-mobile-extra-keys className="mobile-terminal-chrome mobile-terminal-chrome-scroll min-w-0 shrink-0 flex items-center gap-[4px] overflow-x-auto px-[4px]"
       style={{
-        background: "var(--t-bg-chrome)", borderColor: "var(--t-border)",
+        background: "var(--t-bg-chrome)", boxShadow: "inset 0 1px var(--t-border)",
         // Keyboard closed: the shell spans edge-to-edge, so inset the row above the Android
         // system nav bar. Keyboard open: stay flush above the keyboard (no inset; the nav bar
         // is behind the keyboard).
-        paddingBottom: keyboardOpen ? undefined : "env(safe-area-inset-bottom)",
+        paddingBottom: keyboardOpen ? 0 : "env(safe-area-inset-bottom)",
       }}
       onMouseDown={noFocusSteal} onTouchStart={(e) => { noFocusSteal(e); keepKeyboardClosed(); }}>
       {MODS.map(({ mod, label }) => {
         const v = latch[mod];
         return (
-          <button key={mod} data-mobile-key={mod}
+          <button key={mod} data-mobile-key={mod} aria-pressed={isActive(v)} aria-label={label}
             onMouseDown={(e) => { noFocusSteal(e); }}
             onTouchStart={(e) => {
               noFocusSteal(e);
@@ -77,8 +83,8 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
             // Row is horizontally scrollable: a scroll cancels the touch with no touchend,
             // so clear the pending lock timer to avoid a stray lock firing mid-scroll.
             onTouchCancel={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }}
-            onClick={(e) => { noFocusSteal(e); if (!("ontouchstart" in window)) tapMod(mod); }}
-            className="shrink-0 min-w-11 px-2.5 py-1.5 rounded-lg text-xs font-semibold"
+            onClick={(e) => { noFocusSteal(e); if (isActivationClick(e)) tapMod(mod); }}
+            className={`${keyClass} font-semibold`}
             style={{
               background: v === "locked" ? "var(--t-accent)" : v === "armed" ? "color-mix(in srgb, var(--t-accent) 35%, var(--t-bg-card))" : "var(--t-bg-card)",
               color: isActive(v) ? "#fff" : "var(--t-text-primary)", border: "1px solid var(--t-border)",
@@ -88,7 +94,7 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
         );
       })}
       {KEYS.map(({ key, label, icon }) => (
-        <button key={key} data-mobile-key={key}
+        <button key={key} data-mobile-key={key} aria-label={label ?? key}
           // Touch path: fire once on touchend (a tap), never on touchstart — so the row
           // can be scrolled by dragging a button without firing its key, and the ghost
           // mousedown/click is suppressed on touch (mirrors the MODS' onClick guard).
@@ -107,17 +113,17 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
             if (Math.hypot(t.clientX - start.x, t.clientY - start.y) < TAP_MOVE_PX) press(key);
           }}
           onTouchCancel={() => { keyTouchStart.current = null; }}
-          onClick={(e) => { noFocusSteal(e); if (!("ontouchstart" in window)) press(key); }}
-          className="shrink-0 min-w-11 px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center justify-center"
+          onClick={(e) => { noFocusSteal(e); if (isActivationClick(e)) press(key); }}
+          className={`${keyClass} font-medium`}
           style={{ background: "var(--t-bg-card)", color: "var(--t-text-primary)", border: "1px solid var(--t-border)" }}>
           {icon ? <Icon icon={icon} width={16} /> : label}
         </button>
       ))}
-      <button data-mobile-panels-toggle
+      <button data-mobile-panels-toggle aria-label={t("mobile.terminalTopBar.panelsAriaLabel")} aria-pressed={panelsOpen}
         onMouseDown={noFocusSteal}
         onTouchStart={(e) => { noFocusSteal(e); keepKeyboardClosed(); }}
         onClick={(e) => { noFocusSteal(e); togglePanels(); }}
-        className="shrink-0 min-w-11 px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center justify-center"
+        className={`${keyClass} font-medium`}
         style={{ background: panelsOpen ? "var(--t-accent)" : "var(--t-bg-card)", color: panelsOpen ? "#fff" : "var(--t-text-primary)", border: "1px solid var(--t-border)" }}>
         <Icon icon="lucide:layout-grid" width={16} />
       </button>

@@ -1,7 +1,7 @@
 name: Desktop sessions and system SSH test
 on:
   push:
-    branches: ['candidate/desktop-sessions-*']
+    branches: ['candidate/desktop-sessions-*', 'candidate/desktop-ui-check-*']
 permissions:
   contents: read
   actions: read
@@ -15,7 +15,8 @@ env:
   VOLTIUS_REQUIRE_SEEDED_PLUGINS: '1'
 jobs:
   linux:
-    if: github.repository == 'Mafei/voltius'
+    # UI-check branches validate the browser only; a desktop-sessions ref must run all platforms.
+    if: github.repository == 'Mafei/voltius' && startsWith(github.ref, 'refs/heads/candidate/desktop-sessions-')
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     defaults:
@@ -115,7 +116,7 @@ jobs:
           retention-days: 14
           if-no-files-found: error
   native-platform:
-    if: github.repository == 'Mafei/voltius'
+    if: github.repository == 'Mafei/voltius' && startsWith(github.ref, 'refs/heads/candidate/desktop-sessions-')
     strategy:
       fail-fast: false
       matrix:

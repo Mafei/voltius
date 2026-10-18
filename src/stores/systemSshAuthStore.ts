@@ -25,8 +25,11 @@ export const useSystemSshAuthStore = create<State>()(persist((set) => ({
 })) }) }));
 
 export function systemSshAuthFor(connectionId: string): SystemSshAuth | undefined {
+  const stored = useSystemSshAuthStore.getState().byConnection[connectionId];
+  if (stored === undefined) return;
   const platform = getPlatformSync();
   if (platform === "android" || platform === "ios") return;
-  if (useSystemSshAuthStore.getState().invalid[connectionId]) throw new Error("System SSH identity paths are invalid. Enter up to three file paths.");
-  return normalizeSystemSshAuth(useSystemSshAuthStore.getState().byConnection[connectionId]);
+  const policy = normalizeSystemSshAuth(stored);
+  if (!policy || useSystemSshAuthStore.getState().invalid[connectionId]) throw new Error("System SSH identity paths are invalid. Enter up to three file paths.");
+  return { ...policy, credentialId: connectionId };
 }

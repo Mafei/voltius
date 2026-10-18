@@ -21,11 +21,11 @@ try {
   await page.getByLabel("Session Type").selectOption("zellij"); await page.locator("#ssh-session-list:not([disabled])").waitFor();
   const options = await page.locator("#ssh-session-list option").evaluateAll((nodes) => nodes.map((node) => ({ value: node.value, disabled: node.disabled, text: node.textContent })));
   assert.equal(options.filter((o) => !o.disabled)[0].value, "create-new"); assert(options.some((o) => o.value === "separator" && o.disabled));
-  await page.getByLabel("Session List").selectOption("existing:0"); assert(await page.getByLabel("Session Name").isDisabled());
+  await page.getByLabel("Session List", { exact: true }).selectOption("existing:0"); assert(await page.getByLabel("Session Name").isDisabled());
   await page.screenshot({ path: path.join(output, "desktop-existing-session.png") });
   await page.getByRole("button", { name: "Connect", exact: true }).click(); await page.locator("[data-opened]").filter({ hasText: "zellij:New" }).waitFor();
   assert.equal(await page.evaluate(() => window.__desktopTest.metrics.opens), 1); checks.push("Literal New attaches; name disabled; one Connect");
-  await page.getByRole("button", { name: "Choose connection" }).click(); await page.getByLabel("Session List").selectOption("create-new");
+  await page.getByRole("button", { name: "Choose connection" }).click(); await page.getByLabel("Session List", { exact: true }).selectOption("create-new");
   const connect = page.getByRole("button", { name: "Connect", exact: true }); assert(await connect.isDisabled());
   await page.getByLabel("Session Name").fill("New"); assert(await connect.isDisabled());
   await page.getByLabel("Session Name").fill("desktop-work"); await page.screenshot({ path: path.join(output, "desktop-new-session.png") });

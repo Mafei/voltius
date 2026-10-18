@@ -85,7 +85,7 @@ export async function resolveConnectionCredentials(
 ): Promise<ResolvedCredentials> {
   if (!(await canConnect(conn.vault_id, conn.id))) throw new ConnectNotAllowedError();
   const systemAuth = (!conn.connection_type || conn.connection_type === "ssh") ? systemSshAuthFor(conn.id) : undefined;
-  if (systemAuth) return { username: conn.username, systemAuth: { ...systemAuth, credentialId: conn.id } };
+  if (systemAuth) return { username: conn.username, systemAuth };
   const snapshot = credentialSnapshotFromStores();
   const plan = planCredentials(buildCredentialScope(conn, snapshot, await canFromStoresAsync()), { skipPick });
   if (plan.kind === "unavailable") {

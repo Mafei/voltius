@@ -64,6 +64,7 @@ import {
 } from "@/components/shared/Panel";
 import { YouConnectAsRow } from "./YouConnectAsRow";
 import { SystemSshAuthFields } from "./SystemSshAuthFields";
+import { systemSshAuthFor } from "@/stores/systemSshAuthStore";
 import { SecretInput, TagsAndFolderFields } from "@/components/shared/vaultObjectForm";
 import { normalizeNotes } from "@/components/notes/notesText";
 import {
@@ -388,8 +389,11 @@ const ConnectionFormEditor = forwardRef<ConnectionFormHandle, Props & EditAccess
       let detectPassword = password || undefined;
       let detectPrivateKey = privateKey || undefined;
       let detectPassphrase = passphrase || undefined;
+      const systemAuth = initial?.id ? systemSshAuthFor(initial.id) : undefined;
 
-      if (identityId && selectedIdentity) {
+      if (systemAuth) {
+        detectPassword = undefined; detectPrivateKey = undefined; detectPassphrase = undefined;
+      } else if (identityId && selectedIdentity) {
         detectUsername = selectedIdentity.username;
         detectPassword = (await getSecret(`identity:${identityId}:password`).catch(() => null)) ?? undefined;
         detectPrivateKey = selectedIdentity.key_id
@@ -417,6 +421,7 @@ const ConnectionFormEditor = forwardRef<ConnectionFormHandle, Props & EditAccess
         password: detectPassword,
         privateKey: detectPrivateKey,
         passphrase: detectPassphrase,
+        ...(systemAuth && { systemAuth }),
         legacyAlgorithms,
         command: "{ cat /etc/os-release 2>/dev/null || echo ID=linux; }; test -d /etc/pve && echo 'PROXMOX_VE=1'; test -d /etc/proxmox-backup && echo 'PBS_DETECTED=1'; true",
         ...(await resolveDirectHop(

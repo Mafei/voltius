@@ -76,7 +76,7 @@ export async function killRemoteSession(
   if (connection.jump_hosts?.length) return { ok: false, reason: "unsupported" };
 
   const creds = await resolveConnectionCredentials(connection);
-  if (!creds.password && !creds.privateKey) return { ok: false, reason: "unsupported" };
+  if (!creds.password && !creds.privateKey && !creds.systemAuth) return { ok: false, reason: "unsupported" };
 
   let killed: boolean;
   try {
@@ -87,6 +87,7 @@ export async function killRemoteSession(
       password: creds.password,
       privateKey: creds.privateKey,
       passphrase: creds.passphrase,
+      ...(creds.systemAuth && { systemAuth: creds.systemAuth }),
       sessionId: j.sessionId,
       legacyAlgorithms: connection.legacy_algorithms,
       ...(await resolveDirectHop(connection)),

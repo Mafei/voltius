@@ -12,6 +12,7 @@ const dprs = [1, 2, 3], fontScales = [1, 1.3, 1.5, 2], fontModels = ["text-only"
 const results = [];
 const comparisons = [];
 let latest;
+let renderedFonts;
 
 async function settle(page) {
   await page.evaluate(async () => { await document.fonts.ready; await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
@@ -19,21 +20,34 @@ async function settle(page) {
 async function measure(page) {
   return page.evaluate(() => {
     const box = (node) => { const r = node.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height }; };
+    const canvas = document.createElement("canvas"), context = canvas.getContext("2d");
+    const ink = (node) => {
+      const range = document.createRange(); range.selectNodeContents(node); const fontBox = range.getBoundingClientRect();
+      if (!node.textContent.trim()) return { textTop: fontBox.top, textBottom: fontBox.bottom };
+      // A DOM baseline plus actual canvas ink excludes unused fallback-font
+      // ascent/descent. CJK font boxes can exceed a compact line while ink fits.
+      const probe = document.createElement("span");
+      probe.style.cssText = "display:inline-block;width:0;height:0;padding:0;margin:0;vertical-align:baseline";
+      node.append(probe); const baseline = probe.getBoundingClientRect().top; probe.remove();
+      const style = getComputedStyle(node); context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      const metrics = context.measureText(node.textContent);
+      return { textTop: baseline - metrics.actualBoundingBoxAscent, textBottom: baseline + metrics.actualBoundingBoxDescent, fontBoxTop: fontBox.top, fontBoxBottom: fontBox.bottom };
+    };
     const header = document.querySelector("[data-mobile-terminal-topbar]"), strip = document.querySelector("[data-mobile-session-strip]"), keys = document.querySelector("[data-mobile-extra-keys]");
     const bounds = box(header), hs = getComputedStyle(header);
     return { viewportWidth: innerWidth, bodyWidth: document.body.scrollWidth, header: { ...bounds, contentBottom: bounds.bottom - parseFloat(hs.borderBottomWidth) },
       usableHeight: window.visualViewport.height, keyboardOpen: document.querySelector("main").dataset.keyboardOpen === "true",
       terminal: box(document.querySelector("[data-mobile-terminal-viewport]")),
       keys: { ...box(keys), clientHeight: keys.clientHeight, scrollHeight: keys.scrollHeight, clientWidth: keys.clientWidth, scrollWidth: keys.scrollWidth,
-        controls: [...keys.querySelectorAll("button")].map((node) => { const range = document.createRange(); range.selectNodeContents(node); const text = range.getBoundingClientRect(); return { ...box(node), name: node.getAttribute("aria-label"), textTop: text.top, textBottom: text.bottom }; }) },
+        controls: [...keys.querySelectorAll("button")].map((node) => ({ ...box(node), name: node.getAttribute("aria-label"), ...ink(node) })) },
       strip: { ...box(strip), clientHeight: strip.clientHeight, scrollHeight: strip.scrollHeight, clientWidth: strip.clientWidth, scrollWidth: strip.scrollWidth, scrollTop: strip.scrollTop, overflowY: getComputedStyle(strip).overflowY },
       controls: [...header.querySelectorAll("button")].map((node) => ({ name: node.getAttribute("aria-label") ?? node.title, ...box(node) })),
       rows: [...header.querySelectorAll("[data-mobile-session-chip]")].map((chip) => {
         const label = chip.querySelector("[data-mobile-session-label]"), close = chip.querySelector("[data-mobile-session-close]");
         return { id: chip.dataset.mobileSessionChip, ...box(chip), title: label.title, accessible: label.getAttribute("aria-label"), label: box(label), close: box(close),
           decorations: [...chip.children].filter((node) => node !== label).map(box),
-          lines: [...label.children].map((line) => { const range = document.createRange(); range.selectNodeContents(line); const text = range.getBoundingClientRect(), style = getComputedStyle(line);
-            return { value: line.textContent, ...box(line), textTop: text.top, textBottom: text.bottom, fontSize: parseFloat(style.fontSize), lineHeight: style.lineHeight, overflow: style.textOverflow, clientWidth: line.clientWidth, scrollWidth: line.scrollWidth }; }) };
+          lines: [...label.children].map((line) => { const style = getComputedStyle(line);
+            return { value: line.textContent, ...box(line), ...ink(line), fontSize: parseFloat(style.fontSize), fontFamily: style.fontFamily, lineHeight: style.lineHeight, overflow: style.textOverflow, clientWidth: line.clientWidth, scrollWidth: line.scrollWidth }; }) };
       }) };
   });
 }
@@ -51,6 +65,14 @@ try {
       await settle(page);
       assert.equal(await page.evaluate(() => devicePixelRatio), dpr);
       assert.equal(await page.evaluate(() => innerWidth), viewport.width, "mobile viewport meta must use actual device width");
+      if (!renderedFonts) {
+        const session = await context.newCDPSession(page); await session.send("DOM.enable"); await session.send("CSS.enable");
+        const { root } = await session.send("DOM.getDocument");
+        const { nodeId } = await session.send("DOM.querySelector", { nodeId: root.nodeId, selector: '[data-mobile-session-chip="long-cn"] [data-mobile-session-primary]' });
+        renderedFonts = (await session.send("CSS.getPlatformFontsForNode", { nodeId })).fonts;
+        assert(renderedFonts.some((font) => /Noto.*CJK/i.test(font.familyName) && font.glyphCount > 0), "CJK cases must use real CJK glyphs");
+        await session.detach();
+      }
       if (viewport.width === 844 && dpr === 1) {
         await page.evaluate(() => { window.__mobileTabFixture.setLayout("single-long"); document.querySelector("main").setAttribute("data-mobile-legacy", ""); });
         await settle(page); const before = await measure(page);
@@ -103,7 +125,7 @@ try {
           for (const icon of row.decorations) assert(icon.top >= row.top - 0.75 && icon.bottom <= row.bottom + 0.75, `status/close outside chip ${tag}`);
           if (row.lines.length === 2) {
             const gap = row.lines[1].textTop - row.lines[0].textBottom;
-            assert(gap >= -0.75 && gap <= row.lines[0].fontSize * 0.4, `two-line gap/overlap ${tag}: ${gap}`);
+            assert(gap >= -0.75 && gap <= row.lines[0].fontSize * 0.75, `two-line gap/overlap ${tag}: ${gap}`);
           }
           if (row.id.includes("long")) assert(row.lines[0].scrollWidth > row.lines[0].clientWidth && row.lines[0].overflow === "ellipsis", `long primary must ellipsize ${tag}`);
         }
@@ -115,9 +137,14 @@ try {
         results.push(entry);
         await page.evaluate(() => document.querySelector("main").setAttribute("data-mobile-legacy", ""));
         await settle(page); const old = await measure(page);
+        const gapOf = (row) => row.lines.length === 2 ? row.lines[1].textTop - row.lines[0].textBottom : null;
+        if (fontScale === 1) for (const row of m.rows.filter((row) => row.lines.length === 2)) {
+          const previous = old.rows.find((item) => item.id === row.id);
+          assert(gapOf(row) < gapOf(previous) - 0.5, `default double-line ink gap must shrink ${tag}`);
+        }
         comparisons.push({ viewport, dpr, font_model: fontModel, font_scale: fontScale, keyboard_open: keyboardOpen, layout, unit: "CSS px",
-          before: { header: old.header.height, keys: old.keys.height, terminal: old.terminal.height, tab_overflow: old.strip.scrollHeight > old.strip.clientHeight || old.rows.some((row) => row.top < old.header.top - 0.75 || row.bottom > old.header.contentBottom + 0.75) },
-          after: { header: m.header.height, keys: m.keys.height, terminal: m.terminal.height, tab_overflow: false }, terminal_gain: m.terminal.height - old.terminal.height });
+          before: { header: old.header.height, keys: old.keys.height, terminal: old.terminal.height, first_tab_ink_gap: gapOf(old.rows[0]), tab_overflow: old.strip.scrollHeight > old.strip.clientHeight || old.rows.some((row) => row.top < old.header.top - 0.75 || row.bottom > old.header.contentBottom + 0.75) },
+          after: { header: m.header.height, keys: m.keys.height, terminal: m.terminal.height, first_tab_ink_gap: gapOf(m.rows[0]), tab_overflow: false }, terminal_gain: m.terminal.height - old.terminal.height });
         await page.evaluate(() => document.querySelector("main").removeAttribute("data-mobile-legacy")); await settle(page);
         if (dpr === 1 && [393, 844].includes(viewport.width) && fontModel === "text-only" && [1, 2].includes(fontScale) && layout === "many") {
           await page.locator("[data-mobile-session-strip]").evaluate((strip) => { strip.scrollLeft = 0; });
@@ -167,7 +194,8 @@ try {
   }
   const measured = results.filter((result) => !result.legacy_reproduction);
   const report = { source_sha: process.env.GITHUB_SHA ?? null, browser: browser.version(), chromium_sandbox: true,
-    production_components: ["MobileTerminalScreen", "MobileTerminalTopBar"], matrix: { viewports, dpr: dprs, font_scales: fontScales, font_models: fontModels, layouts },
+    production_components: ["MobileTerminalScreen", "MobileTerminalTopBar", "MobileExtraKeysRow", "useVisualViewport"], rendered_fonts: renderedFonts,
+    matrix: { viewports, dpr: dprs, font_scales: fontScales, font_models: fontModels, keyboard_states: [false, true], layouts },
     scenarios: measured.length, tab_checks: measured.reduce((total, result) => total + result.measurements.rows.length, 0),
     scope: "Real mobile React components/CSS and useVisualViewport hook in touch/mobile Chromium. Font scaling and visual keyboard insets are simulations, not actual Android WebView textZoom/system font/IME. No device/emulator/native popup/real SSH tested. Legacy styles emulate previous components. All dimensions are CSS px, distinct from screenshot device pixels/DPR. Synthetic data only.", results };
   await writeFile(path.join(output, "MOBILE-TAB-VALIDATION.json"), JSON.stringify(report, null, 2));

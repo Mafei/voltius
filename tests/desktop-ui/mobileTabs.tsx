@@ -19,7 +19,7 @@ const cases: TerminalSession[] = [
   mux("short", "mobile-work", "zellij"),
   mux("chinese", "工作会话", "tmux"),
   mux("long", "Synthetic-gjpqy-é-é-very-long-mobile-session-for-ellipsis", "zellij"),
-  mux("long-cn", "中文-开发环境-流水线-非常长的会话名称-终端", "tmux"),
+  mux("long-cn", "工作会话", "tmux", "中文-开发环境-流水线-非常长的会话名称-终端-测试数据-合成标签-多窗口-文字省略-开发工作区"),
   mux("renamed", "remote-original", "zellij", "自定义标题 / Renamed gjpqy"),
   { id: "plain", connectionId: "synthetic-plain", connectionName: "Synthetic SSH", title: "Plain shell gjpqy", type: "ssh", status: "connected", sshMode: { kind: "plain" } },
 ];

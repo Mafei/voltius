@@ -204,6 +204,7 @@ try {
     await page.goto("http://127.0.0.1:1428/tests/desktop-ui/index.html?android-cursor=1");
     await page.waitForFunction(() => window.__androidCursorFixture);
     const cursor = await page.evaluate(() => window.__androidCursorFixture.run());
+    await writeFile(path.join(output, "ANDROID-CURSOR-FOCUS.json"), JSON.stringify(cursor, null, 2));
     for (const result of cursor.results) {
       assert.equal(result.cursor, result.expected, `cursor state ${JSON.stringify(result)}`);
       if (result.phase === "native-ime-open" || result.phase === "user-style-reset") {
@@ -212,7 +213,6 @@ try {
       if (result.phase === "remote-blinking-bar") { assert.equal(result.blink_enabled, true); assert.equal(result.blink_paused, false); }
       if (result.phase === "remote-blink-blurred") assert.equal(result.blink_paused, true);
     }
-    await writeFile(path.join(output, "ANDROID-CURSOR-FOCUS.json"), JSON.stringify(cursor, null, 2));
     await page.screenshot({ path: path.join(output, "android-cursor-synthetic.png") });
     console.log(JSON.stringify({ cursor_focus: "passed", cases: cursor.results.length, native_focus: "simulated" }));
   } finally { await cursorContext.close(); }

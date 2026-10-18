@@ -27,12 +27,24 @@ export function synchronizeAndroidCursorFocus(term: Terminal, sessionId: string)
       };
       const defer = () => queueMicrotask(update);
       const unsubscribe = subscribeAndroidTerminalFocus(update);
+      // xterm 6 changes the DECSCUSR blink override without invalidating the
+      // WebGL blink manager. Refresh it when that override changes, retaining
+      // the user's option and allowing the renderer's normal blur to pause it.
+      let lastBlink = core.coreService?.decPrivateModes.cursorBlink;
+      const parsed = term.onWriteParsed(() => {
+        const blink = core.coreService?.decPrivateModes.cursorBlink;
+        if (blink === lastBlink) return;
+        lastBlink = blink;
+        const renderer = core._renderService._renderer.value;
+        if (typeof renderer?._updateCursorBlink === "function") renderer._updateCursorBlink();
+        update();
+      });
       doc.addEventListener("visibilitychange", update);
       doc.addEventListener("focusin", defer); doc.addEventListener("focusout", defer);
       win.addEventListener("focus", defer); win.addEventListener("blur", defer);
       update();
       addon.dispose = () => {
-        disposed = true; unsubscribe();
+        disposed = true; unsubscribe(); parsed.dispose();
         doc.removeEventListener("visibilitychange", update);
         doc.removeEventListener("focusin", defer); doc.removeEventListener("focusout", defer);
         win.removeEventListener("focus", defer); win.removeEventListener("blur", defer);

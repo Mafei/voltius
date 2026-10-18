@@ -14,7 +14,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   useSessionStore.setState({ activeSessionId: "synthetic-mobile" });
   useModifierLatchStore.setState({ ctrl: "off", alt: "off" });
-  useUIStore.setState({ terminalPanelsRowOpen: false });
+  useUIStore.setState({ terminalPanelsRowOpen: false, terminalPanelsRowKeyboardOpen: undefined });
 });
 afterEach(() => { cleanup(); vi.clearAllTimers(); vi.useRealTimers(); });
 const touch = (node: HTMLElement, start = 20, end = start) => {
@@ -71,4 +71,18 @@ test("icon keys and the panel toggle keep accessible names and pressed state", (
   const panel = screen.getByRole("button", { name: "mobile.terminalTopBar.panelsAriaLabel" });
   expect(panel.getAttribute("aria-pressed")).toBe("false"); fireEvent.click(panel);
   expect(panel.getAttribute("aria-pressed")).toBe("true");
+});
+
+test("keyboard toolbar defaults closed and preserves explicit choices across viewport changes", () => {
+  useUIStore.setState({ terminalPanelsRowOpen: true });
+  const view = render(<MobileExtraKeysRow keyboardOpen={false} />);
+  const toggle = () => screen.getByRole("button", { name: "mobile.terminalTopBar.panelsAriaLabel" });
+  expect(toggle().getAttribute("aria-pressed")).toBe("true");
+  view.rerender(<MobileExtraKeysRow keyboardOpen />);
+  expect(toggle().getAttribute("aria-pressed")).toBe("false");
+  fireEvent.click(toggle()); expect(toggle().getAttribute("aria-pressed")).toBe("true");
+  view.rerender(<MobileExtraKeysRow keyboardOpen={false} />);
+  fireEvent.click(toggle()); expect(toggle().getAttribute("aria-pressed")).toBe("false");
+  view.rerender(<MobileExtraKeysRow keyboardOpen />);
+  expect(toggle().getAttribute("aria-pressed")).toBe("true");
 });

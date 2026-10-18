@@ -2,6 +2,8 @@ package com.voltius.app
 
 import android.text.InputType
 import android.view.KeyEvent
+import android.app.Activity
+import android.widget.FrameLayout
 import android.view.inputmethod.EditorInfo
 import org.junit.Assert.*
 import org.junit.Before
@@ -9,6 +11,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Robolectric
 import org.robolectric.annotation.Config
 
 /** Android framework-level contract tests, not an OEM keyboard/device test. */
@@ -34,6 +37,26 @@ class TerminalKeyboardTest {
     assertEquals(0, attrs.inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS)
     assertEquals(0, attrs.inputType and InputType.TYPE_TEXT_FLAG_AUTO_CORRECT)
     assertTrue(attrs.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING != 0)
+  }
+
+  @Test fun proxyReportsRealWindowFocusWithoutStealingOrResettingComposition() {
+    val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+    val reported = mutableListOf<Boolean>()
+    val view = TerminalInputView(activity) { reported.add(it) }
+    val parent = FrameLayout(activity)
+    activity.setContentView(parent)
+    parent.addView(view)
+    assertTrue(view.requestFocus())
+    val input = view.onCreateInputConnection(EditorInfo())
+    input.setComposingText("nihao", 1)
+    view.onWindowFocusChanged(true)
+    assertEquals(true, reported.last())
+    assertTrue(view.hasFocus())
+    view.onWindowFocusChanged(false)
+    assertEquals(false, reported.last())
+    assertEquals("nihao", input.getTextBeforeCursor(100, 0).toString())
+    view.clearFocus()
+    assertEquals(false, reported.last())
   }
 
   @Test fun chineseCandidateReplacesPinyinWithoutSendingPreeditOrBackspaces() {

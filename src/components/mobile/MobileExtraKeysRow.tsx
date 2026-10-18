@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Icon } from "@iconify/react";
 import { useSessionStore } from "@/stores/sessionStore";
 import { isActive, type Modifier } from "@/stores/modifierLatchCore";
@@ -8,6 +8,7 @@ import type { SpecialKey } from "@/services/terminalKeyCore";
 import { useUIStore } from "@/stores/uiStore";
 import { useTranslation } from "react-i18next";
 import "./terminalChrome.css";
+import { terminalPanelsVisible } from "./terminalChromeState";
 
 type KeyDef = { key: SpecialKey; label?: string; icon?: string };
 const KEYS: KeyDef[] = [
@@ -18,14 +19,21 @@ const KEYS: KeyDef[] = [
   { key: "Home", label: "Home" }, { key: "End", label: "End" }, { key: "PgUp", label: "PgUp" }, { key: "PgDn", label: "PgDn" },
 ];
 const MODS: { mod: Modifier; label: string }[] = [ { mod: "ctrl", label: "Ctrl" }, { mod: "alt", label: "Alt" } ];
-const keyClass = "shrink-0 min-w-(--mobile-touch-size) min-h-(--mobile-touch-size) px-[8px] py-[2px] rounded-lg text-xs leading-[1.25] whitespace-nowrap flex items-center justify-center";
+const keyClass = "mobile-chrome-face shrink-0 min-w-(--mobile-touch-size) min-h-(--mobile-touch-size) px-[6px] py-[2px] rounded-lg text-xs leading-[1.25] whitespace-nowrap flex items-center justify-center";
+function clearPressTimer(timer: { current: ReturnType<typeof setTimeout> | null }) {
+  if (timer.current) clearTimeout(timer.current);
+  timer.current = null;
+}
+const keyFace = (background: string, color = "var(--t-text-primary)"): CSSProperties => ({ "--mobile-face-bg": background, color }) as CSSProperties;
 // Touchend already handles taps; detail=0 preserves keyboard/assistive activation.
 const isActivationClick = (event: React.MouseEvent) => !("ontouchstart" in window) || event.detail === 0;
 
 export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: boolean }) {
   const { t } = useTranslation();
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
-  const panelsOpen = useUIStore((s) => s.terminalPanelsRowOpen);
+  const panelsNormal = useUIStore((s) => s.terminalPanelsRowOpen);
+  const panelsKeyboard = useUIStore((s) => s.terminalPanelsRowKeyboardOpen);
+  const panelsOpen = terminalPanelsVisible(panelsNormal, panelsKeyboard, !!keyboardOpen);
   const togglePanels = useUIStore((s) => s.toggleTerminalPanelsRow);
   const ctrl = useModifierLatchStore((s) => s.ctrl);
   const alt = useModifierLatchStore((s) => s.alt);
@@ -34,6 +42,16 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
   const consume = useModifierLatchStore((s) => s.consume);
   const latch: Record<Modifier, typeof ctrl> = { ctrl, alt };
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null), modsRef = useRef<HTMLDivElement>(null);
+  const [pinned, setPinned] = useState(true), [atEnd, setAtEnd] = useState(false);
+  useEffect(() => {
+    const root = rootRef.current, mods = modsRef.current;
+    if (!root || !mods || typeof ResizeObserver === "undefined") return;
+    const update = () => { if (root.clientWidth > 0) setPinned(mods.scrollWidth <= root.clientWidth * 0.42); };
+    const observer = new ResizeObserver(update); observer.observe(root); observer.observe(mods); update();
+    return () => observer.disconnect();
+  }, []);
+  useEffect(() => () => clearPressTimer(longPressTimer), []);
   // Tap-vs-scroll tracking for KEYS: record the touch origin, only fire on touchend
   // if the finger barely moved (a real tap, not a horizontal scroll-drag of the row).
   const keyTouchStart = useRef<{ x: number; y: number } | null>(null);
@@ -54,8 +72,10 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
   const keepKeyboardClosed = () => { if (!keyboardOpen) (document.activeElement as HTMLElement | null)?.blur(); };
 
   return (
-    <div data-mobile-extra-keys className="mobile-terminal-chrome mobile-terminal-chrome-scroll min-w-0 shrink-0 flex items-center gap-[4px] overflow-x-auto px-[4px]"
+    <div ref={rootRef} data-mobile-extra-keys data-modifiers-pinned={pinned} data-mobile-key-scroll={!pinned || undefined}
+      className="mobile-terminal-chrome mobile-terminal-chrome-scroll min-w-0 shrink-0 flex items-center gap-[6px] px-[4px]"
       style={{
+        overflowX: pinned ? "visible" : "auto",
         background: "var(--t-bg-chrome)", boxShadow: "inset 0 1px var(--t-border)",
         // Keyboard closed: the shell spans edge-to-edge, so inset the row above the Android
         // system nav bar. Keyboard open: stay flush above the keyboard (no inset; the nav bar
@@ -63,6 +83,7 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
         paddingBottom: keyboardOpen ? 0 : "env(safe-area-inset-bottom)",
       }}
       onMouseDown={noFocusSteal} onTouchStart={(e) => { noFocusSteal(e); keepKeyboardClosed(); }}>
+      <div ref={modsRef} data-mobile-modifiers className="flex shrink-0 items-center gap-[6px]">
       {MODS.map(({ mod, label }) => {
         const v = latch[mod];
         return (
@@ -70,7 +91,7 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
             onMouseDown={(e) => { noFocusSteal(e); }}
             onTouchStart={(e) => {
               noFocusSteal(e);
-              if (longPressTimer.current) clearTimeout(longPressTimer.current);
+              clearPressTimer(longPressTimer);
               // On fire, null the ref so touchend treats this as a completed lock (not a tap).
               longPressTimer.current = setTimeout(() => { longPressTimer.current = null; lockMod(mod); }, 450);
             }}
@@ -78,21 +99,26 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
               noFocusSteal(e);
               // Timer still pending = short tap → arm/toggle. If the lock already fired it
               // nulled the ref, so we skip tapMod and keep the lock.
-              if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; tapMod(mod); }
+              if (longPressTimer.current) { clearPressTimer(longPressTimer); tapMod(mod); }
             }}
             // Row is horizontally scrollable: a scroll cancels the touch with no touchend,
             // so clear the pending lock timer to avoid a stray lock firing mid-scroll.
-            onTouchCancel={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }}
+            onTouchMove={() => clearPressTimer(longPressTimer)}
+            onTouchCancel={() => clearPressTimer(longPressTimer)}
             onClick={(e) => { noFocusSteal(e); if (isActivationClick(e)) tapMod(mod); }}
             className={`${keyClass} font-semibold`}
-            style={{
-              background: v === "locked" ? "var(--t-accent)" : v === "armed" ? "color-mix(in srgb, var(--t-accent) 35%, var(--t-bg-card))" : "var(--t-bg-card)",
-              color: isActive(v) ? "#fff" : "var(--t-text-primary)", border: "1px solid var(--t-border)",
-            }}>
-            {label}
+            data-latch={v}
+            style={keyFace(v === "locked" ? "var(--t-bg-elevated)" : v === "armed" ? "color-mix(in srgb, var(--t-accent) 20%, var(--t-bg-card))" : "var(--t-bg-card)", isActive(v) ? "var(--t-text-bright)" : "var(--t-text-primary)")}>
+            {label}{v === "locked" && <Icon icon="lucide:lock-keyhole" width={10} aria-hidden="true" />}
           </button>
         );
       })}
+      </div>
+      <div className={pinned ? "mobile-key-scroll-wrap" : "shrink-0"} data-at-end={atEnd}>
+      <div data-mobile-key-scroll={pinned || undefined}
+        className="mobile-terminal-chrome-scroll flex items-center gap-[6px]"
+        style={{ overflowX: pinned ? "auto" : "visible" }}
+        onScroll={(e) => { const el = e.currentTarget; setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1); }}>
       {KEYS.map(({ key, label, icon }) => (
         <button key={key} data-mobile-key={key} aria-label={label ?? key}
           // Touch path: fire once on touchend (a tap), never on touchstart — so the row
@@ -115,18 +141,20 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
           onTouchCancel={() => { keyTouchStart.current = null; }}
           onClick={(e) => { noFocusSteal(e); if (isActivationClick(e)) press(key); }}
           className={`${keyClass} font-medium`}
-          style={{ background: "var(--t-bg-card)", color: "var(--t-text-primary)", border: "1px solid var(--t-border)" }}>
+          style={keyFace("var(--t-bg-card)")}>
           {icon ? <Icon icon={icon} width={16} /> : label}
         </button>
       ))}
       <button data-mobile-panels-toggle aria-label={t("mobile.terminalTopBar.panelsAriaLabel")} aria-pressed={panelsOpen}
         onMouseDown={noFocusSteal}
         onTouchStart={(e) => { noFocusSteal(e); keepKeyboardClosed(); }}
-        onClick={(e) => { noFocusSteal(e); togglePanels(); }}
+        onClick={(e) => { noFocusSteal(e); togglePanels(!!keyboardOpen); }}
         className={`${keyClass} font-medium`}
-        style={{ background: panelsOpen ? "var(--t-accent)" : "var(--t-bg-card)", color: panelsOpen ? "#fff" : "var(--t-text-primary)", border: "1px solid var(--t-border)" }}>
+        style={keyFace(panelsOpen ? "var(--t-bg-elevated)" : "var(--t-bg-card)", panelsOpen ? "var(--t-text-bright)" : "var(--t-text-primary)")}>
         <Icon icon="lucide:layout-grid" width={16} />
       </button>
+      </div>
+      </div>
     </div>
   );
 }

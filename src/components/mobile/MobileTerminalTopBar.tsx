@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import { Icon } from "@iconify/react";
 import { useTranslation } from "react-i18next";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -14,6 +14,17 @@ import { sessionStatusTone } from "@/utils/statusTone";
 import "./terminalChrome.css";
 
 const iconButtonClass = "inline-flex size-(--mobile-touch-size) shrink-0 items-center justify-center";
+
+function SessionCloseButton({ id, label, disconnect }: { id: string; label: string; disconnect: (id: string) => unknown }) {
+  const gesture = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  return <button data-mobile-session-close={id} aria-label={label} className={`${iconButtonClass} opacity-80`}
+    onTouchStart={(e) => { const t = e.touches[0]; gesture.current = t ? { x: t.clientX, y: t.clientY, moved: false } : null; }}
+    onTouchMove={(e) => { const t = e.touches[0], g = gesture.current; if (t && g && Math.hypot(t.clientX - g.x, t.clientY - g.y) >= 10) g.moved = true; }}
+    onTouchCancel={() => { if (gesture.current) gesture.current.moved = true; }}
+    onClick={() => { const cancelled = gesture.current?.moved; gesture.current = null; if (!cancelled) void disconnect(id); }}>
+    <Icon icon="lucide:x" width={14} />
+  </button>;
+}
 
 /** Persistent slim terminal chrome: exit chevron / scrollable session tabs / new / panels menu. */
 export default function MobileTerminalTopBar() {
@@ -62,19 +73,19 @@ export default function MobileTerminalTopBar() {
         {sessions.map((s) => {
           const active = s.id === activeSessionId;
           const primary = sessionLabel(s);
-          const secondary = s.sshMode?.kind === "tmux" || s.sshMode?.kind === "zellij"
-            ? `${s.sshMode.kind === "tmux" ? "Tmux" : "Zellij"} · ${s.connectionName} · ${s.sshMode.username}@${s.sshMode.endpoint}` : undefined;
-          const fullTitle = secondary ? `${primary} · ${secondary}` : `${primary} · ${s.connectionName}`;
+          const mux = s.sshMode?.kind === "tmux" || s.sshMode?.kind === "zellij" ? s.sshMode : undefined;
+          const secondary = mux ? `${mux.kind === "tmux" ? "Tmux" : "Zellij"} · ${mux.username}@${s.connectionName}` : undefined;
+          const fullTitle = mux ? `${primary} · ${secondary} · ${mux.username}@${mux.endpoint}` : `${primary} · ${s.connectionName}`;
           return (
             <span
               key={s.id}
               data-mobile-session-chip={s.id}
-              className="min-w-0 max-w-full shrink-0 flex items-center gap-[4px] rounded-full pl-[8px] pr-[2px] font-medium whitespace-nowrap"
+              data-active={active}
+              className="mobile-chrome-face min-w-0 max-w-full shrink-0 flex items-center gap-[6px] rounded-full pl-[8px] pr-[2px] font-medium whitespace-nowrap"
               style={{
-                background: active ? "var(--t-accent)" : "var(--t-bg-card)",
-                color: active ? "#fff" : "var(--t-text-primary)",
-                boxShadow: "inset 0 0 0 1px var(--t-border)",
-              }}
+                "--mobile-face-bg": active ? "var(--t-bg-elevated)" : "var(--t-bg-card)",
+                color: active ? "var(--t-text-bright)" : "var(--t-text-primary)",
+              } as CSSProperties}
             >
               <StatusDot tone={sessionStatusTone(s.status)} size="sm" />
               <button data-mobile-session-label onClick={() => setActive(s.id)}
@@ -83,10 +94,7 @@ export default function MobileTerminalTopBar() {
                 <span data-mobile-session-primary className="block w-full truncate leading-[1.3]">{primary}</span>
                 {secondary && <span data-mobile-session-secondary className="block w-full truncate text-[0.85em] leading-[1.3] opacity-75">{secondary}</span>}
               </button>
-              <button data-mobile-session-close={s.id} onClick={() => void disconnect(s.id)} className={`${iconButtonClass} opacity-70`}
-                aria-label={`${t("common.action.close")}: ${primary}`}>
-                <Icon icon="lucide:x" width={12} />
-              </button>
+              <SessionCloseButton id={s.id} label={`${t("common.action.close")}: ${primary}`} disconnect={disconnect} />
             </span>
           );
         })}

@@ -68,12 +68,16 @@ test("long mobile labels retain complete accessible identity and separate activa
   try {
     const { default: MobileTerminalTopBar } = await import("./MobileTerminalTopBar");
     render(<MobileTerminalTopBar />);
-    const label = screen.getByRole("button", { name: `${name} · Zellij · ${session.connectionName} · alice@synthetic.example.invalid:22` });
+    const label = screen.getByRole("button", { name: `${name} · Zellij · alice@${session.connectionName} · alice@synthetic.example.invalid:22` });
     expect(label.getAttribute("title")).toContain(name);
     expect(label.getAttribute("title")).toContain("alice@synthetic.example.invalid:22");
     expect(label.getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(label); expect(setActive).toHaveBeenCalledWith("mobile-long");
-    fireEvent.click(screen.getByRole("button", { name: `common.action.close: ${name}` }));
+    const close = screen.getByRole("button", { name: `common.action.close: ${name}` });
+    fireEvent.touchStart(close, { touches: [{ clientX: 100, clientY: 20 }] });
+    fireEvent.touchMove(close, { touches: [{ clientX: 40, clientY: 20 }] });
+    fireEvent.click(close); expect(disconnect).not.toHaveBeenCalled();
+    fireEvent.click(close);
     expect(disconnect).toHaveBeenCalledWith("mobile-long");
     expect(setActive).toHaveBeenCalledTimes(1);
   } finally { useSessionStore.setState(original); }

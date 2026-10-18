@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["androidCursor.tsx", "../../src/vite-env.d.ts"],
+  "compilerOptions": { "noEmit": true }
+}

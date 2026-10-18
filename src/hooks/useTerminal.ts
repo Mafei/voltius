@@ -38,6 +38,7 @@ import type { UnlistenFn } from "@tauri-apps/api/event";
 import { terminalFontStack } from "@/utils/fontStack";
 import { applyTerminalTheme, clampTerminalLineHeight, subscribeTerminalCursor, subscribeTerminalTheme } from "@/utils/terminalTheme";
 import { getPlatform } from "@/utils/platform";
+import { synchronizeAndroidCursorFocus } from "@/utils/androidCursorFocus";
 import { createOutputDecoder, encodeTerminalInput, type OutputDecoder } from "@/utils/terminalEncoding";
 import i18n from "@/i18n";
 import { pasteClipboardImage } from "@/services/terminalImagePaste";
@@ -1023,6 +1024,7 @@ export function useTerminal({ sessionId, sessionType, onClosed, inputGate, encod
         if (os !== "android") return;
         const ta = term.element?.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea");
         if (!ta) return;
+        synchronizeAndroidCursorFocus(term, sessionId);
         // Keep xterm's textarea from ever becoming a live IME target: inputmode=none stops it
         // summoning the WebView's own (broken) keyboard, readOnly stops Chromium binding an
         // editable InputConnection to it. The native overlay is the sole editor; input is fed

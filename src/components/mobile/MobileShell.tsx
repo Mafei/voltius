@@ -52,6 +52,7 @@ import { usePfToastBridge } from "@/hooks/usePfToastBridge";
 import { openPortForwardingPage } from "@/services/portForwardingNav";
 import { useBlockedTeamVault } from "@/hooks/useBlockedTeamVault";
 import { refitSession } from "@/hooks/useTerminal";
+import { terminalPanelsVisible } from "./terminalChromeState";
 
 export default function MobileShell() {
   const { t } = useTranslation();
@@ -66,6 +67,7 @@ export default function MobileShell() {
   const hasSessions = useSessionStore((s) => s.sessions.length > 0);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const panelsRowOpen = useUIStore((s) => s.terminalPanelsRowOpen);
+  const panelsRowKeyboardOpen = useUIStore((s) => s.terminalPanelsRowKeyboardOpen);
   const mobileScreens = usePluginStore((s) => s.mobileScreens);
   const pop = useMobileNavStore((s) => s.pop);
 
@@ -141,7 +143,7 @@ export default function MobileShell() {
         {/* Extra-keys row: always present while the terminal is foreground with a session — usable
             even when the keyboard is closed (keys write to the PTY without needing input focus).
             When the keyboard opens, the shell shrinks to usableHeight so the row sits above it. */}
-        {terminalVisible && hasSessions && panelsRowOpen && <MobileTerminalPanelsRow />}
+        {terminalVisible && hasSessions && terminalPanelsVisible(panelsRowOpen, panelsRowKeyboardOpen, keyboardVisible) && <MobileTerminalPanelsRow />}
         {terminalVisible && hasSessions && <MobileExtraKeysRow keyboardOpen={keyboardVisible} />}
         {/* Pushed full-screen pages overlay everything */}
         {top?.kind === "host-edit" && <MobileHostEditScreen hostId={top.hostId} />}

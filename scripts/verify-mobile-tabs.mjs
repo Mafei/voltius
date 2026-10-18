@@ -41,7 +41,8 @@ async function measure(page) {
       usableHeight: window.visualViewport.height, keyboardOpen: document.querySelector("main").dataset.keyboardOpen === "true",
       terminal: box(document.querySelector("[data-mobile-terminal-viewport]")),
       keys: { ...box(keys), clientHeight: keys.clientHeight, scrollHeight: keys.scrollHeight, clientWidth: keys.clientWidth, scrollWidth: keys.scrollWidth,
-        controls: [...keys.querySelectorAll("button")].map((node) => ({ ...box(node), name: node.getAttribute("aria-label"), ...ink(node) })) },
+        modifiersPinned: keys.dataset.modifiersPinned === "true",
+        controls: [...keys.querySelectorAll("button")].map((node) => ({ ...box(node), name: node.getAttribute("aria-label"), faceInset: parseFloat(getComputedStyle(node, "::before").top), ...ink(node) })) },
       strip: { ...box(strip), clientHeight: strip.clientHeight, scrollHeight: strip.scrollHeight, clientWidth: strip.clientWidth, scrollWidth: strip.scrollWidth, scrollTop: strip.scrollTop, overflowY: getComputedStyle(strip).overflowY },
       controls: [...header.querySelectorAll("button")].map((node) => ({ name: node.getAttribute("aria-label") ?? node.title, ...box(node) })),
       rows: [...header.querySelectorAll("[data-mobile-session-chip]")].map((chip) => {
@@ -112,6 +113,7 @@ try {
         assert(m.terminal.height > 30 && m.terminal.top >= m.header.bottom - 0.75 && m.terminal.bottom <= m.keys.top + 0.75, `terminal area overlap ${tag}`);
         for (const control of m.keys.controls) {
           assert(control.width >= target - 0.5 && control.height >= target - 0.5, `key target too small ${tag}: ${JSON.stringify(control)}`);
+          assert.equal(control.faceInset, 2, "visual face keeps 2 CSSpx vertical separation inside its hit target");
           assert(control.textTop >= control.top - 0.75 && control.textBottom <= control.bottom + 0.75, `key glyph outside touch target ${tag}`);
         }
         for (const row of m.rows) {
@@ -163,7 +165,7 @@ try {
       assert.equal(await page.locator('[data-mobile-session-chip="long"]').count(), 0);
       await page.locator("[data-mobile-terminal-new]").click();
       assert.equal(await page.evaluate(() => window.__mobileTabFixture.state().tab), "hosts");
-      const row = page.locator("[data-mobile-extra-keys]");
+      const row = page.locator('[data-mobile-key-scroll="true"]');
       await row.evaluate((node) => { node.scrollLeft = 0; });
       await page.getByRole("button", { name: "Esc", exact: true }).tap();
       assert.equal(await page.evaluate(() => window.__mobileTabFixture.inputMetrics.length), 1);
@@ -183,7 +185,7 @@ try {
       for (const delta of [20, 40, 60, 80]) { await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x - delta, y }] }); await page.waitForTimeout(30); }
       await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
       const panRange = await row.evaluate((node) => node.scrollWidth - node.clientWidth);
-      if (panRange > 1) await page.waitForFunction((threshold) => document.querySelector("[data-mobile-extra-keys]").scrollLeft > threshold, Math.min(5, panRange / 2), { timeout: 5000 });
+      if (panRange > 1) await page.waitForFunction((threshold) => document.querySelector('[data-mobile-key-scroll="true"]').scrollLeft > threshold, Math.min(5, panRange / 2), { timeout: 5000 });
       assert.equal(await page.evaluate(() => window.__mobileTabFixture.inputMetrics.length), 0, "scroll drag must not emit a key");
       const escape = page.getByRole("button", { name: "Esc", exact: true });
       await escape.focus(); await page.keyboard.press("Space");
@@ -196,6 +198,24 @@ try {
       throw error;
     } finally { await context.close(); }
   }
+  const cursorContext = await createFixtureContext(browser, { viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
+  try {
+    const page = await cursorContext.newPage();
+    await page.goto("http://127.0.0.1:1428/tests/desktop-ui/index.html?android-cursor=1");
+    await page.waitForFunction(() => window.__androidCursorFixture);
+    const cursor = await page.evaluate(() => window.__androidCursorFixture.run());
+    for (const result of cursor.results) {
+      assert.equal(result.cursor, result.expected, `cursor state ${JSON.stringify(result)}`);
+      if (result.phase === "native-ime-open" || result.phase === "user-style-reset") {
+        assert.equal(result.focused, true); assert.equal(result.dom_terminal_focus, false, "proxy focus must never focus the DOM IME editor");
+      }
+      if (result.phase === "remote-blinking-bar") { assert.equal(result.blink_enabled, true); assert.equal(result.blink_paused, false); }
+      if (result.phase === "remote-blink-blurred") assert.equal(result.blink_paused, true);
+    }
+    await writeFile(path.join(output, "ANDROID-CURSOR-FOCUS.json"), JSON.stringify(cursor, null, 2));
+    await page.screenshot({ path: path.join(output, "android-cursor-synthetic.png") });
+    console.log(JSON.stringify({ cursor_focus: "passed", cases: cursor.results.length, native_focus: "simulated" }));
+  } finally { await cursorContext.close(); }
   const measured = results.filter((result) => !result.legacy_reproduction);
   const report = { source_sha: process.env.GITHUB_SHA ?? null, browser: browser.version(), chromium_sandbox: true,
     production_components: ["MobileTerminalScreen", "MobileTerminalTopBar", "MobileExtraKeysRow", "useVisualViewport"], rendered_fonts: renderedFonts,

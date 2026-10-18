@@ -16,6 +16,7 @@ import type { Connection } from "@/types";
 import TabLabelFixture from "./tabLabels";
 import { preloadIcons } from "@/utils/icons";
 import MobileTabFixture from "./mobileTabs";
+import AndroidCursorFixture from "./androidCursor";
 
 preloadIcons();
 
@@ -46,4 +47,4 @@ function App() {
   </div>;
 }
 const parameters = new URLSearchParams(location.search);
-createRoot(document.getElementById("root")!).render(parameters.has("mobile-tabs") ? <MobileTabFixture /> : parameters.has("tab-labels") ? <TabLabelFixture /> : <App />);
+createRoot(document.getElementById("root")!).render(parameters.has("android-cursor") ? <AndroidCursorFixture /> : parameters.has("mobile-tabs") ? <MobileTabFixture /> : parameters.has("tab-labels") ? <TabLabelFixture /> : <App />);

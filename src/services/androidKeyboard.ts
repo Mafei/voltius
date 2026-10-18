@@ -16,6 +16,7 @@ import { sendSpecialKey } from "@/services/terminalInput";
 import { consumeLatchForChar } from "@/stores/modifierLatchStore";
 import type { SpecialKey } from "@/services/terminalKeyCore";
 import { useAppLockStore } from "@/stores/appLockStore";
+import { setAndroidTerminalTarget, setAndroidTerminalProxyFocus } from "./androidTerminalFocus";
 
 /** Session whose terminal currently owns the native keyboard. */
 let activeSession: string | null = null;
@@ -65,21 +66,25 @@ function ensureInstalled(): void {
   const w = window as unknown as Record<string, unknown>;
   w.__voltiusTermInput = feedText;
   w.__voltiusTermKey = feedKey;
+  w.__voltiusTermFocus = (focused: boolean) => setAndroidTerminalProxyFocus(focused === true && !isLocked());
 }
 
 /** Raise the native keyboard for `sessionId` and route subsequent IME input to it. */
 export function showAndroidKeyboard(sessionId: string): void {
   ensureInstalled();
-  activeSession = sessionId;
+  setAndroidKeyboardTarget(sessionId);
   void invoke("terminal_show_keyboard").catch(() => {});
 }
 
 /** Dismiss the native keyboard. */
-export function hideAndroidKeyboard(): void {
+export function hideAndroidKeyboard(sessionId?: string): void {
+  if (sessionId && activeSession !== sessionId) return;
+  setAndroidTerminalProxyFocus(false);
   void invoke("terminal_hide_keyboard").catch(() => {});
 }
 
 /** Point native input at a session without toggling keyboard visibility (e.g. tab switch). */
 export function setAndroidKeyboardTarget(sessionId: string | null): void {
   activeSession = sessionId;
+  setAndroidTerminalTarget(sessionId);
 }

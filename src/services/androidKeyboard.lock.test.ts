@@ -9,10 +9,11 @@ vi.mock("@/services/terminalInput", () => ({ sendSpecialKey: vi.fn() }));
 vi.mock("@/stores/modifierLatchStore", () => ({ consumeLatchForChar: () => null }));
 vi.mock("@/services/account", () => ({ getAppLock: async () => null, setAppLock: async () => {} }));
 
-import { showAndroidKeyboard } from "./androidKeyboard";
+import { showAndroidKeyboard, hideAndroidKeyboard, setAndroidKeyboardTarget } from "./androidKeyboard";
+import { androidTerminalOwnsFocus } from "./androidTerminalFocus";
 import { useAppLockStore } from "@/stores/appLockStore";
 
-const w = window as unknown as { __voltiusTermInput: (t: string) => void; __voltiusTermKey: (k: string) => void };
+const w = window as unknown as { __voltiusTermInput: (t: string) => void; __voltiusTermKey: (k: string) => void; __voltiusTermFocus: (v: boolean) => void };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -35,4 +36,12 @@ test("native keyboard input never reaches the session behind the lock screen", (
 test("locking the screen dismisses the native keyboard", async () => {
   await useAppLockStore.getState().lockScreen();
   expect(h.invoke).toHaveBeenCalledWith("terminal_hide_keyboard");
+});
+
+test("native proxy ownership follows the active session and ignores an inactive view's hide", () => {
+  w.__voltiusTermFocus(true); expect(androidTerminalOwnsFocus("s1")).toBe(true);
+  setAndroidKeyboardTarget("s2"); hideAndroidKeyboard("s1");
+  expect(androidTerminalOwnsFocus("s2")).toBe(true);
+  expect(h.invoke).not.toHaveBeenCalledWith("terminal_hide_keyboard");
+  w.__voltiusTermFocus(false); expect(androidTerminalOwnsFocus("s2")).toBe(false);
 });

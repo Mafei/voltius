@@ -54,7 +54,8 @@ object TerminalKeyboard {
    *  While the terminal keyboard is up the WebView is made non-focusable so it can't win
    *  Android focus (and rebind the IME to xterm's textarea, which would restore Gboard's
    *  DOM composition path — issue #34). Touches still reach the WebView for
-   *  selection/scroll; DOM focus (cursor) is unaffected. hide() restores focusability so the
+   *  selection/scroll. Native focus is reported separately for the terminal cursor;
+   *  the WebView must not take IME focus back. hide() restores focusability so the
    *  rest of the app's text inputs keep working. */
   @JvmStatic
   fun show() {
@@ -92,6 +93,12 @@ object TerminalKeyboard {
     eval("window.__voltiusTermKey", name)
   }
 
+  fun reportFocus(focused: Boolean) {
+    val wv = webView ?: return
+    val js = "if(typeof window.__voltiusTermFocus==='function'){window.__voltiusTermFocus($focused);}"
+    wv.post { wv.evaluateJavascript(js, null) }
+  }
+
   private fun eval(fn: String, arg: String) {
     val wv = webView ?: return
     val js = "if(typeof $fn==='function'){$fn(${JSONObject.quote(arg)});}"
@@ -105,7 +112,7 @@ object TerminalKeyboard {
  * text is forwarded to the terminal. This is not a password field or a custom keyboard.
  */
 @SuppressLint("ViewConstructor", "ClickableViewAccessibility")
-class TerminalInputView(context: Context) : View(context) {
+class TerminalInputView(context: Context, private val emitFocus: (Boolean) -> Unit = TerminalKeyboard::reportFocus) : View(context) {
   private var connection: TerminalInputConnection? = null
 
   init {
@@ -144,6 +151,12 @@ class TerminalInputView(context: Context) : View(context) {
   override fun onFocusChanged(gainFocus: Boolean, direction: Int, previouslyFocusedRect: android.graphics.Rect?) {
     super.onFocusChanged(gainFocus, direction, previouslyFocusedRect)
     if (!gainFocus) resetInput()
+    emitFocus(gainFocus && hasWindowFocus())
+  }
+
+  override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
+    super.onWindowFocusChanged(hasWindowFocus)
+    emitFocus(hasFocus() && hasWindowFocus)
   }
 }
 

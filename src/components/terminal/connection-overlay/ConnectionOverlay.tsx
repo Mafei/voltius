@@ -12,6 +12,7 @@ import { useConnectionSteps, useHostKeyConflict } from "./hooks";
 import type { ConnectionOverlayProps } from "./types";
 import { isMissingUsernameError, isNoAuthError, isPassphraseError } from "./utils";
 import { isVaultErrorCode } from "@/services/vaultErrors";
+import { systemSshAuthFor } from "@/stores/systemSshAuthStore";
 
 export default function ConnectionOverlay({
   sessionId,
@@ -57,7 +58,7 @@ export default function ConnectionOverlay({
   const showChooser = isError && pickIsHere && choosing && !!onRetryWithAuth;
   const showVaultError = !identityPick && !!vaultCode;
   const prompting = isError && !identityPick && !vaultCode;
-  const showPassphrasePrompt = prompting && isPassphraseError(errorMessage) && !!onRetryWithPassphrase;
+  const showPassphrasePrompt = prompting && (errorCode === "ssh-key-passphrase" || isPassphraseError(errorMessage)) && !!onRetryWithPassphrase;
   const showUsernamePrompt = prompting && isMissingUsernameError(errorMessage) && !!onRetryWithAuth;
   const showAuthPrompt = prompting && isNoAuthError(errorMessage) && !!onRetryWithAuth;
   const showSpecialPanel =
@@ -97,6 +98,7 @@ export default function ConnectionOverlay({
           <VaultErrorPanel code={vaultCode} onRetry={onRetry} onCancel={onDismiss} />
         ) : showPassphrasePrompt ? (
           <PassphrasePromptPanel
+            allowSave={errorCode !== "ssh-key-passphrase" && (!connectionId || !systemSshAuthFor(connectionId))}
             onSubmit={onRetryWithPassphrase}
             onCancel={onDismiss}
           />

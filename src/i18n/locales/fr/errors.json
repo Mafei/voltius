@@ -16,6 +16,7 @@
     "bind-address-unavailable": "Cet ordinateur n'a pas l'adresse {{address}}",
     "remote-forward-denied": "Le serveur a refusé la redirection distante — le port y est peut-être déjà utilisé, ou la redirection n'est pas autorisée",
     "ssh-key-rejected": "Authentification par clé publique refusée",
+    "ssh-key-passphrase": "The encrypted system key needs a valid passphrase, used only for this connection.",
     "ssh-password-rejected": "Authentification par mot de passe refusée — vérifiez le nom d'utilisateur et le mot de passe",
     "ssh-password-expired": "Le serveur exige un nouveau mot de passe — connectez-vous une fois depuis un terminal pour le changer",
     "ssh-prompt-unanswerable": "Le serveur a demandé « {{prompt}} », une question à laquelle il est impossible de répondre automatiquement",

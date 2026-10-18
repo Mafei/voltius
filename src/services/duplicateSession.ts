@@ -2,7 +2,7 @@ import { findSessionPane, useLayoutStore, type SplitPosition } from "@/stores/la
 import { useSessionStore } from "@/stores/sessionStore";
 import { useTerminalCwdStore } from "@/stores/terminalCwdStore";
 import { matchShortcut } from "@/stores/shortcutStore";
-import { goToTerminal } from "@/services/launch";
+import { goToTerminal } from "@/services/terminalNavigation";
 import type { TerminalSession } from "@/types";
 
 export type DuplicateTarget = "tab" | SplitPosition;

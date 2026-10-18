@@ -1,0 +1,13 @@
+name: Locked desktop toolchain
+description: Build dependencies only; no publishing, signing credentials or account changes.
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/prepare-frontend
+    - shell: bash
+      run: rustup show
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      with:
+        workspaces: '. -> target'
+        shared-key: desktop-sessions-v1
+        cache-on-failure: true

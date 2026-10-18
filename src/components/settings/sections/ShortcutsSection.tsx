@@ -11,6 +11,7 @@ import {
 import { useFilterShortcut } from "@/components/shared/ToolbarViewControls";
 import { DirtyDot, ResetButton } from "./shared";
 import { searchMatcher } from "@/utils/search";
+import { isCompositionKey } from "@/services/terminalKeyPolicy";
 
 const BLOCKED_KEYS = new Set(["Escape", "Tab"]);
 
@@ -42,7 +43,7 @@ function matchesSearch(sc: Shortcut, q: string, t: TranslateFn): boolean {
 
 export default function ShortcutsSection() {
   const { t } = useTranslation();
-  const { shortcuts, setKey, reset, resetAll } = useShortcutStore();
+  const { shortcuts, setKey, reset, resetAll, setTerminalAllowed } = useShortcutStore();
   const [query, setQuery] = useState("");
   const [recording, setRecording] = useState<string | null>(null);
   const [conflict, setConflict] = useState<string | null>(null);
@@ -73,6 +74,7 @@ export default function ShortcutsSection() {
   useEffect(() => {
     if (!recording) return;
     const handle = (e: KeyboardEvent) => {
+      if (isCompositionKey(e)) return;
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
@@ -122,7 +124,7 @@ export default function ShortcutsSection() {
   const isShortcutModified = (sc: Shortcut): boolean => {
     const def = getDefaultShortcut(sc.id);
     if (!def) return false;
-    return sc.key !== def.defaultKey || sc.ctrl !== def.ctrl || sc.shift !== def.shift || (sc.alt ?? false) !== def.alt;
+    return sc.key !== def.defaultKey || sc.ctrl !== def.ctrl || sc.shift !== def.shift || (sc.alt ?? false) !== def.alt || sc.allowInTerminal === true;
   };
 
   return (
@@ -235,6 +237,10 @@ export default function ShortcutsSection() {
                         <p className="text-xs mt-0.5 text-(--t-text-muted) truncate">
                           {displayDescription(sc, t)}
                         </p>
+                        <label className="flex items-center gap-2 mt-1 text-xs text-(--t-text-muted)">
+                          <input type="checkbox" checked={sc.allowInTerminal === true} onChange={(event) => setTerminalAllowed(sc.id, event.target.checked)} />
+                          {t("settings.shortcuts.allowInTerminal")}
+                        </label>
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">

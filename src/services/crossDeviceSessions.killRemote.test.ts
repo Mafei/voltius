@@ -35,6 +35,12 @@ beforeEach(() => {
 });
 
 describe("killRemoteSession", () => {
+  it("passes the device-local system policy without requiring vault secrets", async () => {
+    const systemAuth = { mode: "keys", credentialId: "c1", identityFiles: [], useConfig: true };
+    resolveConnectionCredentials.mockResolvedValue({ username: "u", systemAuth }); sshKillPersistent.mockResolvedValue(true);
+    expect(await killRemoteSession(remote as never)).toEqual({ ok: true });
+    expect(sshKillPersistent).toHaveBeenCalledWith(expect.objectContaining({ systemAuth }));
+  });
   it("kills, tombstones and republishes on success", async () => {
     resolveConnectionCredentials.mockResolvedValue({ username: "u", password: "p" });
     sshKillPersistent.mockResolvedValue(true);

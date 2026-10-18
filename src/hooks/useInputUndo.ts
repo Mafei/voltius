@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { matchShortcut } from "@/stores/shortcutStore";
+import { isTerminalKeyEvent } from "@/services/terminalKeyPolicy";
 
 const MAX_HISTORY = 100;
 const PUSH_INTERVAL = 500;
@@ -34,6 +35,7 @@ function getOrCreate(el: Element, currentValue: string): InputHistory {
 export function useInputUndo() {
   useEffect(() => {
     const onInput = (e: Event) => {
+      if (e.target instanceof Element && e.target.closest(".xterm")) return;
       if (suppressNext) { suppressNext = false; return; }
       const target = e.target as HTMLInputElement | HTMLTextAreaElement;
       if (target.tagName !== "INPUT" && target.tagName !== "TEXTAREA") return;
@@ -54,6 +56,7 @@ export function useInputUndo() {
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
+      if (isTerminalKeyEvent(e)) return;
       const isUndo = matchShortcut("undo", e);
       const isRedo = matchShortcut("redo", e);
       if (!isUndo && !isRedo) return;

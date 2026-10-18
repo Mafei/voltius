@@ -31,6 +31,7 @@ pub async fn ssh_connect(
     password: Option<String>,
     private_key: Option<String>,
     passphrase: Option<String>,
+    system_auth: Option<crate::ssh::system_auth::SystemAuth>,
     connection_id: Option<String>,
     jump_hosts: Option<Vec<JumpHostConnect>>,
     env_vars: Option<Vec<(String, String)>>,
@@ -82,6 +83,7 @@ pub async fn ssh_connect(
             keepalive_max.unwrap_or(3),
             legacy_algorithms.unwrap_or(false),
             HopRoute { proxy, knock },
+            system_auth.as_ref(),
         )
         .await?
     };
@@ -293,14 +295,15 @@ pub async fn ssh_exec_command(
     password: Option<String>,
     private_key: Option<String>,
     passphrase: Option<String>,
+    system_auth: Option<crate::ssh::system_auth::SystemAuth>,
     command: String,
     legacy_algorithms: Option<bool>,
     proxy: Option<ProxySpec>,
     knock: Option<KnockSpec>,
-) -> Result<SshExecResult, String> {
+) -> Result<SshExecResult, AppError> {
     use tokio::time::{timeout, Duration};
 
-    let handle = client::connect_authenticated(
+    let handle = client::connect_authenticated_with_system(
         Arc::clone(&*known_hosts),
         &host,
         port,
@@ -310,6 +313,7 @@ pub async fn ssh_exec_command(
         passphrase.as_deref(),
         legacy_algorithms.unwrap_or(false),
         &HopRoute { proxy, knock },
+        system_auth.as_ref(),
     )
     .await?;
 
@@ -352,7 +356,7 @@ pub async fn ssh_exec_command(
     // A hard 30s timeout means the remote command never finished: "exit 0,
     // partial stdout" would misreport that as a success.
     if timed_out {
-        return Err("Remote command timed out after 30s".to_string());
+        return Err("Remote command timed out after 30s".into());
     }
 
     Ok(SshExecResult {
@@ -371,15 +375,16 @@ pub async fn ssh_kill_persistent(
     password: Option<String>,
     private_key: Option<String>,
     passphrase: Option<String>,
+    system_auth: Option<crate::ssh::system_auth::SystemAuth>,
     session_id: String,
     legacy_algorithms: Option<bool>,
     proxy: Option<ProxySpec>,
     knock: Option<KnockSpec>,
-) -> Result<bool, String> {
+) -> Result<bool, AppError> {
     use crate::ssh::exec::stdout_within;
     use tokio::time::Duration;
 
-    let handle = client::connect_authenticated(
+    let handle = client::connect_authenticated_with_system(
         Arc::clone(&*known_hosts),
         &host,
         port,
@@ -389,6 +394,7 @@ pub async fn ssh_kill_persistent(
         passphrase.as_deref(),
         legacy_algorithms.unwrap_or(false),
         &HopRoute { proxy, knock },
+        system_auth.as_ref(),
     )
     .await?;
 

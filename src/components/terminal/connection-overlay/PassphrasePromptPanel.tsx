@@ -6,9 +6,11 @@ import { DecisionPanel } from "./DecisionPanel";
 export function PassphrasePromptPanel({
   onSubmit,
   onCancel,
+  allowSave = true,
 }: {
   onSubmit: (passphrase: string, save: boolean) => void;
   onCancel?: () => void;
+  allowSave?: boolean;
 }) {
   const { t } = useTranslation();
   const [passphrase, setPassphrase] = useState("");
@@ -21,11 +23,11 @@ export function PassphrasePromptPanel({
       title={t("terminal.overlay.passphrasePrompt.title")}
       description={t("terminal.overlay.passphrasePrompt.description")}
       actions={[
-        {
+        ...(allowSave ? [{
           label: t("terminal.overlay.connectAndSave"),
           disabled: !passphrase,
           onClick: () => onSubmit(passphrase, true),
-        },
+        }] : []),
         {
           label: t("common.action.connect"),
           variant: "secondary",
@@ -45,7 +47,7 @@ export function PassphrasePromptPanel({
           value={passphrase}
           onChange={(event) => setPassphrase(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === "Enter" && passphrase) onSubmit(passphrase, true);
+            if (event.key === "Enter" && !event.nativeEvent.isComposing && passphrase) onSubmit(passphrase, allowSave);
           }}
           placeholder={t("terminal.overlay.passphrasePrompt.placeholder")}
           autoFocus

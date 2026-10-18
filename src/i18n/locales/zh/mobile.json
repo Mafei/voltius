@@ -258,6 +258,9 @@
       "identityChanged": "主机或 SSH 用户已改变，请从 Hosts 重新选择 tmux 会话。"
     },
     "session": {
+      "authPassword": "SSH 密码",
+      "authPassphrase": "私钥口令",
+      "authHint": "用于本次认证并加载会话列表，不会保存。",
       "title": "连接主机",
       "type": "会话类型",
       "list": "会话列表",

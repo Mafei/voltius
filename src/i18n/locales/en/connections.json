@@ -1,5 +1,21 @@
 {
   "connections": {
+    "systemAuth": {
+      "label": "SSH authentication on this device",
+      "vault": "Vault / imported credentials",
+      "keys": "System private key files",
+      "localHint": "This choice and paths stay on this device. Private keys are read in place and never copied into the vault. Encrypted keys ask for a temporary passphrase.",
+      "paths": "Identity files (optional, one per line, maximum 3)",
+      "pathError": "Enter up to three file paths. Do not paste private keys here.",
+      "pathHint": "Explicit paths take priority. Empty uses matching IdentityFile entries, otherwise ~/.ssh/id_ed25519, id_ecdsa, id_rsa. Relative paths start in ~/.ssh.",
+      "alias": "Config Host alias (optional)",
+      "configHint": "Matching Host, IdentityFile and IdentitiesOnly are read automatically from ~/.ssh/config. HostName, User, Port and proxies remain in Voltius. Match and Include are unsupported; config commands are never executed.",
+      "refreshHint": "Authentication changed. Connect to load sessions with this choice.",
+      "agentRemoved": "SSH agent login was removed. Explicitly choose system private key files or vault credentials before connecting.",
+      "pathsPlaceholder": "Leave empty for automatic local key selection",
+      "attemptsHint": "At most three local private keys per connection, without agent or password fallback.",
+      "policyInvalid": "Saved system SSH settings are invalid. Explicitly choose system private key files or vault credentials before connecting."
+    },
     "common": {
       "general": "General",
       "labelField": "Label",

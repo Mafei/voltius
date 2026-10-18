@@ -254,6 +254,8 @@ export interface TerminalSession {
   connectionName: string;
   /** User-given tab name. Unset falls back to connectionName (see sessionLabel). */
   title?: string;
+  /** Explicit user rename; independent from terminal/automatic title updates. */
+  customTitle?: string;
   status: "connecting" | "connected" | "disconnected" | "error";
   /** SSH only: persistence (remote tmux/screen) was active at connect time. */
   persist?: boolean;
@@ -268,6 +270,8 @@ export interface TerminalSession {
   /** Set when the failure was the vault itself, so the overlay can offer to unlock
    * rather than ask for credentials. The message is translated and cannot be matched. */
   errorCode?: BackendErrorCode;
+  /** Transient encrypted system-key challenge; never included in workspace snapshots. */
+  authPassphraseTarget?: string;
   identityPick?: IdentityPickIssue;
   skipIdentityPick?: boolean;
   connectedUsername?: string;

@@ -22,6 +22,7 @@ function toTerminalSession(s: SnapshotSession): TerminalSession {
     connectionId: s.connectionId,
     connectionName: s.connectionName,
     title: s.title,
+    customTitle: s.customTitle,
     status: "connecting",
     persist: s.persist,
     sshMode: s.sshMode,

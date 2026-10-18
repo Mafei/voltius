@@ -1,3 +1,4 @@
+import { deferTerminalKey, isCompositionKey, isEditingKeyEvent } from "@/services/terminalKeyPolicy";
 import { invoke } from "@/lib/invoke";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { closePfTunnel, getPfState, openPfTunnel } from "@/services/portForwardingTunnels";
@@ -442,6 +443,7 @@ function ensureKeybindHandler() {
   if (_keybindHandlerInstalled) return;
   _keybindHandlerInstalled = true;
   document.addEventListener("keydown", (e) => {
+    if (e.defaultPrevented || isCompositionKey(e) || isEditingKeyEvent(e) || deferTerminalKey(e) || e.altKey) return;
     const ctrl = e.ctrlKey;
     const meta = e.metaKey;
     for (const kb of _pluginKeybindings.values()) {

@@ -3,9 +3,12 @@ import { resolveConnectionCredentials } from "./credentials";
 import { sshConnect, sshDisconnect, sshSessionCancel, type SessionChoice, type SessionListing, type RemoteSession, type SessionBackend } from "./ssh";
 import { buildSshConnectOptions, useSessionStore } from "@/stores/sessionStore";
 import { findSessionTab, sessionAttachChoice, tmuxEndpoint, modeForSession } from "./tmuxSessionCore";
+import { activateOwnedSession } from "./tabActivation";
+import { isMobileShell } from "@/utils/platform";
+import { withSystemPassphrases } from "./systemSshAuth";
 
 /** A picker owns only its temporary SSH connection and any new tab it is still opening. */
-export function createSessionPicker(connection: Connection, backend: SessionBackend | null, preparedId: string = crypto.randomUUID()) {
+export function createSessionPicker(connection: Connection, backend: SessionBackend | null, preparedId: string = crypto.randomUUID(), pickerOptions: { direct?: boolean; auth?: { password?: string; passphrase?: string; systemPassphrases?: Record<string, string> } } = {}) {
   let closed = false;
   let started = false;
   let transferred = false;
@@ -15,16 +18,16 @@ export function createSessionPicker(connection: Connection, backend: SessionBack
 
   const ready: Promise<SessionListing | null> = (async () => {
     if (!backend) return null;
-    const credentials = await resolveConnectionCredentials(connection);
+    const credentials = { ...await resolveConnectionCredentials(connection), ...pickerOptions.auth };
     username = credentials.username;
     const options = await buildSshConnectOptions(connection, preparedId);
     if (closed) throw new Error("SESSION_PICKER_CLOSED");
     started = true;
-    const result = await sshConnect({
+    const result = await sshConnect(withSystemPassphrases({
       ...options, ...credentials, username, sessionId: preparedId,
       host: connection.host, port: connection.port, connectionId: connection.id,
       prepareBackend: backend, autoForward: false,
-    });
+    }, pickerOptions.auth?.systemPassphrases ?? {}));
     if (!result.session_listing || result.session_listing.backend !== backend) throw new Error("SESSION_INVALID_LIST_RESPONSE");
     return result.session_listing;
   })();
@@ -58,7 +61,8 @@ export function createSessionPicker(connection: Connection, backend: SessionBack
           // Refresh the displayed name, but identity is the stable remote tuple, never its label.
           useSessionStore.setState((s) => ({ sessions: s.sessions.map((tab) => tab.id === existing.id
             ? { ...tab, sshMode: modeForSession(selected, username, tmuxEndpoint(connection)) } : tab) }));
-          useSessionStore.getState().setActive(existing.id);
+          if (isMobileShell()) useSessionStore.getState().setActive(existing.id);
+          else activateOwnedSession(existing.id);
           // An offline tab is reused. Its existing error/reconnect UI stays available.
           transferred = true;
           return existing.id;
@@ -67,10 +71,12 @@ export function createSessionPicker(connection: Connection, backend: SessionBack
       newSessionId = crypto.randomUUID();
       const id = newSessionId;
       try {
-        await useSessionStore.getState().connect(connection.id, {
+        const launch = {
           sessionId: id, background: true, keepFailedSession: !choice,
           sshLaunch: { preparedId: prepared ? preparedId : undefined, choice, session: selected, username },
-        });
+        };
+        if (pickerOptions.direct) await useSessionStore.getState().connectDirect(connection, launch);
+        else await useSessionStore.getState().connect(connection.id, launch);
         if (closed) throw new Error("SESSION_PICKER_CLOSED");
         transferred = true;
         useSessionStore.getState().setActive(id);

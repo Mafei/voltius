@@ -10,8 +10,8 @@ use crate::error::AppError;
 use crate::known_hosts::{ConflictPrompt, KnownHostsStore};
 use crate::proxy::ProxySpec;
 use crate::ssh::client::{
-    authenticate_handle, chain_jumps, client_config, connect_first_hop_plain, hop_detail,
-    tunnel_hop, HopRoute, JumpHostConnect, SshClient,
+    authenticate_handle_with_system, chain_jumps, client_config, connect_first_hop_plain,
+    hop_detail, tunnel_hop, HopRoute, JumpHostConnect, SshClient,
 };
 use crate::ssh::exec::open_exec;
 use crate::ssh::live_cells::{own_cell, read_cell, Cell};
@@ -263,7 +263,8 @@ impl SftpManager {
         legacy_algorithms: bool,
         route: HopRoute,
         relink: Option<&str>,
-    ) -> Result<String, String> {
+        system_auth: Option<&crate::ssh::system_auth::SystemAuth>,
+    ) -> Result<String, crate::error::AppError> {
         let config = Arc::new(client_config(
             keepalive_interval_secs,
             keepalive_max,
@@ -329,12 +330,13 @@ impl SftpManager {
             SftpStep::Authenticating,
             format!("{}@{}", username, host),
         );
-        authenticate_handle(
+        authenticate_handle_with_system(
             &mut final_handle,
             username,
             password,
             private_key,
             passphrase,
+            system_auth.map(|spec| (host, spec)),
         )
         .await?;
 

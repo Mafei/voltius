@@ -9,13 +9,14 @@ import { useSshSessionTypeStore } from "@/stores/sshSessionTypeStore";
 const h = vi.hoisted(() => ({ create: vi.fn(), t: (key: string) => key, listening: true }));
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: h.t }), initReactI18next: { type: "3rdParty", init: () => {} } }));
 vi.mock("@/services/tmuxPicker", () => ({ createSessionPicker: h.create }));
-vi.mock("@/services/backendErrors", () => ({ describeError: (e: Error) => e.message }));
+vi.mock("@/services/backendErrors", async (original) => ({ ...await original<typeof import("@/services/backendErrors")>(), describeError: (e: Error) => e.message }));
 vi.mock("@/components/terminal/connection-overlay/hooks", () => ({ useHostKeyConflict: () => ({ conflict: null, resolving: false, resolveConflict: vi.fn(), listening: h.listening }) }));
 vi.mock("@/components/terminal/connection-overlay/HostKeyConflictPanel", () => ({ HostKeyConflictPanel: () => null }));
-vi.mock("./BottomSheet", () => ({ default: ({ children, onClose, onDismissStart }: {
+vi.mock("@/components/mobile/sheets/BottomSheet", () => ({ default: ({ children, onClose, onDismissStart }: {
   children: ReactNode; onClose: () => void; onDismissStart: () => void;
 }) => <div><button onClick={() => { onDismissStart(); onClose(); }}>hardware-back</button>{children}</div> }));
-import SessionSheet from "./TmuxSessionSheet";
+import MobileSessionSheet from "@/components/mobile/sheets/TmuxSessionSheet";
+import SessionConnectionForm from "./SessionConnectionForm";
 
 const host = { id: "host-a", name: "服务器 A", host: "example.test", port: 22 } as Connection;
 const remote = (backend: SessionBackend, name = "work"): RemoteSession => backend === "tmux"
@@ -28,6 +29,10 @@ const typeSelect = () => screen.getByLabelText("mobile.session.type");
 const listSelect = () => screen.getByLabelText("mobile.session.list");
 const nameInput = () => screen.getByLabelText("mobile.session.name") as HTMLInputElement;
 const connectButton = () => screen.getByRole("button", { name: "mobile.session.connect" }) as HTMLButtonElement;
+function expectNameGroupHidden() {
+  expect(screen.queryByLabelText("mobile.session.name")).toBeNull();
+  for (const key of ["mobile.tmux.nameHint", "mobile.session.zellijNameHint", "mobile.session.duplicate"]) expect(screen.queryByText(key)).toBeNull();
+}
 async function choose(backend: SessionBackend) {
   fireEvent.change(typeSelect(), { target: { value: backend } });
   await waitFor(() => expect((listSelect() as HTMLSelectElement).disabled).toBe(false));
@@ -38,6 +43,10 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+for (const presentation of ["sheet", "dialog"] as const) {
+  function SessionSheet(props: { connection: Connection; onClose: () => void; onOpened: () => void }) {
+    return presentation === "sheet" ? <MobileSessionSheet {...props} /> : <SessionConnectionForm {...props} presentation="dialog" />;
+  }
 test("None hides backend fields and uses the one Connect action for ordinary SSH", async () => {
   const plain = fake(null); h.create.mockReturnValue(plain);
   const opened = vi.fn(); render(<SessionSheet connection={host} onClose={vi.fn()} onOpened={opened} />);
@@ -50,6 +59,23 @@ test("None hides backend fields and uses the one Connect action for ordinary SSH
 });
 
 for (const backend of ["tmux", "zellij"] as const) {
+  test(`${backend}: the entire name group appears only for New, with its draft restored and irrelevant validation ignored`, async () => {
+    render(<SessionSheet connection={host} onClose={vi.fn()} onOpened={vi.fn()} />); await choose(backend);
+    expectNameGroupHidden(); expect(connectButton().disabled).toBe(true);
+    fireEvent.change(listSelect(), { target: { value: "create-new" } });
+    fireEvent.change(nameInput(), { target: { value: "work" } });
+    expect(connectButton().disabled).toBe(true); expect(screen.getByText("mobile.session.duplicate")).toBeTruthy();
+    fireEvent.change(listSelect(), { target: { value: "existing:0" } });
+    expectNameGroupHidden(); expect(connectButton().disabled).toBe(false);
+    fireEvent.change(listSelect(), { target: { value: "create-new" } });
+    expect(nameInput().value).toBe("work"); expect(connectButton().disabled).toBe(true);
+    fireEvent.change(nameInput(), { target: { value: "new-draft" } });
+    fireEvent.change(listSelect(), { target: { value: "existing:0" } });
+    fireEvent.change(listSelect(), { target: { value: "create-new" } });
+    expect(nameInput().value).toBe("new-draft"); expect(connectButton().disabled).toBe(false);
+    expect(screen.getAllByRole("button", { name: "mobile.session.connect" })).toHaveLength(1);
+    fireEvent.change(typeSelect(), { target: { value: "none" } }); expectNameGroupHidden();
+  });
   test(`${backend}: existing target ignores new-name input and repeated Connect opens only once`, async () => {
     const picker = fake(listing(backend)); const gate = deferred<string>(); picker.attach.mockReturnValue(gate.promise);
     h.create.mockImplementation((_c, b) => b ? picker : fake(null));
@@ -57,7 +83,7 @@ for (const backend of ["tmux", "zellij"] as const) {
     await choose(backend); fireEvent.change(listSelect(), { target: { value: "create-new" } });
     fireEvent.change(nameInput(), { target: { value: "stale-new-name" } });
     fireEvent.change(listSelect(), { target: { value: "existing:0" } });
-    expect(nameInput().disabled).toBe(true); expect(nameInput().value).toBe("");
+    expectNameGroupHidden();
     fireEvent.click(connectButton()); fireEvent.click(screen.getByRole("button", { name: "mobile.session.opening" }));
     expect(picker.attach).toHaveBeenCalledTimes(1); expect(picker.attach).toHaveBeenCalledWith(remote(backend));
     expect(picker.open).not.toHaveBeenCalled(); gate.resolve("tab");
@@ -71,13 +97,13 @@ for (const backend of ["tmux", "zellij"] as const) {
     expect(options.filter((o) => !o.disabled)[0].value).toBe("create-new");
     expect(options.find((o) => o.value === "separator")?.disabled).toBe(true);
     fireEvent.change(listSelect(), { target: { value: "existing:0" } });
-    expect(nameInput().disabled).toBe(true); fireEvent.click(connectButton());
+    expectNameGroupHidden(); fireEvent.click(connectButton());
     await waitFor(() => expect(picker.attach).toHaveBeenCalledWith(remote(backend, "New")));
   });
   test(`${backend}: only New enables naming and Connect sends the exact Unicode name`, async () => {
     const picker = fake(listing(backend, [])); h.create.mockImplementation((_c, b) => b ? picker : fake(null));
     render(<SessionSheet connection={host} onClose={vi.fn()} onOpened={vi.fn()} />); await choose(backend);
-    expect(nameInput().disabled).toBe(true); expect(connectButton().disabled).toBe(true);
+    expectNameGroupHidden(); expect(connectButton().disabled).toBe(true);
     fireEvent.change(listSelect(), { target: { value: "create-new" } }); expect(nameInput().disabled).toBe(false);
     expect(nameInput().type).toBe("text");
     fireEvent.change(nameInput(), { target: { value: "工作 ' $shell;" } }); fireEvent.click(connectButton());
@@ -116,7 +142,7 @@ test("refresh cannot turn a disappeared existing target into New", async () => {
   fireEvent.change(listSelect(), { target: { value: "existing:0" } });
   fireEvent.click(screen.getByRole("button", { name: "mobile.session.refresh" }));
   await screen.findByText("mobile.session.changed");
-  expect((listSelect() as HTMLSelectElement).value).toBe(""); expect(nameInput().disabled).toBe(true); expect(connectButton().disabled).toBe(true);
+  expect((listSelect() as HTMLSelectElement).value).toBe(""); expectNameGroupHidden(); expect(connectButton().disabled).toBe(true);
 });
 
 test("missing backend keeps type selection available and None uses ordinary SSH", async () => {
@@ -142,7 +168,7 @@ test("hardware back cancels a late connection without opening or changing the vi
   const picker = fake(null), gate = deferred<string>(); picker.open.mockReturnValue(gate.promise); h.create.mockReturnValue(picker);
   const close = vi.fn(), opened = vi.fn(); render(<SessionSheet connection={host} onClose={close} onOpened={opened} />);
   await waitFor(() => expect(connectButton().disabled).toBe(false)); fireEvent.click(connectButton());
-  fireEvent.click(screen.getByText("hardware-back")); expect(close).toHaveBeenCalled(); expect(picker.close).toHaveBeenCalled();
+  if (presentation === "sheet") fireEvent.click(screen.getByText("hardware-back")); else fireEvent.keyDown(document, { key: "Escape" }); expect(close).toHaveBeenCalled(); expect(picker.close).toHaveBeenCalled();
   gate.resolve("tab"); await Promise.resolve(); expect(opened).not.toHaveBeenCalled();
 });
 
@@ -157,7 +183,27 @@ test("a host-key listener that becomes ready after Cancel cannot start a new pro
   h.listening = false;
   const props = { connection: host, onClose: vi.fn(), onOpened: vi.fn() };
   const view = render(<SessionSheet {...props} />);
-  fireEvent.click(screen.getByText("hardware-back")); h.listening = true;
+  if (presentation === "sheet") fireEvent.click(screen.getByText("hardware-back")); else fireEvent.keyDown(document, { key: "Escape" }); h.listening = true;
   view.rerender(<SessionSheet {...props} />); await Promise.resolve();
   expect(h.create).not.toHaveBeenCalled();
 });
+
+for (const authKind of ["password", "passphrase"] as const) {
+  test(`${presentation}: ${authKind} unlocks the selected backend once without saving a secret or adding another Connect`, async () => {
+    let retried = false;
+    h.create.mockImplementation((_connection, backend, _id, options) => {
+      if (!backend) return fake(null);
+      if (options?.auth?.[authKind] === "synthetic-only") { retried = true; return fake(listing(backend)); }
+      return { ...fake(null), ready: Promise.reject(new Error(authKind === "passphrase" ? "The key is encrypted" : "No authentication method provided")) };
+    });
+    render(<SessionSheet connection={host} onClose={vi.fn()} onOpened={vi.fn()} />);
+    fireEvent.change(typeSelect(), { target: { value: "zellij" } });
+    const input = await screen.findByLabelText(authKind === "passphrase" ? "mobile.session.authPassphrase" : "mobile.session.authPassword");
+    fireEvent.change(input, { target: { value: "synthetic-only" } });
+    expect(screen.getAllByRole("button", { name: "mobile.session.connect" })).toHaveLength(1);
+    fireEvent.click(connectButton()); await waitFor(() => expect(retried).toBe(true));
+    await waitFor(() => expect((listSelect() as HTMLSelectElement).disabled).toBe(false));
+  });
+}
+
+}

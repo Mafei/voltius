@@ -8,15 +8,14 @@ import { matchPanelShortcut } from "@/hooks/panelShortcuts";
 import { useHistoryStore } from "@/stores/historyStore";
 import { openTerminalSearch, isTerminalSearchNavKey, handleTerminalSearchNav } from "@/hooks/useTerminal";
 import { handleDuplicateShortcut } from "@/services/duplicateSession";
+import { deferTerminalKey, isCompositionKey, isEditingKeyEvent } from "@/services/terminalKeyPolicy";
 
 const CLIPBOARD_TABS = new Set(["hosts", "keychain", "port-forwarding", "snippets"]);
 
 export function useKeyboard() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      const tag = target.tagName;
-      const isInput = tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable;
+      if (e.defaultPrevented || isCompositionKey(e) || isEditingKeyEvent(e)) return;
 
       if (matchShortcut("omni", e)) {
         e.preventDefault();
@@ -70,7 +69,7 @@ export function useKeyboard() {
       // has focus: xterm cancels the pass-through ^G, and useTerminal stops the
       // event itself when it drives an open widget. What is left for this
       // listener is focus elsewhere — the search input, or outside the canvas.
-      if (isTerminalSearchNavKey(e)) {
+      if (isTerminalSearchNavKey(e) && !deferTerminalKey(e)) {
         e.preventDefault();
         if (useUIStore.getState().activeNav === "terminal") {
           const activeId = useSessionStore.getState().activeSessionId;
@@ -78,8 +77,6 @@ export function useKeyboard() {
         }
         return;
       }
-
-      if (isInput) return;
 
       if (handleDuplicateShortcut(e, useSessionStore.getState().activeSessionId)) {
         e.preventDefault();
@@ -105,7 +102,7 @@ export function useKeyboard() {
         }
       }
 
-      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key === "a") {
+      if (!deferTerminalKey(e) && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key === "a") {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent("voltius:select-all"));
         return;

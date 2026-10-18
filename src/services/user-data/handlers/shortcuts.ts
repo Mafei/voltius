@@ -9,6 +9,7 @@ interface ShortcutOverride {
   ctrl: boolean;
   shift: boolean;
   alt: boolean;
+  allowInTerminal?: boolean;
 }
 
 export const shortcutsHandler: UserDataHandler = {
@@ -16,7 +17,7 @@ export const shortcutsHandler: UserDataHandler = {
   icon: "lucide:keyboard",
 
   export(): ShortcutOverride[] {
-    return useShortcutStore.getState().shortcuts.map(({ id, key, ctrl, shift, alt }) => ({ id, key, ctrl, shift, alt: alt ?? false }));
+    return useShortcutStore.getState().shortcuts.map(({ id, key, ctrl, shift, alt, allowInTerminal }) => ({ id, key, ctrl, shift, alt: alt ?? false, ...(allowInTerminal === true && { allowInTerminal: true }) }));
   },
 
   async import(data: unknown): Promise<void> {
@@ -24,6 +25,7 @@ export const shortcutsHandler: UserDataHandler = {
     const store = useShortcutStore.getState();
     for (const o of (overrides ?? [])) {
       store.setKey(o.id, o.key, o.ctrl, o.shift, o.alt ?? false);
+      store.setTerminalAllowed(o.id, o.allowInTerminal === true);
     }
   },
 

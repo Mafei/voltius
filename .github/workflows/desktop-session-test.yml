@@ -1,0 +1,247 @@
+name: Desktop sessions and system SSH test
+on:
+  push:
+    branches: ['candidate/desktop-sessions-*', 'candidate/desktop-ui-check-*']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: desktop-session-test-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  CARGO_BUILD_JOBS: '4'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  CARGO_PROFILE_TEST_DEBUG: '0'
+  VOLTIUS_REQUIRE_SEEDED_PLUGINS: '1'
+jobs:
+  linux:
+    # UI-check branches run browser and isolated SSH interoperability first.
+    if: github.repository == 'Mafei/voltius' && startsWith(github.ref, 'refs/heads/candidate/desktop-sessions-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prepare native test and packaging tools
+        run: |
+          mkdir -p desktop-linux-evidence
+          # This is a fresh hosted job; remove unused preinstalled SDKs only.
+          sudo rm -rf /usr/local/lib/android /usr/local/share/dotnet /opt/ghc /usr/share/dotnet /opt/hostedtoolcache/CodeQL
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libsoup-3.0-dev libsecret-1-dev openssh-client openssh-sftp-server zsh tmux rpm flatpak desktop-file-utils xvfb x11-utils imagemagick dbus-x11 ripgrep
+      - uses: ./.github/actions/prepare-desktop
+      - name: Install verified real multiplexer tools
+        run: bash scripts/install-desktop-test-tools.sh
+      - name: Full frontend regressions and production assets
+        run: |
+          cargo fmt --all --check 2>&1 | tee desktop-linux-evidence/rustfmt.log
+          pnpm test 2>&1 | tee desktop-linux-evidence/frontend-tests.log
+          pnpm build 2>&1 | tee desktop-linux-evidence/frontend-build.log
+      - name: Full native regressions including synthetic private keys
+        run: cargo test --locked --workspace 2>&1 | tee desktop-linux-evidence/native-tests.log
+      - name: Rust static checks
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings 2>&1 | tee desktop-linux-evidence/clippy.log
+      - name: Build unsigned Linux packages from this exact SHA
+        run: pnpm tauri build --ci --bundles deb,rpm --config '{"bundle":{"createUpdaterArtifacts":false}}' -- --locked 2>&1 | tee desktop-linux-evidence/native-build.log
+      - name: Verify native package metadata and runtime links
+        run: bash scripts/verify-desktop-linux.sh desktop-linux-evidence
+      - name: Prepare the pinned restricted GNOME runtime
+        run: |
+          flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak --user install --noninteractive --assumeyes flathub org.gnome.Platform//50 org.gnome.Sdk//50
+          flatpak --user update --noninteractive --assumeyes --commit=0bd5091046708e64bc882e8349877cfbae713f6a1e2d0487a5f10af820a2d792 org.gnome.Platform//50
+      - name: Package restricted Flatpak without extra host permissions
+        run: |
+          mkdir -p desktop-flatpak-evidence
+          bash scripts/build-flatpak-test.sh target/release/voltius desktop-flatpak-evidence
+          xvfb-run -a dbus-run-session -- bash scripts/probe-flatpak-test.sh desktop-flatpak-evidence
+      - name: Preserve Linux package and verification evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Voltius-linux-x86_64-${{ github.sha }}
+          path: desktop-linux-evidence/
+          retention-days: 14
+          if-no-files-found: error
+      - name: Preserve restricted Flatpak for the same-SHA Rocky test
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Voltius-flatpak-restricted-x86_64-${{ github.sha }}
+          path: desktop-flatpak-evidence/
+          retention-days: 14
+          if-no-files-found: error
+  openssh8:
+    if: github.repository == 'Mafei/voltius'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Prepare native interoperability tools
+        run: |
+          mkdir -p desktop-ssh8-evidence
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libsoup-3.0-dev libsecret-1-dev openssh-client
+      - uses: ./.github/actions/prepare-desktop
+      - name: Build embedded plugin assets required by native tests
+        run: pnpm build:plugins 2>&1 | tee desktop-ssh8-evidence/seeded-plugins.log
+      - name: Real OpenSSH 8 RSA-SHA2 interoperability without agent or SHA1 fallback
+        run: bash scripts/with-openssh8-fixture.sh desktop-ssh8-evidence cargo test --locked -p voltius --lib ssh::system_auth_tests::openssh8_rsa_sha2_interoperability -- --ignored --exact --nocapture
+      - name: Preserve public synthetic interoperability evidence only
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: Voltius-openssh8-rsa-${{ github.sha }}
+          path: desktop-ssh8-evidence/
+          retention-days: 14
+          if-no-files-found: error
+  browser-ui:
+    if: github.repository == 'Mafei/voltius'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/prepare-frontend
+      - run: mkdir -p desktop-browser-evidence
+      - name: Browser fixture with normally sandboxed installed Chrome
+        env:
+          VOLTIUS_BROWSER_TOOLS: ${{ github.workspace }}/tests/desktop-ui/tools
+          VOLTIUS_BROWSER_EXECUTABLE: /usr/bin/google-chrome
+          VOLTIUS_UI_EVIDENCE: desktop-browser-evidence/browser-ui
+        run: |
+          npm ci --prefix tests/desktop-ui/tools --ignore-scripts
+          pnpm vite build --config scripts/desktop-ui.vite.config.ts 2>&1 | tee desktop-browser-evidence/fixture-build.log
+          pnpm vite --config scripts/desktop-ui.vite.config.ts > desktop-browser-evidence/browser-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:1428/tests/desktop-ui/index.html > /dev/null; then break; fi
+            sleep 1
+          done
+          node scripts/verify-desktop-ui.mjs 2>&1 | tee desktop-browser-evidence/browser-tests.log
+      - name: Preserve browser fixture evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Voltius-desktop-browser-${{ github.sha }}
+          path: desktop-browser-evidence/
+          retention-days: 14
+          if-no-files-found: error
+  native-platform:
+    if: github.repository == 'Mafei/voltius' && startsWith(github.ref, 'refs/heads/candidate/desktop-sessions-')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            target: aarch64-apple-darwin
+            label: macos-arm64
+            bundles: app
+          - os: windows-2025
+            target: x86_64-pc-windows-msvc
+            label: windows-x64
+            bundles: nsis,msi
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/prepare-desktop
+      - name: Build locked native application without updater signing or publication
+        run: |
+          mkdir -p desktop-platform-evidence
+          rustup target add '${{ matrix.target }}'
+          if [[ "$RUNNER_OS" == macOS ]]; then test "$(uname -m)" = arm64; fi
+          pnpm tauri build --ci --target '${{ matrix.target }}' --bundles '${{ matrix.bundles }}' --config '{"bundle":{"createUpdaterArtifacts":false}}' -- --locked 2>&1 | tee desktop-platform-evidence/native-build.log
+      - name: Check macOS local PTY, shell and synthetic system SSH regressions
+        if: runner.os == 'macOS'
+        run: |
+          cargo test --locked --lib ssh::system_auth 2>&1 | tee desktop-platform-evidence/system-ssh-tests.log
+          cargo test --locked --lib local:: 2>&1 | tee desktop-platform-evidence/local-tests.log
+          cargo test --locked --lib commands::local:: 2>&1 | tee desktop-platform-evidence/shell-tests.log
+      - name: Verify ARM64, ad-hoc signatures and ordinary LaunchServices startup
+        if: runner.os == 'macOS'
+        run: bash scripts/verify-desktop-app.sh target/aarch64-apple-darwin/release/bundle/macos/Voltius.app desktop-platform-evidence
+      - name: Check Windows authentication policy parsing
+        if: runner.os == 'Windows'
+        run: cargo test --locked --lib ssh::system_auth::tests 2>&1 | tee desktop-platform-evidence/system-ssh-tests.log
+      - name: Verify Windows PE, unsigned packages and normal cloud startup
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/verify-desktop-windows.ps1 -Binary target/x86_64-pc-windows-msvc/release/voltius.exe -BundleDirectory target/x86_64-pc-windows-msvc/release/bundle -Evidence desktop-platform-evidence
+      - name: Preserve platform test packages and evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Voltius-${{ matrix.label }}-test-${{ github.sha }}
+          path: desktop-platform-evidence/
+          retention-days: 14
+          if-no-files-found: error
+  rocky-vm:
+    if: github.repository == 'Mafei/voltius'
+    needs: linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify the vendor Rocky 8.10 image
+        run: |
+          mkdir -p rocky-vm-evidence vm-data candidate-artifacts
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 qemu-utils genisoimage gnupg aria2
+          bash scripts/prepare-rocky-test-vm.sh rocky-vm-evidence
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: Voltius-flatpak-restricted-x86_64-${{ github.sha }}
+          path: candidate-artifacts
+      - name: Check the exact source and bundle digest before entering the guest
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib,shutil
+          root=pathlib.Path('candidate-artifacts'); manifest=json.loads((root/'BUILD-MANIFEST.json').read_text())
+          assert manifest['candidate_sha']==os.environ['GITHUB_SHA']
+          bundle=root/manifest['package']; assert hashlib.file_digest(bundle.open('rb'),'sha256').hexdigest()==manifest['sha256']
+          shutil.copyfile(bundle,'vm-data/voltius.flatpak')
+          for dest in ['vm-data','rocky-vm-evidence']: shutil.copyfile(root/'BUILD-MANIFEST.json',dest+'/BUILD-MANIFEST.json')
+          PY
+          cp scripts/test-flatpak-in-rocky-guest.sh vm-data/test-guest.sh
+          cp scripts/test-flatpak-as-rocky-user.sh vm-data/test-user.sh
+          cp scripts/capture-rocky-flatpak-gui.py vm-data/capture-gui.py
+          genisoimage -quiet -o vm-test.iso -V VOLTTEST -J -r vm-data
+      - name: Launch in the real Rocky kernel with its normal Flatpak sandbox
+        run: bash scripts/run-rocky-test-vm.sh rocky-vm-evidence
+      - name: Preserve measured guest evidence only
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Voltius-rocky-8.10-vm-evidence-${{ github.sha }}
+          path: rocky-vm-evidence/
+          retention-days: 14
+          if-no-files-found: error

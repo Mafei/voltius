@@ -56,6 +56,7 @@ export async function sftpConnectToConnection(conn: Connection, connectId: strin
     password: creds.password,
     privateKey: creds.privateKey,
     passphrase: creds.passphrase,
+    systemAuth: creds.systemAuth,
     jumpHosts: jumpHosts.length > 0 ? jumpHosts : undefined,
     keepaliveIntervalSecs: ka.intervalSecs,
     keepaliveMax: ka.max,

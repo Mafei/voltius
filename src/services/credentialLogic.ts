@@ -7,6 +7,7 @@ export interface ResolvedCredentials {
   passphrase?: string;
   identityId?: string;
   keyId?: string;
+  systemAuth?: import("./systemSshAuth").SystemSshAuth;
 }
 
 type FindIdentity = (id: string) => Promise<Pick<Identity, "username" | "key_id"> | undefined>;

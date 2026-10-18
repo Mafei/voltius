@@ -1043,6 +1043,7 @@
       }
     },
     "shortcuts": {
+      "allowInTerminal": "Also enable this app shortcut in terminal focus (Ctrl+C always sends interrupt)",
       "searchPlaceholder": "Kısayollarda ara…",
       "clearSearch": "Aramayı temizle",
       "resetAll": "Tümünü sıfırla",

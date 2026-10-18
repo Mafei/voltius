@@ -16,6 +16,7 @@
     "bind-address-unavailable": "У этого компьютера нет адреса {{address}}",
     "remote-forward-denied": "Сервер отказал в удалённом перенаправлении — порт там, возможно, уже занят, или перенаправление запрещено",
     "ssh-key-rejected": "Аутентификация по открытому ключу отклонена",
+    "ssh-key-passphrase": "The encrypted system key needs a valid passphrase, used only for this connection.",
     "ssh-password-rejected": "Аутентификация по паролю отклонена — проверьте имя пользователя и пароль",
     "ssh-password-expired": "Сервер требует сменить пароль — войдите один раз из терминала и смените его там",
     "ssh-prompt-unanswerable": "Сервер запросил «{{prompt}}» — на это нельзя ответить автоматически",

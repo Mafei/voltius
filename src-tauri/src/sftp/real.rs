@@ -294,7 +294,7 @@ fn remove_recursive(
     })
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
     use crate::port_forward::test_ssh::TestClient;

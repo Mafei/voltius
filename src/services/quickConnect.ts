@@ -70,10 +70,11 @@ export function parseQuickConnect(raw: string): QuickConnectIntent {
 /** Ephemeral, unsaved Connection for an SSH quick-connect target. */
 export function buildQuickConnectConnection(
   intent: Extract<QuickConnectIntent, { kind: "ssh" }>,
+  stableId = false,
 ): Connection {
   const now = new Date().toISOString();
   return {
-    id: crypto.randomUUID(),
+    id: stableId ? `quick-ssh:${encodeURIComponent(intent.user)}@${encodeURIComponent(intent.host)}:${intent.port}` : crypto.randomUUID(),
     name: `${intent.user}@${intent.host}`,
     host: intent.host,
     port: intent.port,

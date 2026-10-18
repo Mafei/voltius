@@ -20,7 +20,8 @@ import { useThemeStore } from "@/stores/themeStore";
 import { useUIStore } from "@/stores/uiStore";
 import { useTerminalSettingsStore } from "@/stores/terminalSettingsStore";
 import { getToggle, useToggleSettingsStore } from "@/stores/toggleSettingsStore";
-import { matchShortcut } from "@/stores/shortcutStore";
+import { matchShortcut, terminalShortcutAllowed, useShortcutStore } from "@/stores/shortcutStore";
+import { deferTerminalKey, isCompositionKey } from "@/services/terminalKeyPolicy";
 import { matchPanelShortcut } from "@/hooks/panelShortcuts";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useTerminalCwdStore } from "@/stores/terminalCwdStore";
@@ -459,6 +460,57 @@ export interface TerminalSearchController {
 
 /** Live terminal dimensions, so request_pty starts at the real window size
  * (screen/tmux pin their layout to the size at creation). */
+/** Shared by the actual xterm instance and the browser/DOM integration fixture. */
+export function handleTerminalKeyEvent(sessionId: string, e: KeyboardEvent, clip: import("@/components/terminal/terminalClipboard").TerminalClipboardHandle | null = null): boolean {
+  if (isCompositionKey(e)) return true;
+  const layout = useLayoutStore.getState();
+  const isSplitPaneTerminal = !deferTerminalKey(e) && layout.splitTabActive && getPaneSessionIds(layout.root).includes(sessionId);
+  if (isSplitPaneTerminal && e.ctrlKey && e.shiftKey && e.key === "Enter") {
+    if (e.type === "keydown") {
+      const activePaneId = layout.activePaneId;
+      if (activePaneId) layout.setMaximized(layout.maximizedPaneId === activePaneId ? null : activePaneId);
+    }
+    return claimChord(e);
+  }
+  if (isSplitPaneTerminal && e.ctrlKey && e.shiftKey && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
+    if (e.type === "keydown") {
+      const direction = e.key === "ArrowLeft" ? "left" : e.key === "ArrowRight" ? "right" : e.key === "ArrowUp" ? "up" : "down";
+      focusPaneInDirection(direction);
+    }
+    return claimChord(e);
+  }
+  if (matchShortcut("omni", e)) {
+    if (e.type === "keydown") useUIStore.getState().setOmniOpen(true);
+    return claimChord(e);
+  }
+  const clipResult = clip?.handleKeyEvent(e);
+  if (clipResult != null) return clipResult === false ? claimChord(e) : true;
+  if (matchShortcut("terminal-search", e)) {
+    if (e.type === "keydown") getTerminalSearchController(sessionId)?.open();
+    return claimChord(e);
+  }
+  // Returning false makes xterm skip the key entirely — correct while the
+  // search widget owns Ctrl+G, wrong once it is closed, when the shell needs
+  // ^G. xterm marks ctrl+letter cancel:true and calls preventDefault itself,
+  // so the webview's native find-next stays suppressed on the pass-through.
+  // This pane owns its own widget; useKeyboard keys off activeSessionId.
+  if (isTerminalSearchNavKey(e) && !deferTerminalKey(e, terminalShortcutAllowed("terminal-search"))) {
+    if (!handleTerminalSearchNav(sessionId, e)) return true;
+    return claimChord(e);
+  }
+  const panelSection = matchPanelShortcut(e);
+  if (panelSection) {
+    if (e.type === "keydown") useUIStore.getState().toggleRightPanel(panelSection);
+    return claimChord(e);
+  }
+  if (handleDuplicateShortcut(e, sessionId)) return claimChord(e);
+  // Let the window handler execute an explicitly enabled app binding. Returning
+  // false bypasses xterm encoding; the app handler then claims its own event.
+  if (useShortcutStore.getState().shortcuts.some((shortcut) => shortcut.allowInTerminal &&
+    !["filter", "cut"].includes(shortcut.id) && matchShortcut(shortcut.id, e))) return false;
+  return true;
+}
+
 export function getTerminalDims(sessionId: string): { cols: number; rows: number } | null {
   const entry = terminalCache.get(sessionId);
   if (!entry) return null;
@@ -528,6 +580,10 @@ export interface TerminalApi {
  * modal, anything that borrowed focus. No-op when nothing is cached. */
 export function focusSession(sessionId: string): void {
   terminalCache.get(sessionId)?.terminal.focus();
+}
+
+export function terminalClipboardAction(sessionId: string, action: "copySelection" | "pasteClipboard"): Promise<void> {
+  return terminalCache.get(sessionId)?.clip?.[action]() ?? Promise.resolve();
 }
 
 /** Narrow facade over a cached terminal for the mobile gesture layer. Null when no
@@ -890,50 +946,7 @@ export function useTerminal({ sessionId, sessionType, onClosed, inputGate, encod
       const bufferChangeDispose = term.buffer.onBufferChange(() => scheduleMinimapNotify(entry));
 
       // Intercept app shortcuts before xterm processes them
-      term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
-        const layout = useLayoutStore.getState();
-        const isSplitPaneTerminal = layout.splitTabActive && getPaneSessionIds(layout.root).includes(sessionId);
-        if (isSplitPaneTerminal && e.ctrlKey && e.shiftKey && e.key === "Enter") {
-          if (e.type === "keydown") {
-            const activePaneId = layout.activePaneId;
-            if (activePaneId) layout.setMaximized(layout.maximizedPaneId === activePaneId ? null : activePaneId);
-          }
-          return false;
-        }
-        if (isSplitPaneTerminal && e.ctrlKey && e.shiftKey && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
-          if (e.type === "keydown") {
-            const direction = e.key === "ArrowLeft" ? "left" : e.key === "ArrowRight" ? "right" : e.key === "ArrowUp" ? "up" : "down";
-            focusPaneInDirection(direction);
-          }
-          return false;
-        }
-        if (matchShortcut("omni", e)) {
-          if (e.type === "keydown") useUIStore.getState().setOmniOpen(true);
-          return false;
-        }
-        const clipResult = entry.clip?.handleKeyEvent(e);
-        if (clipResult != null) return clipResult;
-        if (matchShortcut("terminal-search", e)) {
-          if (e.type === "keydown") getTerminalSearchController(sessionId)?.open();
-          return claimChord(e);
-        }
-        // Returning false makes xterm skip the key entirely — correct while the
-        // search widget owns Ctrl+G, wrong once it is closed, when the shell needs
-        // ^G. xterm marks ctrl+letter cancel:true and calls preventDefault itself,
-        // so the webview's native find-next stays suppressed on the pass-through.
-        // This pane owns its own widget; useKeyboard keys off activeSessionId.
-        if (isTerminalSearchNavKey(e)) {
-          if (!handleTerminalSearchNav(sessionId, e)) return true;
-          return claimChord(e);
-        }
-        const panelSection = matchPanelShortcut(e);
-        if (panelSection) {
-          if (e.type === "keydown") useUIStore.getState().toggleRightPanel(panelSection);
-          return false;
-        }
-        if (handleDuplicateShortcut(e, sessionId)) return false;
-        return true;
-      });
+      term.attachCustomKeyEventHandler((e) => handleTerminalKeyEvent(sessionId, e, entry.clip));
 
       // Route input to the PTY, fanning out to every pane (each in its own encoding) under split-pane
       // broadcast. Shared by typed input and synthesized alt-screen scroll arrows.

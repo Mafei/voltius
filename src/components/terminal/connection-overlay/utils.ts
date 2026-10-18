@@ -2,7 +2,7 @@ import type { Step, StepConfig, StepStatus } from "./types";
 
 export function isPassphraseError(msg?: string): boolean {
   if (!msg) return false;
-  return msg.includes("The key is encrypted") || msg.toLowerCase().includes("invalid passphrase");
+  return msg.includes("SYSTEM_SSH_KEY_PASSPHRASE") || msg.includes("The key is encrypted") || msg.toLowerCase().includes("invalid passphrase");
 }
 
 export function isNoAuthError(msg?: string): boolean {

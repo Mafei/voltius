@@ -4,7 +4,7 @@ import { tmuxSession, tmuxTab } from "./__fixtures__/tmux";
 
 const h = vi.hoisted(() => ({
   prepare: vi.fn(), cancel: vi.fn(async () => {}), drop: vi.fn(async () => {}),
-  credentials: vi.fn(), connect: vi.fn(), active: vi.fn(), remove: vi.fn(),
+  credentials: vi.fn(), connect: vi.fn(), direct: vi.fn(), active: vi.fn(), remove: vi.fn(),
   sessions: [] as TerminalSession[],
 }));
 vi.mock("./credentials", () => ({ resolveConnectionCredentials: h.credentials }));
@@ -12,11 +12,12 @@ vi.mock("./ssh", () => ({ sshConnect: h.prepare, sshSessionCancel: h.cancel, ssh
 vi.mock("@/stores/sessionStore", () => ({
   buildSshConnectOptions: async () => ({ keepaliveIntervalSecs: 3, keepaliveMax: 3 }),
   useSessionStore: {
-    getState: () => ({ sessions: h.sessions, connect: h.connect, setActive: h.active, removeSession: h.remove }),
+    getState: () => ({ sessions: h.sessions, connect: h.connect, connectDirect: h.direct, setActive: h.active, removeSession: h.remove }),
     setState: (update: (s: { sessions: TerminalSession[] }) => { sessions: TerminalSession[] }) => { h.sessions = update({ sessions: h.sessions }).sessions; },
   },
 }));
 import { createTmuxPicker, createSessionPicker } from "./tmuxPicker";
+import { findSessionPane, useLayoutStore } from "@/stores/layoutStore";
 
 const remote = (session = tmuxSession()) => ({ backend: "tmux" as const, session });
 const listed = () => ({ backend: "tmux" as const, installed: true, version: "tmux 3.4", sessions: [remote()], reserved_names: [tmuxSession().name] });
@@ -27,9 +28,29 @@ function deferred<T>() { let resolve!: (value: T) => void; let reject!: (error: 
 
 beforeEach(() => {
   vi.clearAllMocks(); h.sessions = [];
+  useLayoutStore.setState(useLayoutStore.getInitialState());
   h.credentials.mockResolvedValue({ username: "alice", password: "synthetic-test-password" });
   h.prepare.mockResolvedValue({ session_listing: listed(), session: null });
   h.connect.mockImplementation(async (_connection: string, options: { sessionId: string }) => options.sessionId);
+  h.direct.mockResolvedValue(undefined);
+});
+
+test("desktop reuses and reveals a target's existing split pane", async () => {
+  h.sessions = [tmuxTab()];
+  useLayoutStore.getState().createSplitTab("tab-1", "sibling", "right");
+  const owner = findSessionPane(useLayoutStore.getState().splitTabs, "tab-1")!;
+  const sibling = findSessionPane(useLayoutStore.getState().splitTabs, "sibling")!;
+  useLayoutStore.getState().setMaximized(sibling.paneId); useLayoutStore.getState().setSplitTabActive(false);
+  const picker = createTmuxPicker(connection); await picker.ready; expect(await picker.attach(remote())).toBe("tab-1");
+  expect(useLayoutStore.getState()).toMatchObject({ splitTabActive: true, activeSplitTabId: owner.tabId, activePaneId: owner.paneId, maximizedPaneId: owner.paneId });
+  expect(h.active).toHaveBeenCalledWith("tab-1"); expect(h.connect).not.toHaveBeenCalled(); picker.close();
+});
+
+test("desktop direct targets share the prepared picker and never resolve as an absent saved host", async () => {
+  const picker = createSessionPicker(connection, "tmux", "prepared-direct", { direct: true, auth: { passphrase: "synthetic-only" } });
+  await picker.ready; await picker.attach(remote()); expect(h.connect).not.toHaveBeenCalled();
+  expect(h.direct).toHaveBeenCalledWith(connection, expect.objectContaining({ sshLaunch: expect.objectContaining({ preparedId: "prepared-direct" }) }));
+  expect(h.prepare.mock.calls[0][0].passphrase).toBe("synthetic-only"); picker.close();
 });
 
 for (const status of ["connected", "connecting", "disconnected", "error"] as const) {

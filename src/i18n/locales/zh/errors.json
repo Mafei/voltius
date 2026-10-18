@@ -16,6 +16,7 @@
     "bind-address-unavailable": "此计算机没有地址 {{address}}",
     "remote-forward-denied": "服务器拒绝了远程转发——该端口可能已在服务器上被占用，或不允许转发",
     "ssh-key-rejected": "公钥认证被拒绝",
+    "ssh-key-passphrase": "加密的系统密钥需要有效口令；口令仅用于当前连接。",
     "ssh-password-rejected": "密码认证被拒绝——请检查用户名和密码",
     "ssh-password-expired": "服务器要求设置新密码——请先从终端登录一次并在那里修改密码",
     "ssh-prompt-unanswerable": "服务器询问“{{prompt}}”，无法自动回答",

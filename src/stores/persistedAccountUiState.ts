@@ -45,6 +45,8 @@ export const ACCOUNT_SCOPED_STORAGE_KEYS = [
   "voltius-identity-picks",
   // Session type preferences name this account's saved host ids.
   "voltius-ssh-session-types",
+  // Local system-key/agent policy, never private keys or passphrases.
+  "voltius-system-ssh-auth",
   // The combined team lock policy, so it applies before the first team fetch.
   "voltius-org-lock-policy",
 ];

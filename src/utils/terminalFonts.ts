@@ -3,25 +3,56 @@ import { fontStackEntries } from "@/utils/fontStack";
 
 const installed = new WeakMap<Terminal, TerminalFontsAddon>();
 const familyName = (name: string) => name.trim().replace(/^(["'])(.*)\1$/, "$2").toLowerCase();
+const fontLoads = new WeakMap<FontFaceSet, FontLoads>();
+
+/** One promise observer per face, not per cached/closed terminal. */
+class FontLoads {
+  private listeners = new Set<(face: FontFace) => void>();
+  private observed = new WeakSet<FontFace>();
+  constructor(private fonts: FontFaceSet) {
+    fonts.addEventListener("loadingdone", (event) => event.fontfaces.forEach(this.notify));
+  }
+  private notify = (face: FontFace) => { for (const listener of this.listeners) listener(face); };
+  subscribe(listener: (face: FontFace) => void): () => void {
+    this.listeners.add(listener);
+    // WebKit's individual FontFace.load() path need not dispatch loadingdone.
+    // All stylesheet faces are registered before terminal creation, including
+    // fallback faces first requested much later during a long session.
+    this.fonts.forEach((face) => {
+      if (this.observed.has(face) || face.status === "loaded") return;
+      this.observed.add(face);
+      void face.loaded.then(() => this.notify(face), () => {});
+    });
+    return () => { this.listeners.delete(listener); };
+  }
+}
+
+function observeFonts(fonts: FontFaceSet): FontLoads {
+  let observer = fontLoads.get(fonts);
+  if (!observer) { observer = new FontLoads(fonts); fontLoads.set(fonts, observer); }
+  return observer;
+}
 
 /** Cached terminals retain this addon while their views detach or switch tabs. */
 class TerminalFontsAddon implements ITerminalAddon {
   private term: Terminal | null = null;
-  private fonts: FontFaceSet | null = null;
+  private unsubscribe: (() => void) | null = null;
+  private handled = new WeakSet<FontFace>();
   constructor(public onMetricsChanged: () => void) {}
 
   activate(term: Terminal): void {
     this.term = term;
-    this.fonts = term.element?.ownerDocument.fonts ?? document.fonts;
-    this.fonts.addEventListener("loadingdone", this.loaded);
+    const fonts = term.element?.ownerDocument.fonts ?? document.fonts;
+    this.unsubscribe = observeFonts(fonts).subscribe(this.loaded);
   }
 
-  private loaded = (event: FontFaceSetLoadEvent): void => {
+  private loaded = (face: FontFace): void => {
     const term = this.term;
-    if (!term) return;
+    if (!term || this.handled.has(face)) return;
     const family = term.options.fontFamily ?? "monospace";
     const names = new Set(fontStackEntries(family).map(familyName));
-    if (!event.fontfaces.some((face) => names.has(familyName(face.family)))) return;
+    if (!names.has(familyName(face.family))) return;
+    this.handled.add(face);
 
     // xterm 6 does not remeasure on FontFaceSet events. Refresh/atlas clearing
     // alone retains the old cell metrics. A CSS-equivalent whitespace change
@@ -35,10 +66,11 @@ class TerminalFontsAddon implements ITerminalAddon {
   };
 
   dispose(): void {
-    this.fonts?.removeEventListener("loadingdone", this.loaded);
+    this.unsubscribe?.();
     if (this.term) installed.delete(this.term);
     this.term = null;
-    this.fonts = null;
+    this.unsubscribe = null;
+    this.onMetricsChanged = () => {};
   }
 }
 

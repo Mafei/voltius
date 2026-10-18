@@ -102,7 +102,7 @@ async function run() {
   }
   bindRenderer();
   async function captureWrite(text: string): Promise<Uint8Array> {
-    return await captureFrame(primary, () => { void write(primary, text); });
+    return await captureFrame(primary, () => write(primary, text));
   }
   await write(primary, frame); await write(secondary, "\x1b[?25lSynthetic atlas trainer"); await nextFrame(); await nextFrame();
   if (atlas(primary) !== atlas(secondary)) throw Error("Trainer must share production texture atlas");

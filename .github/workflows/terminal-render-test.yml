@@ -67,7 +67,8 @@ jobs:
             sleep 1
           done
           args=("http://127.0.0.1:1428/tests/terminal-render/$PROBE_ENTRY.html" terminal-render-evidence)
-          args+=("$PROBE_SECONDS" production)
+          if [[ "$PROBE_ENTRY" == font ]]; then modes=font-face,font-set; else modes=production; fi
+          args+=("$PROBE_SECONDS" "$modes")
           if [[ "$DIAGNOSTIC" == 1 ]]; then args+=(--diagnostic); fi
           terminal-render-evidence/render-probe "${args[@]}" 2>&1 | tee terminal-render-evidence/native-render.log
           cp LICENSE NOTICE.md terminal-render-evidence/

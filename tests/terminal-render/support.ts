@@ -37,9 +37,12 @@ export function createTerminal(host: HTMLElement, overrides: FixtureOptions = {}
   const term = new Terminal(terminalOptions(overrides)); term.open(host); claimWebglRenderer(term); synchronizeTerminalFonts(term, () => {}); return term;
 }
 /** Read the actual default framebuffer in the rendering call stack, before compositor clearing. */
-export async function captureFrame(term: Terminal, trigger: () => void): Promise<Uint8Array> {
+export async function captureFrame(term: Terminal, trigger: () => void | Promise<void>): Promise<Uint8Array> {
   const r = renderer(term), gl: WebGL2RenderingContext = r._gl;
   if (!gl) throw Error("Production WebGL renderer was not acquired");
+  // Wait for xterm's parser acknowledgement before arming the next-frame read.
+  // Otherwise an already queued paint can still contain the previous counter.
+  await trigger();
   return await new Promise<Uint8Array>((resolve, reject) => {
     const original = r.renderRows;
     const timeout = setTimeout(() => { r.renderRows = original; reject(Error("render capture timed out")); }, 10000);
@@ -50,6 +53,5 @@ export async function captureFrame(term: Terminal, trigger: () => void): Promise
         gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels); resolve(pixels);
       } catch (error) { r.renderRows = original; clearTimeout(timeout); reject(error); }
     };
-    trigger();
   });
 }

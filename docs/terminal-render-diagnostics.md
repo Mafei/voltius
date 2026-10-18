@@ -10,8 +10,10 @@ delayed-font defect; it does not establish that every long-running corruption
 report has this cause.
 
 The shared terminal mount installs one font-lifecycle addon per cached terminal.
-It remains active across detached views and is disposed by xterm. A completed
-load of a face in the terminal's font stack invalidates font metrics and cached
+It remains active across detached views and is disposed by xterm. FontFaceSet
+events and individual FontFace.loaded promises are deduplicated; promise
+observers are shared per document/face so disposed terminals are not retained.
+A completed load of a face in the terminal's font stack invalidates font metrics and cached
 glyphs, refits a visible view (or defers its fit while hidden), then refreshes the
 viewport. Unrelated UI fonts do not trigger it. Since xterm 6 has no public
 remeasure-font method, a synchronous CSS-equivalent whitespace variation of

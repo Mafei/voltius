@@ -6,6 +6,8 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.KeyEvent
+import android.view.MotionEvent
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
@@ -59,6 +61,14 @@ class MainActivity : TauriActivity() {
     super.onWebViewCreate(webView)
     TerminalKeyboard.install(this, webView)
   }
+
+  override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+    SelectionTouchFeed.onTouch(this, ev)
+    return super.dispatchTouchEvent(ev)
+  }
+
+  override fun dispatchKeyEvent(event: KeyEvent): Boolean =
+    TerminalKeyboard.onVolumeKey(event) || super.dispatchKeyEvent(event)
 
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(withLinkType(intent))

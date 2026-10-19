@@ -29,6 +29,39 @@ class TerminalKeyboardTest {
     connection = TerminalInputConnection(view, { text.add(it) }, { keys.add(it) })
   }
 
+  @Test fun volumeCtrlRequiresFocusedNativeInputAndReleasesOnHide() {
+    val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+    val view = TerminalInputView(activity)
+    val parent = FrameLayout(activity)
+    activity.setContentView(parent)
+    parent.addView(view)
+    // Inject the native input view without starting the Rust-backed MainActivity.
+    // Assertions below exercise the public hardware-key/focus behavior.
+    val fields = listOf("inputView", "volumeCtrl", "volumeCtrlHeld").map {
+      TerminalKeyboard::class.java.getDeclaredField(it).apply { isAccessible = true }
+    }
+    val previous = fields.map { it.get(TerminalKeyboard) }
+    fun idle() = org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+    fun volume(action: Int) = KeyEvent(action, KeyEvent.KEYCODE_VOLUME_DOWN)
+    try {
+      fields[0].set(TerminalKeyboard, view)
+      TerminalKeyboard.show(false); idle()
+      assertFalse(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_DOWN)))
+      TerminalKeyboard.show(true); idle()
+      assertTrue(view.hasFocus())
+      assertTrue(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_DOWN)))
+      assertTrue(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_UP)))
+      assertFalse(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_UP)))
+      assertTrue(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_DOWN)))
+      TerminalKeyboard.hide(false); idle()
+      assertFalse(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_UP)))
+      assertFalse(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_DOWN)))
+    } finally {
+      idle()
+      fields.zip(previous).forEach { (field, value) -> field.set(TerminalKeyboard, value) }
+    }
+  }
+
   @Test fun ordinaryTerminalDoesNotAdvertisePasswordOrSuppressCandidates() {
     val attrs = EditorInfo()
     TerminalInputView(RuntimeEnvironment.getApplication()).onCreateInputConnection(attrs)

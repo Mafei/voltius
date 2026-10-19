@@ -76,6 +76,9 @@ object TerminalKeyboard {
   /** JS asked to dismiss the keyboard. [focusWebView]: native text selection needs WebView focus. */
   @JvmStatic
   fun hide(focusWebView: Boolean) {
+    // Android may return focus to the only focusable input after clearFocus().
+    // A hidden editor must not keep consuming Volume Down as Ctrl. show() restores the preference.
+    volumeCtrl = false
     val view = inputView ?: return
     view.post {
       volumeCtrlHeld = false

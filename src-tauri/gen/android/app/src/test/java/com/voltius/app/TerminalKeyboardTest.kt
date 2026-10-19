@@ -56,6 +56,9 @@ class TerminalKeyboardTest {
       TerminalKeyboard.hide(false); idle()
       assertFalse(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_UP)))
       assertFalse(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_DOWN)))
+      TerminalKeyboard.show(true); idle()
+      assertTrue(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_DOWN)))
+      assertTrue(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_UP)))
     } finally {
       idle()
       fields.zip(previous).forEach { (field, value) -> field.set(TerminalKeyboard, value) }

@@ -28,6 +28,8 @@ export function useMobileChromeFit() {
     const schedule = () => { if (frame === null) frame = requestAnimationFrame(update); };
     const resize = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(schedule);
     const observe = () => {
+      // Panel toggles replace DOM nodes; release previous observation targets.
+      resize?.disconnect();
       resize?.observe(header);
       for (const selector of ["[data-mobile-panels-row]", "[data-mobile-extra-keys]"]) {
         const node = parent.querySelector<HTMLElement>(selector);

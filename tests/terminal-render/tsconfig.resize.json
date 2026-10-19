@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["resizeRecovery.ts", "../../src/vite-env.d.ts"],
+  "compilerOptions": { "noEmit": true }
+}

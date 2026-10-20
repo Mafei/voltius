@@ -13,6 +13,18 @@ try {
    await page.waitForFunction(k=>document.querySelector('main').dataset.keyboardOpen===String(k),keyboard);await page.evaluate(async()=>{await document.fonts.ready;await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);});
    const positions=baseline?['start']:['start','middle','end'];
    for(const position of positions){await page.evaluate(position=>{for(const n of document.querySelectorAll('[data-mobile-panels-row],[data-mobile-key-scroll="true"]')) n.scrollLeft=(n.scrollWidth-n.clientWidth)*({start:0,middle:.5,end:1}[position]);},position);await page.evaluate(()=>new Promise(requestAnimationFrame));const m=await page.evaluate(measureMobileChrome);results.push({viewport,dpr,model,scale,keyboard,panel_open:panels,position,...m});
+    if(!baseline){
+     const iconKeys=['Up','Down','Left','Right','Home','End','Paste','panels'];
+     const icons=m.keys.controls.filter(b=>iconKeys.includes(b.key)),reference=icons[0];
+     assert.deepEqual(icons.map(b=>b.key),iconKeys,'remaining icon buttons preserve their order');
+     assert(!m.keys.controls.some(b=>['PgUp','PgDn'].includes(b.key)),'page buttons are absent from the toolbar');
+     for(const button of icons){
+      assert(button.width>=40&&button.height>=40,'icon touch targets remain at least40CSSpx');
+      for(const dimension of ['width','height','faceWidth','faceHeight'])assert(Math.abs(button[dimension]-reference[dimension])<.1,`${button.key} ${dimension} matches the arrow buttons`);
+      assert(button.icon&&Math.abs(button.icon.width-16)<.1&&Math.abs(button.icon.height-16)<.1,`${button.key} icon is16CSSpx`);
+      assert(Math.abs(button.icon.dx)<.1&&Math.abs(button.icon.dy)<.1,`${button.key} icon stays centered`);
+     }
+    }
     if(!baseline){assert(m.keys.bottom<=m.usableHeight+.6,'keyboard cannot cover key touch targets');assert(m.gaps.every(g=>Math.abs(g-6)<.6),'all measured horizontal gaps are 6px');assert(Math.abs(m.seam-6)<.6,'pinned modifier seam is 6px');for(const t of m.tabs)if(t.underline&&Number.isFinite(t.gap))assert(t.gap>=2.5,`tab ink gap ${t.gap}`);if(panels){assert(Math.abs(m.panels.height-m.keys.height)<.6,'equal row height');assert.deepEqual(m.panels.padding,m.keys.padding,'equal all container padding');for(const row of [m.panels,m.keys]){assert(row.controls.every(b=>b.height>=40),'40px non-overlapping touch targets');assert(row.controls.every(b=>Math.abs(b.faceTop-row.y-3)<.6&&Math.abs(row.bottom-b.faceBottom-3)<.6),'equal top/bottom border-to-face spacing');assert(row.controls.every(b=>Math.abs(b.faceHeight-row.controls[0].faceHeight)<.6),'shared face heights');}if(position==='start')assert(Math.abs(m.panels.controls[0].x-m.panels.x-3)<.6&&Math.abs(m.keys.controls[0].x-m.keys.x-3)<.6,'same leading face inset');if(position==='end'&&m.panels.scrollWidth>m.panels.clientWidth+1)assert(Math.abs(m.panels.right-m.panels.controls.at(-1).right-3)<.6,'trailing panel face inset');assert(Math.abs(m.panels.controls[0].faceHeight-m.keys.controls[0].faceHeight)<.6,'equal faces between rows');}
     }
    }

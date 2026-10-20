@@ -98,12 +98,13 @@ test("final row order and actual terminal sequences preserve navigation and lite
   const { container } = render(<MobileExtraKeysRow />);
   const order = [...container.querySelectorAll<HTMLElement>("[data-mobile-key]")].map(n => n.dataset.mobileKey);
   const right = order.indexOf("Right");
-  expect(order.slice(right + 1, right + 5)).toEqual(["Home", "End", "PgUp", "PgDn"]);
-  expect(order).toEqual(["ctrl", "alt", "Esc", "Tab", "Up", "Down", "Left", "Right", "Home", "End", "PgUp", "PgDn", "+", "|", "Paste"]);
-  for (const key of ["Home", "End", "PgUp", "PgDn", "+"]) touch(screen.getByRole("button", { name: key }));
-  expect(sent).toEqual(["\x1b[H", "\x1b[F", "\x1b[5~", "\x1b[6~", "+"]);
+  expect(order.slice(right + 1, right + 3)).toEqual(["Home", "End"]);
+  expect(order).toEqual(["ctrl", "alt", "Esc", "Tab", "Up", "Down", "Left", "Right", "Home", "End", "+", "|", "Paste"]);
+  for (const key of ["PgUp", "PgDn"]) expect(screen.queryByRole("button", { name: key })).toBeNull();
+  for (const key of ["Esc", "Tab", "Up", "Down", "Left", "Right", "Home", "End", "+", "|"]) touch(screen.getByRole("button", { name: key }));
+  expect(sent).toEqual(["\x1b", "\t", "\x1b[A", "\x1b[B", "\x1b[D", "\x1b[C", "\x1b[H", "\x1b[F", "+", "|"]);
   // Removing buttons must not remove the keyboard/terminal mappings.
-  for (const [key, sequence] of [["ShiftTab", "\x1b[Z"], ["~", "~"], ["-", "-"], ["/", "/"]] as const)
+  for (const [key, sequence] of [["PgUp", "\x1b[5~"], ["PgDn", "\x1b[6~"], ["ShiftTab", "\x1b[Z"], ["~", "~"], ["-", "-"], ["/", "/"]] as const)
     expect(keyToBytes(key, { ctrl: false, alt: false, appCursor: false })).toBe(sequence);
 });
 

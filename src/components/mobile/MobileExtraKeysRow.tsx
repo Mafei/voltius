@@ -18,9 +18,10 @@ const KEYS: KeyDef[] = [
   { key: "Esc", label: "Esc" }, { key: "Tab", label: "Tab" },
   { key: "Up", icon: "lucide:arrow-up" }, { key: "Down", icon: "lucide:arrow-down" },
   { key: "Left", icon: "lucide:arrow-left" }, { key: "Right", icon: "lucide:arrow-right" },
-  { key: "Home", label: "Home" }, { key: "End", label: "End" }, { key: "PgUp", label: "PgUp" }, { key: "PgDn", label: "PgDn" },
+  { key: "Home", label: "Home", icon: "lucide:arrow-left-to-line" }, { key: "End", label: "End", icon: "lucide:arrow-right-to-line" },
+  { key: "PgUp", label: "PgUp", icon: "lucide:chevrons-up" }, { key: "PgDn", label: "PgDn", icon: "lucide:chevrons-down" },
   { key: "+", label: "+" }, { key: "|", label: "|" },
-  { key: "Paste" },
+  { key: "Paste", icon: "lucide:clipboard-paste" },
 ];
 const MODS: { mod: Modifier; label: string }[] = [ { mod: "ctrl", label: "Ctrl" }, { mod: "alt", label: "Alt" } ];
 const keyClass = "mobile-chrome-face mobile-terminal-toolbar-button";
@@ -138,8 +139,11 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
         className="mobile-terminal-chrome-scroll mobile-terminal-toolbar-strip"
         style={{ overflowX: pinned ? "auto" : "visible" }}
         onScroll={(e) => { const el = e.currentTarget; setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1); }}>
-      {KEYS.map(({ key, label, icon }) => (
-        <button key={key} data-mobile-key={key} aria-label={key === "Paste" ? t("common.action.paste") : label ?? key} title={key === "Paste" ? "Ctrl+Shift+V" : undefined}
+      {KEYS.map(({ key, label, icon }) => {
+        const accessibleLabel = key === "Paste" ? t("common.action.paste") : label ?? key;
+        const preserveLabelBox = !!(icon && (label || key === "Paste"));
+        return (
+        <button key={key} data-mobile-key={key} aria-label={accessibleLabel} title={key === "Paste" ? "Ctrl+Shift+V" : preserveLabelBox ? accessibleLabel : undefined}
           // Touch path: fire once on touchend (a tap), never on touchstart — so the row
           // can be scrolled by dragging a button without firing its key, and the ghost
           // mousedown/click is suppressed on touch (mirrors the MODS' onClick guard).
@@ -161,9 +165,12 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
           onClick={(e) => { noFocusSteal(e); if (isActivationClick(e)) press(key); }}
           className={`${keyClass} font-medium`}
           style={keyFace("var(--t-bg-card)")}>
-          {icon ? <Icon icon={icon} width={16} /> : key === "Paste" ? t("common.action.paste") : label}
+          {/* Preserve each former text label's box, including localized/large-text widths. */}
+          {preserveLabelBox && <span className="invisible" aria-hidden="true">{accessibleLabel}</span>}
+          {icon ? <Icon icon={icon} width={16} className={preserveLabelBox ? "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" : undefined} aria-hidden={preserveLabelBox || undefined} /> : label}
         </button>
-      ))}
+        );
+      })}
       <button data-mobile-panels-toggle aria-label={t("mobile.terminalTopBar.panelsAriaLabel")} aria-pressed={panelsOpen}
         onMouseDown={noFocusSteal}
         onTouchStart={(e) => { noFocusSteal(e); keepKeyboardClosed(); }}

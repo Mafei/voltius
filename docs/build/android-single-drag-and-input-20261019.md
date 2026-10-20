@@ -33,6 +33,8 @@ node scripts/verify-mobile-gestures.mjs
 
 Normal-sandbox Chromium process scales1/2/3 verify actual backing density. The full verifier covers three font sizes and two line heights, short/slow/reverse/long/up drags, both boundaries, repeated pair translation and clear pinch, contact/keyboard lifecycle, real production DOM selection/copy bridge, actual shared Paste flow and WebGL/DOM pixel references. Quick mode is diagnostic only and recorded as such. Selection ranges, keyboard visibility/viewport and clipboard are synthetic test seams; no host clipboard or remote server is read by browser fixtures. The existing toolbar/tab/glyph matrix remains in the CI aggregate.
 
+Pixel comparison requires Pillow. CI installs Ubuntu's python3-pil and explicitly selects /usr/bin/python3 with VOLTIUS_PIXEL_PYTHON, recording its version. Local tools may set the same environment variable to a Python containing Pillow. This fixes a clean-runner dependency failure in the first candidate CI; that failed run never started the APK build and its assertions were not weakened.
+
 Robolectric API24/35 checks native InputConnection/IME/focus composition and explicit hide/VolumeDown contracts. It does not instantiate Android Chromium's OS selection handles or an OEM keyboard. Physical Android/SystemWebView/IME/clipboard permissions and device/emulator launch remain untested until separately performed. No Mac or user device operation is part of this work. Graphify update is attempted; unavailable binaries are reported rather than installed implicitly.
 
 ## Expanded symbol/CJK overlap investigation

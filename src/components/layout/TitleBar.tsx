@@ -45,6 +45,7 @@ import { StackTab } from "@/components/layout/StackTab";
 import { buildTitlebarItems, stackGroupKey, titlebarKeyGroupOf, visibleTitlebarKeys } from "@/utils/titlebarItems";
 import { useToggle } from "@/stores/toggleSettingsStore";
 import { useLastActiveByHost, useSessionTabHandlers } from "@/hooks/useTitlebarTabState";
+import { usePlatform } from "@/utils/platform";
 
 const appWindow = getCurrentWindow();
 
@@ -55,6 +56,7 @@ function splitTitle(t: TFunction, label: string, more: number): string {
 
 export default function TitleBar() {
   const { t } = useTranslation();
+  const isMacOS = usePlatform() === "macos";
   const setActiveNav = useUIStore((s) => s.setActiveNav);
   const activeNav = useUIStore((s) => s.activeNav);
   const rightPanelOpen = useUIStore((s) => s.rightPanelOpen);
@@ -626,8 +628,8 @@ export default function TitleBar() {
 
       <NotificationBell />
 
-      {/* Window controls */}
-      <div className="flex items-center gap-0.5 px-2 shrink-0">
+      {/* macOS uses the native title bar outside the webview. */}
+      {!isMacOS && <div className="flex items-center gap-0.5 px-2 shrink-0">
         <TitleBarBtn onClick={() => appWindow.minimize()} title={t("layout.titleBar.minimize")}>
           <Icon icon="lucide:minus" width={20} />
         </TitleBarBtn>
@@ -637,7 +639,7 @@ export default function TitleBar() {
         <TitleBarBtn onClick={() => appWindow.close()} title={t("layout.titleBar.close")}>
           <Icon icon="lucide:x" width={20} />
         </TitleBarBtn>
-      </div>
+      </div>}
     </div>
   );
 }

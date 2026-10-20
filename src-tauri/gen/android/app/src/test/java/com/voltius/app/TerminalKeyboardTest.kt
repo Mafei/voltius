@@ -29,40 +29,78 @@ class TerminalKeyboardTest {
     connection = TerminalInputConnection(view, { text.add(it) }, { keys.add(it) })
   }
 
-  @Test fun volumeCtrlRequiresFocusedNativeInputAndReleasesOnHide() {
+  private fun idle() = org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
+  private fun withKeyboardBridge(check: (TerminalInputView, android.webkit.WebView) -> Unit) {
     val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
     val view = TerminalInputView(activity)
+    val webView = android.webkit.WebView(activity)
     val parent = FrameLayout(activity)
     activity.setContentView(parent)
+    parent.addView(webView)
     parent.addView(view)
-    // Inject the native input view without starting the Rust-backed MainActivity.
-    // Assertions below exercise the public hardware-key/focus behavior.
-    val fields = listOf("inputView", "volumeCtrl", "volumeCtrlHeld").map {
+    val fields = listOf("inputView", "webView", "volumeCtrl", "volumeCtrlHeld").map {
       TerminalKeyboard::class.java.getDeclaredField(it).apply { isAccessible = true }
     }
     val previous = fields.map { it.get(TerminalKeyboard) }
-    fun idle() = org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
-    fun volume(action: Int) = KeyEvent(action, KeyEvent.KEYCODE_VOLUME_DOWN)
     try {
       fields[0].set(TerminalKeyboard, view)
-      TerminalKeyboard.show(false); idle()
-      assertFalse(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_DOWN)))
-      TerminalKeyboard.show(true); idle()
-      assertTrue(view.hasFocus())
-      assertTrue(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_DOWN)))
-      assertTrue(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_UP)))
-      assertFalse(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_UP)))
-      assertTrue(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_DOWN)))
-      TerminalKeyboard.hide(false); idle()
-      assertFalse(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_UP)))
-      assertFalse(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_DOWN)))
-      TerminalKeyboard.show(true); idle()
-      assertTrue(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_DOWN)))
-      assertTrue(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_UP)))
+      fields[1].set(TerminalKeyboard, webView)
+      check(view, webView)
     } finally {
+      TerminalKeyboard.setSelectionTouchFeed(false)
       idle()
       fields.zip(previous).forEach { (field, value) -> field.set(TerminalKeyboard, value) }
+      activity.finish()
     }
+  }
+
+  @Test fun volumeCtrlRequiresFocusedNativeInputAndReleasesOnHide() = withKeyboardBridge { view, _ ->
+    fun volume(action: Int) = KeyEvent(action, KeyEvent.KEYCODE_VOLUME_DOWN)
+    TerminalKeyboard.show(false); idle()
+    assertFalse(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_DOWN)))
+    TerminalKeyboard.show(true); idle()
+    assertTrue(view.hasFocus())
+    assertTrue(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_DOWN)))
+    assertTrue(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_UP)))
+    assertFalse(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_UP)))
+    assertTrue(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_DOWN)))
+    TerminalKeyboard.hide(false); idle()
+    assertFalse(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_UP)))
+    assertFalse(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_DOWN)))
+    TerminalKeyboard.show(true); idle()
+    assertTrue(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_DOWN)))
+    assertTrue(TerminalKeyboard.onVolumeKey(volume(KeyEvent.ACTION_UP)))
+  }
+
+  /** Framework focus/IME contract; does not simulate Chromium's native selection handles. */
+  @Test fun selectionTouchAndActionModeWindowFocusPreserveExistingImeAndComposition() = withKeyboardBridge { view, webView ->
+    val imm = view.context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+    val shadow = org.robolectric.Shadows.shadowOf(imm)
+    TerminalKeyboard.show(true); idle()
+    assertTrue(shadow.isSoftInputVisible)
+    assertTrue(view.hasFocus())
+    assertFalse(webView.isFocusable)
+    val input = view.onCreateInputConnection(EditorInfo())
+    input.setComposingText("nihao", 1)
+    TerminalKeyboard.setSelectionTouchFeed(true)
+    view.onWindowFocusChanged(false) // action-mode/handle popup window, not editor focus loss
+    view.onWindowFocusChanged(true)
+    TerminalKeyboard.setSelectionTouchFeed(false); idle()
+    assertTrue(shadow.isSoftInputVisible)
+    assertTrue(view.hasFocus())
+    assertFalse(webView.hasFocus())
+    assertEquals("nihao", input.getTextBeforeCursor(100, 0).toString())
+    // User explicitly closes IME; selection must not reopen it or call show again.
+    imm.hideSoftInputFromWindow(view.windowToken, 0)
+    TerminalKeyboard.setSelectionTouchFeed(true)
+    TerminalKeyboard.setSelectionTouchFeed(false); idle()
+    assertFalse(shadow.isSoftInputVisible)
+    assertEquals("nihao", input.getTextBeforeCursor(100, 0).toString())
+    // Session hide still cancels the old composition and Volume Down ownership.
+    TerminalKeyboard.hide(false); idle()
+    assertFalse(input.commitText("stale", 1))
+    assertFalse(TerminalKeyboard.onVolumeKey(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_VOLUME_DOWN)))
   }
 
   @Test fun ordinaryTerminalDoesNotAdvertisePasswordOrSuppressCandidates() {

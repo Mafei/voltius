@@ -77,7 +77,7 @@ export function showAndroidKeyboard(sessionId: string): void {
   void invoke("terminal_show_keyboard", { volumeCtrl: getToggle("volume-down-ctrl") }).catch(() => {});
 }
 
-/** Dismiss only the requesting session; selection may hand native focus to the WebView. */
+/** Explicit dismissal only. Terminal selection must not call this: it keeps IME ownership. */
 export function hideAndroidKeyboard(sessionId?: string, focusWebView = false): void {
   if (sessionId && activeSession !== sessionId) return;
   setAndroidTerminalProxyFocus(false);

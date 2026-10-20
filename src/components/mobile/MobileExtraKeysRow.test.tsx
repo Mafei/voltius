@@ -3,15 +3,20 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { useSessionStore } from "@/stores/sessionStore";
 import { useModifierLatchStore } from "@/stores/modifierLatchStore";
 import { useUIStore } from "@/stores/uiStore";
+import { useMobilePasteConfirmStore } from "@/stores/mobilePasteConfirmStore";
+import { keyToBytes } from "@/services/terminalKeyCore";
 
-const h = vi.hoisted(() => ({ send: vi.fn() }));
+const h = vi.hoisted(() => ({ send: vi.fn(), paste: vi.fn(async () => {}) }));
 vi.mock("@/services/terminalInput", () => ({ sendSpecialKey: h.send }));
+vi.mock("@/hooks/useTerminal", () => ({ terminalClipboardAction: h.paste }));
 vi.mock("@iconify/react", () => ({ Icon: () => null }));
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }), initReactI18next: { type: "3rdParty", init: () => {} } }));
 import MobileExtraKeysRow from "./MobileExtraKeysRow";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  h.send.mockReset();
+  useMobilePasteConfirmStore.getState().finish(false);
   useSessionStore.setState({ activeSessionId: "synthetic-mobile" });
   useModifierLatchStore.setState({ ctrl: "off", alt: "off" });
   useUIStore.setState({ terminalPanelsRowOpen: false, terminalPanelsRowKeyboardOpen: undefined });
@@ -85,4 +90,47 @@ test("keyboard toolbar defaults closed and preserves explicit choices across vie
   fireEvent.click(toggle()); expect(toggle().getAttribute("aria-pressed")).toBe("false");
   view.rerender(<MobileExtraKeysRow keyboardOpen />);
   expect(toggle().getAttribute("aria-pressed")).toBe("true");
+});
+
+test("final row order and actual terminal sequences preserve navigation and literal plus", () => {
+  const sent: string[] = [];
+  h.send.mockImplementation((_id, key, mods) => sent.push(keyToBytes(key, { ...mods, appCursor: false })));
+  const { container } = render(<MobileExtraKeysRow />);
+  const order = [...container.querySelectorAll<HTMLElement>("[data-mobile-key]")].map(n => n.dataset.mobileKey);
+  const right = order.indexOf("Right");
+  expect(order.slice(right + 1, right + 5)).toEqual(["Home", "End", "PgUp", "PgDn"]);
+  expect(order).toEqual(["ctrl", "alt", "Esc", "Tab", "Up", "Down", "Left", "Right", "Home", "End", "PgUp", "PgDn", "+", "|", "Paste"]);
+  for (const key of ["Home", "End", "PgUp", "PgDn", "+"]) touch(screen.getByRole("button", { name: key }));
+  expect(sent).toEqual(["\x1b[H", "\x1b[F", "\x1b[5~", "\x1b[6~", "+"]);
+  // Removing buttons must not remove the keyboard/terminal mappings.
+  for (const [key, sequence] of [["ShiftTab", "\x1b[Z"], ["~", "~"], ["-", "-"], ["/", "/"]] as const)
+    expect(keyToBytes(key, { ctrl: false, alt: false, appCursor: false })).toBe(sequence);
+});
+
+test.each([false, true])("Paste uses the shared Ctrl+Shift+V action once without changing latches or keyboard-open=%s focus", keyboardOpen => {
+  useModifierLatchStore.setState({ ctrl: "locked", alt: "armed" });
+  render(<><input aria-label="terminal focus" /><MobileExtraKeysRow keyboardOpen={keyboardOpen} /></>);
+  expect(h.paste).not.toHaveBeenCalled();
+  const input = screen.getByLabelText("terminal focus"); input.focus();
+  const paste = screen.getByRole("button", { name: "common.action.paste" });
+  expect(paste.title).toBe("Ctrl+Shift+V");
+  touch(paste); fireEvent.click(paste, { detail: 1 });
+  expect(h.paste).toHaveBeenCalledTimes(1);
+  expect(h.paste).toHaveBeenCalledWith("synthetic-mobile", "pasteClipboard");
+  expect(h.send).not.toHaveBeenCalled();
+  expect(useModifierLatchStore.getState()).toMatchObject({ ctrl: "locked", alt: "armed" });
+  if (keyboardOpen) expect(document.activeElement).toBe(input);
+  act(() => { useSessionStore.setState({ activeSessionId: "new-session" }); }); touch(paste);
+  expect(h.paste).toHaveBeenLastCalledWith("new-session", "pasteClipboard");
+});
+
+test("multiline confirmation neither focuses an input nor survives a session switch", async () => {
+  const view = render(<><input aria-label="terminal focus" /><MobileExtraKeysRow keyboardOpen /></>);
+  const input = screen.getByLabelText("terminal focus"); input.focus();
+  let answer!: Promise<boolean>;
+  act(() => { answer = useMobilePasteConfirmStore.getState().request("synthetic-mobile", "你好\necho test\n"); });
+  expect(screen.getByRole("alertdialog")).toBeTruthy(); expect(document.activeElement).toBe(input);
+  act(() => { useSessionStore.setState({ activeSessionId: "new-session" }); });
+  expect(await answer).toBe(false); expect(screen.queryByRole("alertdialog")).toBeNull();
+  view.unmount();
 });

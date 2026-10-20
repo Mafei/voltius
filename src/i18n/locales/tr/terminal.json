@@ -357,6 +357,9 @@
       "failed": "Ekran görüntüsü yüklenemedi",
       "retry": "Yeniden dene",
       "broadcast": "Aynı anda birden fazla bölmeye yazarken görsel yapıştırma kapalıdır."
+    },
+    "paste": {
+      "multilineConfirm": "Satır sonları içeren metin yapıştırılsın mı? Uzak uygulama komutları çalıştırabilir. Ek bir Enter gönderilmez."
     }
   }
 }

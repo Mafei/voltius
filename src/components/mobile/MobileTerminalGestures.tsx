@@ -1,25 +1,25 @@
 import { TwoFingerGesture } from "./twoFingerGesture";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getTerminalApi } from "@/hooks/useTerminal";
+import { getTerminalApi, terminalClipboardAction } from "@/hooks/useTerminal";
 import { sendSpecialKey } from "@/services/terminalInput";
 import { showAndroidKeyboard, hideAndroidKeyboard, setAndroidKeyboardTarget, setSelectionTouchFeed } from "@/services/androidKeyboard";
 import { useIsAndroid } from "@/utils/platform";
 import { isDoubleTap, type TapPoint } from "./doubleTap";
-import { fontSizeFromPinch, linesFromPixelDelta } from "./mobileTerminalGesturesCore";
+import { fontSizeFromPinch } from "./mobileTerminalGesturesCore";
 import { createNativeSelection } from "./nativeSelectionOverlay";
-import { readClipboard } from "@/utils/clipboard";
 import { MAX_TERMINAL_FONT_SIZE, MIN_TERMINAL_FONT_SIZE, useUIStore } from "@/stores/uiStore";
 import { useThemeStore } from "@/stores/themeStore";
 
 const LONG_PRESS_MS = 380;
-const MOVE_THRESHOLD_PX = 10;
+const MOVE_THRESHOLD_PX = 1;
 const DOUBLE_TAP = { ms: 300, px: 24 };
 
-type Phase = "idle" | "pending" | "scrolling" | "native" | "pinching";
+type Phase = "idle" | "pending" | "scrolling" | "native" | "pinching" | "cancelled";
 
 /** Mobile terminal gestures: drag scrolls, long-press selects natively (Paste on blank),
- *  double-tap sends Tab, two fingers translate to scroll and deliberate pinch sets the font size (#159); single taps reach xterm. */
+ *  double-tap sends Tab; two-finger translation is consumed, deliberate pinch
+ *  sets font size. Single-finger drag follows CSS pixels; taps reach xterm. */
 export default function MobileTerminalGestures({ sessionId, active }: { sessionId: string; active: boolean }) {
   const { t } = useTranslation();
   const isAndroid = useIsAndroid();
@@ -32,18 +32,11 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
   const start = useRef<{ x: number; y: number; t: number } | null>(null);
   const onText = useRef(false);
   const lastY = useRef(0);
-  const carry = useRef(0);
+  const fingerId = useRef<number | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
   const lastTap = useRef<TapPoint | null>(null);
   const pinch = useRef<{ gesture: TwoFingerGesture; size: number } | null>(null);
-
-  const cellHeight = (): number => {
-    const api = getTerminalApi(sessionId);
-    const rows = api?.rows();
-    const h = api?.screenEl()?.getBoundingClientRect().height;
-    return rows && h ? h / rows : 0;
-  };
 
   useEffect(() => {
     if (!active) return;
@@ -71,13 +64,16 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
       pinch.current = null;
       start.current = null;
       onText.current = false;
-      carry.current = 0;
+      fingerId.current = null;
+      getTerminalApi(sessionId)?.endTouchScroll();
       longPressFired.current = false;
       clearLongPress();
     };
 
     const onTouchStart = (e: TouchEvent) => {
+      if ((e.target as Element | null)?.closest("[data-mobile-term-toolbar]")) return;
       if (sel.isSelecting()) { reset(); return; }
+      if (phase.current === "cancelled") { e.preventDefault(); return; }
       if (pasteOpen.current) {
         if ((e.target as Element | null)?.closest("[data-mobile-term-toolbar]")) return;
         setPaste(null);
@@ -88,6 +84,7 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
       if (e.touches.length === 2) {
         e.preventDefault(); e.stopPropagation(); lastTap.current = null;
         clearLongPress();
+        getTerminalApi(sessionId)?.endTouchScroll();
         // Removing a finger's native-overlay target drops its final touchend.
         sel.disarm(true);
         longPressFired.current = false;
@@ -98,11 +95,11 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
         };
         return;
       }
-      if (e.touches.length !== 1) { sel.disarm(); reset(); return; }
+      if (e.touches.length !== 1) { sel.disarm(true); reset(); phase.current = "cancelled"; return; }
       const t = e.touches[0];
       start.current = { x: t.clientX, y: t.clientY, t: e.timeStamp };
       lastY.current = t.clientY;
-      carry.current = 0;
+      fingerId.current = t.identifier;
       longPressFired.current = false;
       phase.current = "pending";
       sel.arm();
@@ -117,23 +114,42 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
         if (onText.current) {
           phase.current = "native";
           sel.arm();
-          if (isAndroid) hideAndroidKeyboard(sessionId, true);
+          // Selection must not dismiss/reopen IME or transfer its InputConnection.
+          // The existing native editor keeps its focus; only selection touch feed changes.
         } else {
           showPaste(start.current.x, start.current.y);
         }
       }, LONG_PRESS_MS);
     };
 
+    const moveSingleFinger = (x: number, y: number): boolean => {
+      const s = start.current;
+      if (!s) return false;
+      if (phase.current === "pending") {
+        if (Math.hypot(x - s.x, y - s.y) <= MOVE_THRESHOLD_PX) return false;
+        clearLongPress(); sel.disarm(true); phase.current = "scrolling"; lastTap.current = null;
+      }
+      if (phase.current !== "scrolling") return false;
+      const dy = y - lastY.current; lastY.current = y;
+      getTerminalApi(sessionId)?.scrollByTouch(-dy, x, y);
+      return true;
+    };
+    // Chromium can defer touchmove until its native pan slop is exceeded.
+    // Pointer moves expose the small motion too; the shared lastY prevents
+    // counting it twice when the corresponding touchmove arrives.
+    const onPointerMove = (e: PointerEvent) => {
+      if (e.pointerType !== "touch" || sel.isSelecting()) return;
+      if (moveSingleFinger(e.clientX, e.clientY)) e.preventDefault();
+    };
     const onTouchMove = (e: TouchEvent) => {
       if (phase.current === "native" || sel.isSelecting()) return;
+      if (phase.current === "cancelled") { e.preventDefault(); e.stopPropagation(); return; }
       if (phase.current === "pinching") {
         const p = pinch.current;
         if (!p) return;
         e.preventDefault(); e.stopPropagation();
         const motion = p.gesture.move(e.touches);
-        if (motion.intent === "scroll") {
-          getTerminalApi(sessionId)?.scrollByTouch(-motion.dy, motion.x, motion.y);
-        } else if (motion.intent === "pinch") {
+        if (motion.intent === "pinch") {
           const size = fontSizeFromPinch(p.size, 1, motion.ratio, MIN_TERMINAL_FONT_SIZE, MAX_TERMINAL_FONT_SIZE);
           if (size !== useThemeStore.getState().getActiveTheme().terminalFontSize) useUIStore.getState().setTerminalFontSize(size);
         }
@@ -143,25 +159,11 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
       const s = start.current;
       const t = e.touches[0];
       if (!s || !t) return;
-
-      if (phase.current === "pending") {
-        if (Math.hypot(t.clientX - s.x, t.clientY - s.y) <= MOVE_THRESHOLD_PX) return;
-        clearLongPress();
-        sel.disarm();
-        phase.current = "scrolling";
-        lastY.current = t.clientY;
+      if (e.touches.length !== 1 || t.identifier !== fingerId.current) {
+        clearLongPress(); sel.disarm(true); phase.current = "cancelled"; return;
       }
 
-      if (phase.current === "scrolling") {
-        e.preventDefault();
-        const ch = cellHeight();
-        if (!ch) return;
-        const dy = t.clientY - lastY.current;
-        lastY.current = t.clientY;
-        const acc = linesFromPixelDelta(dy, ch, carry.current);
-        carry.current = acc.carry;
-        if (acc.lines !== 0) getTerminalApi(sessionId)?.scrollLines(-acc.lines);
-      }
+      if (moveSingleFinger(t.clientX, t.clientY)) e.preventDefault();
     };
 
     const onTouchEnd = (e: TouchEvent) => {
@@ -174,7 +176,7 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
         return;
       }
 
-      if (wasPhase === "pinching") {
+      if (wasPhase === "pinching" || wasPhase === "cancelled") {
         e.preventDefault();
         e.stopPropagation(); pinch.current?.gesture.cancel();
         // The lifted finger must not be read as the start of a tap or a scroll.
@@ -185,7 +187,7 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
       if (longPressFired.current || wasPhase === "scrolling") {
         e.preventDefault();
         if (longPressFired.current) e.stopPropagation();
-        reset();
+        sel.disarm(); reset();
         return;
       }
 
@@ -218,22 +220,38 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
       sel.disarm();
       reset();
     };
-    const cancelViewportGesture = () => { pinch.current?.gesture.cancel(); clearLongPress(); };
+    // A long-press contextmenu can retain its original canvas target. Keep
+    // native selection's default action, but do not let the terminal's desktop
+    // right-click-to-paste handler read/paste the clipboard behind the selection.
+    const onContextMenu = (e: Event) => {
+      if (phase.current === "native" || longPressFired.current || sel.isSelecting()) e.stopPropagation();
+    };
+    const cancelViewportGesture = () => {
+      if (phase.current === "idle" || phase.current === "native" || sel.isSelecting()) return;
+      pinch.current?.gesture.cancel(); clearLongPress(); lastTap.current = null;
+      getTerminalApi(sessionId)?.endTouchScroll();
+      sel.disarm(true); start.current = null; phase.current = "cancelled";
+    };
     window.visualViewport?.addEventListener("resize", cancelViewportGesture);
 
     const opts: AddEventListenerOptions = { capture: true, passive: false };
     container.addEventListener("touchstart", onTouchStart, opts);
+    container.addEventListener("pointermove", onPointerMove, opts);
     container.addEventListener("touchmove", onTouchMove, opts);
     container.addEventListener("touchend", onTouchEnd, opts);
     container.addEventListener("touchcancel", onTouchCancel, opts);
+    container.addEventListener("contextmenu", onContextMenu, true);
     return () => {
       const rm: EventListenerOptions = { capture: true };
       container.removeEventListener("touchstart", onTouchStart, rm);
+      container.removeEventListener("pointermove", onPointerMove, rm);
       container.removeEventListener("touchmove", onTouchMove, rm);
       container.removeEventListener("touchend", onTouchEnd, rm);
       container.removeEventListener("touchcancel", onTouchCancel, rm);
+      container.removeEventListener("contextmenu", onContextMenu, true);
       window.visualViewport?.removeEventListener("resize", cancelViewportGesture);
       clearLongPress();
+      getTerminalApi(sessionId)?.endTouchScroll();
       lastTap.current = null;
       sel.dispose();
       if (w.__voltiusSelTouch === onFinger) delete w.__voltiusSelTouch;
@@ -288,9 +306,7 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
             data-toolbar-paste
             className="px-3 py-1.5 rounded-md text-xs font-medium text-(--t-text-primary)"
             onClick={() => {
-              void readClipboard().then((text) => {
-                if (text) getTerminalApi(sessionId)?.paste(text);
-              });
+              void terminalClipboardAction(sessionId, "pasteClipboard").catch(() => {});
               setPaste(null);
             }}
           >

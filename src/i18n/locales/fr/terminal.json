@@ -365,6 +365,9 @@
       "failed": "Impossible d'envoyer la capture",
       "retry": "Réessayer",
       "broadcast": "Le collage d'images est désactivé pendant la saisie dans plusieurs volets."
+    },
+    "paste": {
+      "multilineConfirm": "Coller du texte contenant des sauts de ligne ? L’application distante peut exécuter des commandes. Aucune touche Entrée supplémentaire n’est envoyée."
     }
   }
 }

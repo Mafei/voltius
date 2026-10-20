@@ -1,6 +1,7 @@
 import type { Terminal } from "@xterm/xterm";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { guardWebglResourceDisposal } from "./webglResources";
+import { guardNarrowSymbolBounds, type GlyphFitRenderer } from "./terminalGlyphFit";
 
 const USER_AGENT = typeof navigator !== "undefined" ? navigator.userAgent : "";
 const ANDROID = /Android/i.test(USER_AGENT);
@@ -17,13 +18,14 @@ const pool = new Map<Terminal, PooledWebglAddon>();
 interface RendererInternals {
   _gl?: WebGL2RenderingContext;
   _canvas?: HTMLCanvasElement;
-  _glyphRenderer?: { value?: { _atlasTextures?: { texture: WebGLTexture }[] } };
+  _glyphRenderer?: { value?: GlyphFitRenderer & { _atlasTextures?: { texture: WebGLTexture }[] } };
 }
 
 class PooledWebglAddon extends WebglAddon {
   readonly term: Terminal;
   private samplingCanvas: HTMLCanvasElement | undefined;
   private restoreDisposal: (() => void) | undefined;
+  private restoreGlyphFit: (() => void) | undefined;
 
   constructor(term: Terminal) {
     super(PRESERVE_DRAWING_BUFFER);
@@ -39,6 +41,9 @@ class PooledWebglAddon extends WebglAddon {
    * and replacement; normal-size glyph magnification remains unchanged. */
   private configureGlyphSampling = (): void => {
     const renderer = this.renderer(), gl = renderer?._gl;
+    const glyph = renderer?._glyphRenderer?.value;
+    this.restoreGlyphFit?.();
+    this.restoreGlyphFit = glyph?.updateCell ? guardNarrowSymbolBounds(glyph, () => this.term.cols, () => !!this.term.options.rescaleOverlappingGlyphs) : undefined;
     const textures = renderer?._glyphRenderer?.value?._atlasTextures;
     if (!this.term.options.rescaleOverlappingGlyphs || !gl || gl.isContextLost() || !textures) return;
     const active = gl.getParameter(gl.ACTIVE_TEXTURE);
@@ -69,6 +74,8 @@ class PooledWebglAddon extends WebglAddon {
     const gl = this.renderer()?._gl;
     super.dispose();
     this.restoreDisposal?.();
+    this.restoreGlyphFit?.();
+    this.restoreGlyphFit = undefined;
     this.restoreDisposal = undefined;
     gl?.getExtension("WEBGL_lose_context")?.loseContext();
   }

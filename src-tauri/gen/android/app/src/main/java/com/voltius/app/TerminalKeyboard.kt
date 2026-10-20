@@ -73,7 +73,8 @@ object TerminalKeyboard {
     }
   }
 
-  /** JS asked to dismiss the keyboard. [focusWebView]: native text selection needs WebView focus. */
+  /** Explicit dismissal; terminal selection keeps this editor/IME unchanged.
+   * [focusWebView] is an explicit focus handoff, not a selection lifecycle action. */
   @JvmStatic
   fun hide(focusWebView: Boolean) {
     // Android may return focus to the only focusable input after clearFocus().

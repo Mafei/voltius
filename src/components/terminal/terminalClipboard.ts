@@ -19,6 +19,7 @@ export interface TerminalClipboardHandle {
 }
 
 export interface TerminalClipboardOptions {
+  pasteText?: (text: string) => Promise<void>;
   /** Enable OSC 52: let the remote program write the local clipboard.
    *  Reads (paste-requests) are always refused. Off by default. */
   osc52?: boolean;
@@ -225,7 +226,7 @@ export function attachTerminalClipboard(
 
   const pasteClipboard = async () => {
     const text = await readClipboard().catch(() => "");
-    if (text) term.paste(text);
+    if (text) { if (opts.pasteText) await opts.pasteText(text); else term.paste(text); }
     else await opts.pasteImage?.();
   };
   const copySelection = async () => {

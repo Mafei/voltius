@@ -357,6 +357,9 @@
       "failed": "Couldn't upload the screenshot",
       "retry": "Retry",
       "broadcast": "Image paste is off while you type into several panes at once."
+    },
+    "paste": {
+      "multilineConfirm": "Paste text containing line breaks? The remote application may execute commands. No extra Enter is added."
     }
   }
 }

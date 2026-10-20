@@ -29,16 +29,18 @@ import { broadcastActiveForSession, findLeaf, getPaneSessionIds, useLayoutStore 
 import { broadcastTargets } from "@/services/broadcast";
 import { useCommandHistoryStore } from "@/stores/commandHistoryStore";
 import { consumeLatchForChar } from "@/stores/modifierLatchStore";
+import { isTerminalPaste, pasteWithoutModifiers, pasteTerminalClipboard } from "@/utils/terminalPastePolicy";
 import { sampleLineDensities, scrollDeltaForRatio, type TerminalMinimapCell, type TerminalMinimapSample } from "@/components/terminal/minimapMath";
 import { wheelToRows } from "@/components/terminal/terminalWheelCore";
 import { keyToBytes } from "@/services/terminalKeyCore";
 import { handleDuplicateShortcut } from "@/services/duplicateSession";
 import type { TerminalTheme } from "@/themes/types";
 import type { UnlistenFn } from "@tauri-apps/api/event";
-import { scrollTerminalByTouch } from "@/utils/terminalTouchScroll";
+import { scrollTerminalByTouch, endTerminalTouchScroll } from "@/utils/terminalTouchScroll";
+import { touchPixelOffset, setTerminalPixelPosition, disposeTerminalPixels, resetTerminalPixels } from "@/utils/terminalPixelScroll";
 import { terminalFontOptions, terminalFontStack } from "@/utils/fontStack";
 import { applyTerminalTheme, clampTerminalLineHeight, subscribeTerminalCursor, subscribeTerminalTheme } from "@/utils/terminalTheme";
-import { getPlatform } from "@/utils/platform";
+import { getPlatform, getPlatformSync } from "@/utils/platform";
 import { synchronizeAndroidCursorFocus } from "@/utils/androidCursorFocus";
 import { createOutputDecoder, encodeTerminalInput, type OutputDecoder } from "@/utils/terminalEncoding";
 import i18n from "@/i18n";
@@ -562,6 +564,9 @@ export function getAppCursorMode(sessionId: string): boolean {
 export interface TerminalApi {
   scrollLines(delta: number): void;
   scrollByTouch(deltaY: number, x: number, y: number): void;
+  endTouchScroll(): void;
+  pixelScrollOffset(): number;
+  scrollToPixel(line: number, fraction: number): void;
   cols(): number;
   rows(): number;
   /** Absolute buffer line at the top of the viewport. */
@@ -593,8 +598,11 @@ export function getTerminalApi(sessionId: string): TerminalApi | null {
   if (!entry) return null;
   const term = entry.terminal;
   return {
-    scrollLines: (delta) => term.scrollLines(delta),
+    scrollLines: (delta) => { resetTerminalPixels(term); term.scrollLines(delta); },
     scrollByTouch: (deltaY, x, y) => scrollTerminalByTouch(term, deltaY, x, y),
+    endTouchScroll: () => endTerminalTouchScroll(term),
+    pixelScrollOffset: () => touchPixelOffset(term),
+    scrollToPixel: (line, fraction) => setTerminalPixelPosition(term, line, fraction),
     cols: () => term.cols,
     rows: () => term.rows,
     viewportTop: () => term.buffer.active.viewportY,
@@ -602,9 +610,9 @@ export function getTerminalApi(sessionId: string): TerminalApi | null {
     bufferLength: () => term.buffer.active.length,
     line: (i) => term.buffer.active.getLine(i),
     font: () => ({ family: term.options.fontFamily ?? "monospace", size: term.options.fontSize ?? 14 }),
-    scrollToLine: (line) => term.scrollToLine(line),
+    scrollToLine: (line) => { resetTerminalPixels(term); term.scrollToLine(line); },
     mouseMode: () => term.modes.mouseTrackingMode !== "none",
-    paste: (text) => term.paste(text),
+    paste: (text) => pasteWithoutModifiers(term, text),
   };
 }
 
@@ -1095,7 +1103,7 @@ export function useTerminal({ sessionId, sessionType, onClosed, inputGate, encod
 
         // Mobile extra-keys row: apply a latched virtual Ctrl/Alt to this typed char
         // (e.g. latch Ctrl, type "c" → Ctrl-C). Inert on desktop (latch never armed).
-        const latched = consumeLatchForChar(data);
+        const latched = isTerminalPaste(term) ? null : consumeLatchForChar(data);
         if (latched !== null) data = latched;
 
         const sess = useSessionStore.getState().sessions.find((s) => s.id === sessionId);
@@ -1197,12 +1205,19 @@ export function useTerminal({ sessionId, sessionType, onClosed, inputGate, encod
         Promise.all(unlistenPromises).then((fns) => fns.forEach((fn) => fn()));
         queryGuard?.dispose();
         entry.highlighter?.dispose();
+        disposeTerminalPixels(term);
         term.dispose();
       };
 
       return entry;
     },
-    { osc52: true, pasteImage: sessionType === "ssh" ? () => pasteClipboardImage(sessionId) : undefined },
+    { osc52: true, pasteImage: sessionType === "ssh" ? () => pasteClipboardImage(sessionId) : undefined,
+      pasteText: async text => {
+        const entry = terminalCache.get(sessionId), android = getPlatformSync() === "android";
+        if (entry) await pasteTerminalClipboard(entry.terminal, sessionId, text, android,
+          () => terminalCache.get(sessionId) === entry && sessionAcceptsInput(sessionId) && (!android || useSessionStore.getState().activeSessionId === sessionId));
+      },
+    },
     [sessionId, sessionType, encoding],
   );
 

@@ -10,14 +10,17 @@ import { useTranslation } from "react-i18next";
 import "./terminalChrome.css";
 import { terminalChromeFaceStyle as keyFace } from "./terminalChrome";
 import { terminalPanelsVisible } from "./terminalChromeState";
+import { terminalClipboardAction } from "@/hooks/useTerminal";
+import { useMobilePasteConfirmStore } from "@/stores/mobilePasteConfirmStore";
 
-type KeyDef = { key: SpecialKey; label?: string; icon?: string };
+type KeyDef = { key: SpecialKey | "Paste"; label?: string; icon?: string };
 const KEYS: KeyDef[] = [
-  { key: "Esc", label: "Esc" }, { key: "Tab", label: "Tab" }, { key: "ShiftTab", label: "⇧Tab" },
+  { key: "Esc", label: "Esc" }, { key: "Tab", label: "Tab" },
   { key: "Up", icon: "lucide:arrow-up" }, { key: "Down", icon: "lucide:arrow-down" },
   { key: "Left", icon: "lucide:arrow-left" }, { key: "Right", icon: "lucide:arrow-right" },
-  { key: "-", label: "-" }, { key: "/", label: "/" }, { key: "|", label: "|" }, { key: "~", label: "~" },
   { key: "Home", label: "Home" }, { key: "End", label: "End" }, { key: "PgUp", label: "PgUp" }, { key: "PgDn", label: "PgDn" },
+  { key: "+", label: "+" }, { key: "|", label: "|" },
+  { key: "Paste" },
 ];
 const MODS: { mod: Modifier; label: string }[] = [ { mod: "ctrl", label: "Ctrl" }, { mod: "alt", label: "Alt" } ];
 const keyClass = "mobile-chrome-face mobile-terminal-toolbar-button";
@@ -31,6 +34,12 @@ const isActivationClick = (event: React.MouseEvent) => !("ontouchstart" in windo
 export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: boolean }) {
   const { t } = useTranslation();
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const pendingPaste = useMobilePasteConfirmStore(s => s.pending);
+  const finishPaste = useMobilePasteConfirmStore(s => s.finish);
+  useEffect(() => {
+    if (pendingPaste && pendingPaste.sessionId !== activeSessionId) finishPaste(false);
+  }, [pendingPaste, activeSessionId, finishPaste]);
+  useEffect(() => () => { useMobilePasteConfirmStore.getState().finish(false); }, []);
   const panelsNormal = useUIStore((s) => s.terminalPanelsRowOpen);
   const panelsKeyboard = useUIStore((s) => s.terminalPanelsRowKeyboardOpen);
   const panelsOpen = terminalPanelsVisible(panelsNormal, panelsKeyboard, !!keyboardOpen);
@@ -57,8 +66,10 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
   const keyTouchStart = useRef<{ x: number; y: number } | null>(null);
   const TAP_MOVE_PX = 10;
 
-  const press = (key: SpecialKey) => {
+  const press = (key: KeyDef["key"]) => {
+    const activeSessionId = useSessionStore.getState().activeSessionId;
     if (!activeSessionId) return;
+    if (key === "Paste") { void terminalClipboardAction(activeSessionId, "pasteClipboard").catch(() => {}); return; }
     sendSpecialKey(activeSessionId, key, { ctrl: isActive(latch.ctrl), alt: isActive(latch.alt) });
     consume();
   };
@@ -73,7 +84,20 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
 
   return (
     // Keep system navigation inset outside both identically measured toolbars.
-    <div className="shrink-0 min-w-0" style={{ paddingBottom: keyboardOpen ? 0 : "env(safe-area-inset-bottom)", background: "var(--t-bg-chrome)" }}>
+    <div className="relative shrink-0 min-w-0" style={{ paddingBottom: keyboardOpen ? 0 : "env(safe-area-inset-bottom)", background: "var(--t-bg-chrome)" }}>
+    {pendingPaste && pendingPaste.sessionId === activeSessionId && (
+      <div role="alertdialog" aria-label={t("common.action.paste")} className="absolute bottom-full inset-x-0 z-50 p-3 rounded-lg bg-(--t-bg-modal) border border-(--t-border) text-(--t-text-primary)"
+        onMouseDown={noFocusSteal} onTouchStart={noFocusSteal}>
+        <p className="text-sm">{t("terminal.paste.multilineConfirm", { defaultValue: "Paste text containing line breaks? The remote application may execute commands. No extra Enter is added." })}</p>
+        <div className="flex gap-2 justify-end mt-2">
+          {[false, true].map(accept => <button key={String(accept)} className={`btn ${accept ? "btn-primary" : "btn-secondary"}`}
+            onTouchEnd={e => { noFocusSteal(e); finishPaste(accept); }}
+            onClick={e => { noFocusSteal(e); if (isActivationClick(e)) finishPaste(accept); }}>
+            {t(accept ? "common.action.paste" : "common.action.cancel")}
+          </button>)}
+        </div>
+      </div>
+    )}
     <div ref={rootRef} data-mobile-extra-keys data-modifiers-pinned={pinned} data-mobile-key-scroll={!pinned || undefined}
       className="mobile-terminal-chrome mobile-terminal-toolbar mobile-terminal-chrome-scroll"
       style={{ overflowX: pinned ? "visible" : "auto" }}
@@ -115,7 +139,7 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
         style={{ overflowX: pinned ? "auto" : "visible" }}
         onScroll={(e) => { const el = e.currentTarget; setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1); }}>
       {KEYS.map(({ key, label, icon }) => (
-        <button key={key} data-mobile-key={key} aria-label={label ?? key}
+        <button key={key} data-mobile-key={key} aria-label={key === "Paste" ? t("common.action.paste") : label ?? key} title={key === "Paste" ? "Ctrl+Shift+V" : undefined}
           // Touch path: fire once on touchend (a tap), never on touchstart — so the row
           // can be scrolled by dragging a button without firing its key, and the ghost
           // mousedown/click is suppressed on touch (mirrors the MODS' onClick guard).
@@ -137,7 +161,7 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
           onClick={(e) => { noFocusSteal(e); if (isActivationClick(e)) press(key); }}
           className={`${keyClass} font-medium`}
           style={keyFace("var(--t-bg-card)")}>
-          {icon ? <Icon icon={icon} width={16} /> : label}
+          {icon ? <Icon icon={icon} width={16} /> : key === "Paste" ? t("common.action.paste") : label}
         </button>
       ))}
       <button data-mobile-panels-toggle aria-label={t("mobile.terminalTopBar.panelsAriaLabel")} aria-pressed={panelsOpen}

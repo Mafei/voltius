@@ -373,6 +373,9 @@
       "failed": "Snímek se nepodařilo nahrát",
       "retry": "Zkusit znovu",
       "broadcast": "Vkládání obrázků je vypnuté, když píšete do více panelů najednou."
+    },
+    "paste": {
+      "multilineConfirm": "Vložit text obsahující konce řádků? Vzdálená aplikace může spustit příkazy. Žádný další Enter se nepřidá."
     }
   }
 }

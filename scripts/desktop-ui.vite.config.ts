@@ -8,6 +8,7 @@ const root = path.resolve(import.meta.dirname, "..");
 export default defineConfig({
   root, plugins: [react(), svgr(), iconSubsets()],
   resolve: { alias: [
+    { find: "@/utils/clipboard", replacement: path.join(root, "tests/desktop-ui/clipboard.ts") },
     { find: "@/services/terminalInput", replacement: path.join(root, "tests/desktop-ui/mobileInput.ts") },
     { find: "@/services/tmuxPicker", replacement: path.join(root, "tests/desktop-ui/picker.ts") },
     { find: "@/components/terminal/connection-overlay/hooks", replacement: path.join(root, "tests/desktop-ui/native.ts") },
@@ -17,6 +18,6 @@ export default defineConfig({
     { find: "@voltius/tools", replacement: path.join(root, "src/plugins/toolSurface/index.ts") },
     { find: "@", replacement: path.join(root, "src") },
   ] },
-  server: { fs: { allow: [root, realpathSync(path.join(root, "node_modules"))] }, host: "127.0.0.1", port: 1428, strictPort: true, watch: { ignored: ["**/target/**", "**/node_modules/**"] } },
+  server: { hmr: false, fs: { allow: [root, realpathSync(path.join(root, "node_modules"))] }, host: "127.0.0.1", port: 1428, strictPort: true, watch: { ignored: ["**/target/**", "**/node_modules/**"] } },
   build: { outDir: path.join(root, "node_modules/.cache/voltius-desktop-ui"), rollupOptions: { input: path.join(root, "tests/desktop-ui/index.html") } },
 });

@@ -2,9 +2,10 @@
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 
-export async function launchFixtureBrowser() {
+export async function launchFixtureBrowser(processScale = 1) {
   const { chromium } = await import(pathToFileURL(path.join(process.env.VOLTIUS_BROWSER_TOOLS, "node_modules/playwright/index.mjs")));
   return chromium.launch({ headless: true, chromiumSandbox: true,
+    ...(processScale !== 1 && { args: [`--force-device-scale-factor=${processScale}`] }),
     ...(process.env.VOLTIUS_BROWSER_EXECUTABLE && { executablePath: process.env.VOLTIUS_BROWSER_EXECUTABLE }) });
 }
 

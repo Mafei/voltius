@@ -9,6 +9,8 @@ export interface OverlayTerm {
   font(): { family: string; size: number };
   screenEl(): HTMLElement | null;
   scrollToLine(line: number): void;
+  pixelScrollOffset?(): number;
+  scrollToPixel?(line: number, fraction: number): void;
 }
 
 export interface NativeSelection {
@@ -158,7 +160,7 @@ export function createNativeSelection(
     }
     Object.assign(el.style, {
       left: `${r.left - h.left}px`,
-      top: `${r.top + shift - h.top}px`,
+      top: `${r.top + (term.pixelScrollOffset?.() ?? shift) - h.top}px`,
       width: `${r.width}px`,
       height: `${r.height}px`,
       font,
@@ -180,7 +182,7 @@ export function createNativeSelection(
       return;
     }
     place(term);
-    el.scrollTop = (term.viewportTop() - first) * cellH;
+    el.scrollTop = (term.viewportTop() - first) * cellH + (term.pixelScrollOffset?.() ?? 0);
   });
 
   const arm = () => {
@@ -188,10 +190,11 @@ export function createNativeSelection(
     const term = getTerm();
     if (!term || !place(term)) return;
     first = term.viewportTop();
-    last = first + term.rows();
+    // The fractional viewport exposes one additional line at its lower edge.
+    last = Math.min(term.bufferLength(), first + term.rows() + 1);
     el.replaceChildren(fill(term, first, last));
     Object.assign(el.style, { overflowY: "hidden", pointerEvents: "auto", visibility: "visible" });
-    el.scrollTop = 0;
+    el.scrollTop = term.pixelScrollOffset?.() ?? 0;
     armed = true;
     const screen = term.screenEl();
     if (screen) resizeObserver.observe(screen);
@@ -255,7 +258,7 @@ export function createNativeSelection(
     first = from;
     last = to;
     el.style.overflowY = "auto";
-    el.scrollTop = (top - from) * cellH;
+    el.scrollTop = (top - from) * cellH + (term.pixelScrollOffset?.() ?? 0);
   };
 
   let fingerY: number | null = null;
@@ -321,7 +324,8 @@ export function createNativeSelection(
     prevFocus = null;
     selHi = -1;
     delete document.body.dataset.nativeTermSelecting;
-    setShift(getTerm()?.screenEl(), 0);
+    const term = getTerm();
+    if (!term?.scrollToPixel) setShift(term?.screenEl(), 0);
     disarm();
   };
 
@@ -394,8 +398,8 @@ export function createNativeSelection(
     const term = getTerm();
     if (!selecting || !cellH || !term) return;
     const { line, frac } = splitScroll(el.scrollTop, cellH);
-    term.scrollToLine(first + line);
-    setShift(term.screenEl(), frac);
+    if (term.scrollToPixel) term.scrollToPixel(first + line, frac);
+    else { term.scrollToLine(first + line); setShift(term.screenEl(), frac); }
     updateSelectable();
   };
 

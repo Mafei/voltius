@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.60.0] - 2026-10-19
+
+### Added
+
+- Teams can have several owners. Owners can grant or remove the Owner role in a member's roles, after a confirmation, and a co-owner can be removed or leave on their own. The team's creator is the primary owner, the account billing sits on, and must hand that over with **Make primary owner** on another Owner before leaving. On the cloud only the primary owner can hand it over, and the new primary owner's own subscription pays from then on; on a self-hosted server any Owner can. Servers without multi-owner support keep a single owner (#652)
+- Native text selection in the Android terminal. Long-press text for the system's handles, magnifier and Copy menu, including across scrollback and with the keyboard up. Soft-wrapped lines copy without a line break, and a long-press on blank space still offers Paste (#656)
+- Closing the last terminal returns you to the page you were on, instead of always Hosts. Hosts, Snippets, Keychain and Port Forwarding also reopen the folder you left open (#654)
+
 ### Fixed
 
 - Switching between saved accounts no longer changes the interface language. The language now stays on the device by default, like the preferred shell and the proxy. This means it no longer reaches your other devices either, so a new install now starts in your system language when Voltius supports it, and in English otherwise. To sync it again, turn on sync for **Language** in **Settings → Appearance** (#653)
+- A host kept its old OS logo after its OS changed. The OS is now detected again on every SSH connect, an icon you picked yourself stays, and Windows and MikroTik RouterOS hosts are recognised with their own icons (#655)
+- Shell integration and session persistence sent POSIX shell commands to MikroTik RouterOS hosts, which typed them into the RouterOS CLI. They are now skipped there, as on Windows
 
 ## [0.59.0] - 2026-10-18
 

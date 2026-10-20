@@ -314,11 +314,9 @@ async function connectSshSession(
     reportConnectionAudit(connection, "connection.started", credentials);
     if (!launch?.choice) void runHostCommand(connection, "pre", sessionId, "ssh");
 
-    if (!connection.distro) {
-      sshDetectDistro(sessionId)
-        .then((distro) => useConnectionStore.getState().setDistro(connection.id, distro))
-        .catch(() => {});
-    }
+    sshDetectDistro(sessionId)
+      .then((distro) => useConnectionStore.getState().setDistro(connection.id, distro, { detected: true }))
+      .catch(() => {});
   } catch (err) {
     markSessionError(set, sessionId, err);
     throw err;

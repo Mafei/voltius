@@ -105,7 +105,7 @@ fn decode_name(encoded: &str) -> Result<String, String> {
 }
 
 pub async fn list(connection: &AuthenticatedConnection) -> Result<TmuxListing, String> {
-    if connection.remote_is_windows {
+    if connection.platform.is_some() {
         return Ok(TmuxListing {
             installed: false,
             sessions: vec![],

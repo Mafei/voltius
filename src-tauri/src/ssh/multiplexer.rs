@@ -87,7 +87,7 @@ pub async fn list(
     connection: &AuthenticatedConnection,
     backend: Backend,
 ) -> Result<SessionListing, String> {
-    let version = if connection.remote_is_windows {
+    let version = if connection.platform.is_some() {
         None
     } else {
         version(&connection.handle, backend).await?

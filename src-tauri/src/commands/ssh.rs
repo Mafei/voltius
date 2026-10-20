@@ -277,6 +277,68 @@ pub async fn ssh_set_terminal_colors(
     state.set_terminal_colors(&session_id, colors).await
 }
 
+/// A host reached by a one-shot connection: no PTY, no jump hosts.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OneShotTarget {
+    host: String,
+    port: u16,
+    username: String,
+    password: Option<String>,
+    private_key: Option<String>,
+    passphrase: Option<String>,
+    system_auth: Option<crate::ssh::system_auth::SystemAuth>,
+    #[serde(default)]
+    legacy_algorithms: bool,
+    proxy: Option<ProxySpec>,
+    knock: Option<KnockSpec>,
+}
+
+impl OneShotTarget {
+    async fn connect(
+        self,
+        known_hosts: &Arc<KnownHostsStore>,
+    ) -> Result<client::Authenticated, AppError> {
+        client::connect_authenticated_with_system(
+            Arc::clone(known_hosts),
+            &self.host,
+            self.port,
+            &self.username,
+            self.password.as_deref(),
+            self.private_key.as_deref(),
+            self.passphrase.as_deref(),
+            self.legacy_algorithms,
+            &HopRoute {
+                proxy: self.proxy,
+                knock: self.knock,
+            },
+            self.system_auth.as_ref(),
+        )
+        .await
+    }
+}
+
+async fn hang_up(handle: &russh::client::Handle<client::SshClient>) {
+    let _ = handle
+        .disconnect(russh::Disconnect::ByApplication, "Done", "en")
+        .await;
+}
+
+#[tauri::command]
+pub async fn ssh_detect_distro_direct(
+    known_hosts: tauri::State<'_, Arc<KnownHostsStore>>,
+    target: OneShotTarget,
+) -> Result<String, AppError> {
+    let (handle, platform) = target.connect(&known_hosts).await?;
+    let machine = crate::ssh::session::Machine {
+        handle: Arc::new(handle),
+        inside: None,
+    };
+    let distro = crate::ssh::session::detect_distro(&machine, platform).await;
+    hang_up(&machine.handle).await;
+    distro.map_err(Into::into)
+}
+
 #[derive(serde::Serialize)]
 pub struct SshExecResult {
     pub stdout: String,
@@ -289,33 +351,12 @@ pub struct SshExecResult {
 #[tauri::command]
 pub async fn ssh_exec_command(
     known_hosts: tauri::State<'_, Arc<KnownHostsStore>>,
-    host: String,
-    port: u16,
-    username: String,
-    password: Option<String>,
-    private_key: Option<String>,
-    passphrase: Option<String>,
-    system_auth: Option<crate::ssh::system_auth::SystemAuth>,
+    target: OneShotTarget,
     command: String,
-    legacy_algorithms: Option<bool>,
-    proxy: Option<ProxySpec>,
-    knock: Option<KnockSpec>,
 ) -> Result<SshExecResult, AppError> {
     use tokio::time::{timeout, Duration};
 
-    let handle = client::connect_authenticated_with_system(
-        Arc::clone(&*known_hosts),
-        &host,
-        port,
-        &username,
-        password.as_deref(),
-        private_key.as_deref(),
-        passphrase.as_deref(),
-        legacy_algorithms.unwrap_or(false),
-        &HopRoute { proxy, knock },
-        system_auth.as_ref(),
-    )
-    .await?;
+    let (handle, _) = target.connect(&known_hosts).await?;
 
     let mut channel = handle
         .channel_open_session()
@@ -349,9 +390,7 @@ pub async fn ssh_exec_command(
     .await
     .is_err();
 
-    let _ = handle
-        .disconnect(russh::Disconnect::ByApplication, "Done", "en")
-        .await;
+    hang_up(&handle).await;
 
     // A hard 30s timeout means the remote command never finished: "exit 0,
     // partial stdout" would misreport that as a success.
@@ -369,42 +408,19 @@ pub async fn ssh_exec_command(
 #[tauri::command]
 pub async fn ssh_kill_persistent(
     known_hosts: tauri::State<'_, Arc<KnownHostsStore>>,
-    host: String,
-    port: u16,
-    username: String,
-    password: Option<String>,
-    private_key: Option<String>,
-    passphrase: Option<String>,
-    system_auth: Option<crate::ssh::system_auth::SystemAuth>,
+    target: OneShotTarget,
     session_id: String,
-    legacy_algorithms: Option<bool>,
-    proxy: Option<ProxySpec>,
-    knock: Option<KnockSpec>,
 ) -> Result<bool, AppError> {
     use crate::ssh::exec::stdout_within;
     use tokio::time::Duration;
 
-    let handle = client::connect_authenticated_with_system(
-        Arc::clone(&*known_hosts),
-        &host,
-        port,
-        &username,
-        password.as_deref(),
-        private_key.as_deref(),
-        passphrase.as_deref(),
-        legacy_algorithms.unwrap_or(false),
-        &HopRoute { proxy, knock },
-        system_auth.as_ref(),
-    )
-    .await?;
+    let (handle, _) = target.connect(&known_hosts).await?;
 
     let command = crate::shell_integration::force_kill_command(&session_id);
 
     let output = stdout_within(&handle, &command, Duration::from_secs(15)).await?;
 
-    let _ = handle
-        .disconnect(russh::Disconnect::ByApplication, "Done", "en")
-        .await;
+    hang_up(&handle).await;
 
     Ok(output.contains("VOLTIUS_KILLED"))
 }

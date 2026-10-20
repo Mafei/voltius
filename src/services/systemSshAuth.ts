@@ -17,12 +17,17 @@ export function normalizeSavedSystemSshAuth(value: unknown): SavedSystemSshAuth 
   return normalizeSystemSshAuth(value) ?? { mode: "invalid" };
 }
 
-export interface SystemAuthEnvelope { systemAuth?: SystemSshAuth; passphrase?: string; jumpHosts?: SystemAuthEnvelope[] | null }
+export interface SystemAuthEnvelope { systemAuth?: SystemSshAuth; passphrase?: string; jumpHosts?: SystemAuthEnvelope[] | null; target?: SystemAuthEnvelope }
+
+export function ownsSystemAuthTarget(params: SystemAuthEnvelope, id: string): boolean {
+  return params.systemAuth?.credentialId === id || !!params.jumpHosts?.some((hop) => ownsSystemAuthTarget(hop, id)) || !!(params.target && ownsSystemAuthTarget(params.target, id));
+}
 
 /** Apply an in-memory answer to the correct hop only. Never persist or log this object. */
 export function withSystemPassphrases<T extends SystemAuthEnvelope>(params: T, answers: Record<string, string>): T {
   const id = params.systemAuth?.credentialId;
   return { ...params, ...(id && answers[id] !== undefined && { passphrase: answers[id] }),
+    ...(params.target && { target: withSystemPassphrases(params.target, answers) }),
     ...(params.jumpHosts && { jumpHosts: params.jumpHosts.map((hop) => withSystemPassphrases(hop, answers)) }) };
 }
 

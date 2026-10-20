@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { invoke } from "@/lib/invoke";
 import { BackendError } from "./backendErrors";
-import { withSystemPassphrases, type SystemAuthEnvelope } from "./systemSshAuth";
+import { ownsSystemAuthTarget, withSystemPassphrases, type SystemAuthEnvelope } from "./systemSshAuth";
 
 type Challenge = { token: string; connectionId: string; answer: (passphrase: string | null) => void };
 export const useSystemSshUnlockStore = create<{ pending: Challenge[] }>(() => ({ pending: [] }));
@@ -38,8 +38,7 @@ export async function systemSshInvoke<T>(command: string, initial: Record<string
     catch (error) {
       const id = systemSshPassphraseTarget(error);
       const envelope = args as SystemAuthEnvelope;
-      const owned = envelope.systemAuth?.credentialId === id || envelope.jumpHosts?.some((hop) => hop.systemAuth?.credentialId === id);
-      if (!prompt || !id || !owned || round >= 3) throw error;
+      if (!prompt || !id || !ownsSystemAuthTarget(envelope, id) || round >= 3) throw error;
       const passphrase = await requestUnlock(id);
       args = withSystemPassphrases(envelope, { [id]: passphrase }) as Record<string, unknown>;
     }

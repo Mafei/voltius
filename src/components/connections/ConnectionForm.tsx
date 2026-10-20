@@ -12,7 +12,7 @@ import PortKnockPanel, { knockPanelIssues, type KnockStepRow } from "./PortKnock
 import { SlideOver } from "@/components/shared/slideOver";
 import { useUIStore } from "@/stores/uiStore";
 import { getSecret } from "@/services/vault";
-import { sshExecCommand } from "@/services/ssh";
+import { sshDetectDistroDirect } from "@/services/ssh";
 import { isCustomProxyMode, resolveDirectHop } from "@/services/proxy";
 import { useStoredSecrets } from "@/hooks/useStoredSecrets";
 import { useServerLacksSecretType } from "@/services/serverCapabilities";
@@ -28,7 +28,7 @@ import IdentitySelector from "./IdentitySelector";
 import KeySelector from "./KeySelector";
 import { PanelActionsMenu } from "@/components/shared/PanelActionsMenu";
 import { PinButton } from "@/components/shared/PinButton";
-import { findAnyConnection, useConnectionStore } from "@/stores/connectionStore";
+import { findAnyConnection, iconIsOverride, useConnectionStore } from "@/stores/connectionStore";
 import { connectionDisplayName } from "@/utils/connectionDisplayName";
 import { formatKnockSequence, parseKnockSequence, type KnockOverride } from "@/services/portKnock";
 import { emptyHostSecrets } from "@/services/hostForm";
@@ -238,7 +238,7 @@ const ConnectionFormEditor = forwardRef<ConnectionFormHandle, Props & EditAccess
           tags,
           folder_id: folderId ?? undefined,
           vault_id: resolveVaultIdForSave(vaultId),
-          icon: icon || undefined,
+          icon,
           connection_type: protocol,
           ...(isFtp ? { ftp_secure: ftpSecure } : { webdav_url: webdavTarget?.url, proxy: proxyOverride ?? undefined }),
           notes: normalizeNotes(notes),
@@ -279,7 +279,7 @@ const ConnectionFormEditor = forwardRef<ConnectionFormHandle, Props & EditAccess
         ask_vars_each_time: hostCommands.askVarsEachTime,
         terminal_encoding: hostCommands.terminalEncoding || undefined,
         distro: distro || undefined,
-        icon: icon || undefined,
+        icon,
         ping_disabled: pingDisabled || undefined,
         shell_integration: shellIntegration === "" ? undefined : shellIntegration === "on",
         keepalive_preset: keepalivePreset || undefined,
@@ -364,15 +364,15 @@ const ConnectionFormEditor = forwardRef<ConnectionFormHandle, Props & EditAccess
   ], [globalProxy.mode, t]);
 
   const applyIcon = useCallback((nextIcon: string) => {
-    setIcon(nextIcon);
+    setIcon(iconIsOverride({ icon: nextIcon, distro }) ? nextIcon : "");
     setDistroError("");
     markDirty();
-  }, [markDirty]);
+  }, [distro, markDirty]);
 
   const applyDetectedDistro = useCallback((nextDistro: string) => {
     const normalized = normalizeDistro(nextDistro);
     setDistro(normalized);
-    setIcon(normalized);
+    setIcon("");
     setDistroError("");
     markDirty();
     if (initial) {
@@ -414,7 +414,7 @@ const ConnectionFormEditor = forwardRef<ConnectionFormHandle, Props & EditAccess
         detectPassphrase = passphraseDirty.current ? (passphrase || undefined) : ((await getSecret(`passphrase:${initial.id}`).catch(() => null)) ?? undefined);
       }
 
-      const { stdout } = await sshExecCommand({
+      const detected = await sshDetectDistroDirect({
         host: host.trim(),
         port: port || 22,
         username: detectUsername.trim(),
@@ -423,18 +423,11 @@ const ConnectionFormEditor = forwardRef<ConnectionFormHandle, Props & EditAccess
         passphrase: detectPassphrase,
         ...(systemAuth && { systemAuth }),
         legacyAlgorithms,
-        command: "{ cat /etc/os-release 2>/dev/null || echo ID=linux; }; test -d /etc/pve && echo 'PROXMOX_VE=1'; test -d /etc/proxmox-backup && echo 'PBS_DETECTED=1'; true",
         ...(await resolveDirectHop(
           { id: initial?.id ?? "", proxy: initial?.proxy, port_knock: initial?.port_knock },
           { proxy: proxyOverride, password: proxyPasswordDirty.current ? proxyPassword || undefined : undefined, knock: knockOverride() },
         )),
       });
-      const lines = stdout.split(/\r?\n/);
-      const idLine = lines.find((line) => line.startsWith("ID="));
-      const rawId = idLine?.slice(3).trim().replace(/^"|"$/g, "") || "linux";
-      const isProxmox = lines.some((line) => line.trim() === "PROXMOX_VE=1");
-      const isPbs = lines.some((line) => line.trim() === "PBS_DETECTED=1");
-      const detected = isProxmox ? "proxmox" : isPbs ? "pbs" : normalizeDistro(rawId);
       applyDetectedDistro(detected);
     } catch (err) {
       setDistroError(String(err));

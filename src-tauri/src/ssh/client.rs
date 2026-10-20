@@ -57,7 +57,7 @@ pub struct SshClient {
     /// Populated by PortForwardManager before calling tcpip_forward.
     pub remote_routes: RemoteRouteMap,
     /// Server's SSH identification banner, captured in `kex_done`. Read after
-    /// the handshake to detect Windows OpenSSH (see `is_windows_sshid`).
+    /// the handshake to detect Windows OpenSSH (see `platform_from_sshid`).
     remote_sshid: Arc<Mutex<Option<Vec<u8>>>>,
     /// Whether this connection requested agent forwarding; gates the server's
     /// agent channels (see `open_agent_channel`).
@@ -238,6 +238,7 @@ pub struct ConnectedSession {
     pub remote_routes: RemoteRouteMap,
     /// Prefix putting a command on the machine this shell is on (`pct exec <vmid> --` in an LXC tab).
     pub machine: Option<String>,
+    pub platform: Option<&'static str>,
 }
 
 pub(crate) fn spawn_exec(
@@ -638,18 +639,21 @@ pub async fn authenticate_handle_with_system<H: client::Handler>(
 const CONNECT_MAX_ATTEMPTS: u32 = 3;
 const CONNECT_RETRY_BACKOFF_MS: u64 = 300;
 
-/// Detect a Windows OpenSSH server from its SSH identification banner. Windows'
-/// bundled sshd announces itself as e.g. `SSH-2.0-OpenSSH_for_Windows_9.5`.
-/// Windows has no POSIX `sh`/`base64`/`tmux`, so our shell-integration and
-/// persistence exec bootstraps (and `export` env injection) can't run there —
-/// they leave a connected-but-blank terminal. Detecting the banner lets us fall
-/// back to a plain interactive shell, which Windows OpenSSH serves over ConPTY.
-/// The banner is shell-independent, so it works regardless of whether the
-/// server's default ssh shell is cmd.exe or PowerShell.
-fn is_windows_sshid(sshid: &[u8]) -> bool {
-    String::from_utf8_lossy(sshid)
-        .to_ascii_lowercase()
-        .contains("windows")
+/// Platforms with no POSIX shell, named by their banner whatever the login shell:
+/// `SSH-2.0-OpenSSH_for_Windows_9.5`, MikroTik's `SSH-2.0-ROSSSH`.
+pub(crate) fn platform_from_sshid(sshid: &[u8]) -> Option<&'static str> {
+    let id = String::from_utf8_lossy(sshid).to_ascii_lowercase();
+    if id.contains("windows") {
+        Some("windows")
+    } else if id.contains("rosssh") {
+        Some("routeros")
+    } else {
+        None
+    }
+}
+
+async fn platform_of(sshid: &Mutex<Option<Vec<u8>>>) -> Option<&'static str> {
+    sshid.lock().await.as_deref().and_then(platform_from_sshid)
 }
 
 fn is_transient_connect_error(e: &russh::Error) -> bool {
@@ -917,7 +921,7 @@ pub struct AuthenticatedConnection {
     pub handle: Arc<client::Handle<SshClient>>,
     pub jump_handles: Vec<Arc<client::Handle<SshClient>>>,
     pub remote_routes: RemoteRouteMap,
-    pub remote_is_windows: bool,
+    pub platform: Option<&'static str>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1078,22 +1082,13 @@ pub async fn authenticate_connection(
         return Err(error);
     }
 
-    // Windows OpenSSH has no POSIX `sh`/`base64`/`tmux`, so the shell-integration
-    // and persistence exec bootstraps (and the `export` env injection below) can't
-    // run there and leave a connected-but-blank terminal. Detect it from the SSH
-    // banner captured in `kex_done` and fall back to a plain interactive shell,
-    // which Windows serves fine over ConPTY.
-    let remote_is_windows = final_sshid
-        .lock()
-        .await
-        .as_deref()
-        .map(is_windows_sshid)
-        .unwrap_or(false);
+    // Windows and RouterOS have no POSIX shell for bootstrap or env injection.
+    let platform = platform_of(&final_sshid).await;
     Ok(AuthenticatedConnection {
         handle: Arc::new(final_handle),
         jump_handles,
         remote_routes: final_routes,
-        remote_is_windows,
+        platform,
     })
 }
 
@@ -1120,11 +1115,12 @@ pub async fn connect(
         handle,
         jump_handles,
         remote_routes: final_routes,
-        remote_is_windows,
+        platform,
     } = authenticated;
-    let shell_integration = shell_integration && !remote_is_windows && session_choice.is_none();
-    let persist = persist && !remote_is_windows && session_choice.is_none();
-    let restore = restore && !remote_is_windows;
+    let posix_shell = platform.is_none();
+    let shell_integration = shell_integration && posix_shell && session_choice.is_none();
+    let persist = persist && posix_shell && session_choice.is_none();
+    let restore = restore && posix_shell;
 
     // Attach-only (reconnect/join): verify the multiplexer session still exists
     // before attaching — attaching never creates, so a dead session must fail
@@ -1288,10 +1284,8 @@ pub async fn connect(
 
     let (read_half, write_half) = channel.split();
 
-    // `export KEY=val` is POSIX syntax; on a Windows cmd.exe/PowerShell shell it
-    // would just echo errors, so skip it there (see `remote_is_windows`).
     let mut startup = String::new();
-    if !remote_is_windows && !user_owned {
+    if posix_shell && !user_owned {
         for (key, value) in &env_vars {
             startup.push_str(&format!("export {}={}\n", key, shell_escape(value)));
         }
@@ -1417,6 +1411,7 @@ pub async fn connect(
         _jump_handles: jump_handles,
         remote_routes: final_routes,
         machine: None,
+        platform,
     })
 }
 
@@ -1439,6 +1434,9 @@ pub fn client_config(
     }
 }
 
+/// A one-shot connection and the platform its banner names.
+pub type Authenticated = (client::Handle<SshClient>, Option<&'static str>);
+
 /// One-shot connect + auth for headless commands (no PTY, no jump hosts).
 #[cfg(test)]
 pub async fn connect_authenticated(
@@ -1451,7 +1449,7 @@ pub async fn connect_authenticated(
     passphrase: Option<&str>,
     legacy_algorithms: bool,
     route: &HopRoute,
-) -> Result<client::Handle<SshClient>, String> {
+) -> Result<Authenticated, String> {
     connect_authenticated_with_system(
         known_hosts,
         host,
@@ -1479,13 +1477,18 @@ pub async fn connect_authenticated_with_system(
     legacy_algorithms: bool,
     route: &HopRoute,
     system_auth: Option<&super::system_auth::SystemAuth>,
-) -> Result<client::Handle<SshClient>, AppError> {
+) -> Result<Authenticated, AppError> {
     let config = Arc::new(client_config(
         0,
         client::Config::default().keepalive_max,
         legacy_algorithms,
     ));
-    let (mut handle, _via) = connect_first_hop_plain(&config, route, &known_hosts, host, port, 1)
+    let (mut handle, _via, sshid) =
+        connect_first_hop_retrying(&config, route, host, port, 1, || {
+            let c = SshClient::new(host.into(), port, Arc::clone(&known_hosts));
+            let sshid = Arc::clone(&c.remote_sshid);
+            (c, sshid)
+        })
         .await
         .map_err(|e| e.describe("Connection failed"))?;
     authenticate_handle_with_system(
@@ -1497,7 +1500,7 @@ pub async fn connect_authenticated_with_system(
         system_auth.map(|spec| (host, spec)),
     )
     .await?;
-    Ok(handle)
+    Ok((handle, platform_of(&sshid).await))
 }
 
 fn shell_escape(s: &str) -> String {
@@ -1544,7 +1547,7 @@ fn legacy_preferred() -> russh::Preferred {
 mod tests {
     use super::{
         answer_prompts, authenticate_handle, choose_rsa_hash, client, client_config,
-        connect_first_hop_retrying, is_windows_sshid, legacy_preferred, open_agent_channel, Arc,
+        connect_first_hop_retrying, legacy_preferred, open_agent_channel, platform_from_sshid, Arc,
         HopRoute, PersistentSession, SshClient, AUTH_TIMEOUT, KBD_INT_REJECTED, KEY_REJECTED,
         PASSWORD_EXPIRED, PASSWORD_REJECTED,
     };
@@ -1830,22 +1833,32 @@ mod tests {
     }
 
     #[test]
-    fn windows_openssh_banner_is_detected() {
-        // Windows' bundled sshd, regardless of default shell (cmd/PowerShell).
-        assert!(is_windows_sshid(b"SSH-2.0-OpenSSH_for_Windows_9.5"));
-        assert!(is_windows_sshid(b"SSH-2.0-OpenSSH_for_Windows_8.1"));
-        // Case-insensitive, in case a vendor rebrands the banner.
-        assert!(is_windows_sshid(b"SSH-2.0-Foo_WINDOWS_1.0"));
+    fn platform_banners_are_detected() {
+        assert_eq!(
+            platform_from_sshid(b"SSH-2.0-OpenSSH_for_Windows_9.5"),
+            Some("windows")
+        );
+        assert_eq!(
+            platform_from_sshid(b"SSH-2.0-OpenSSH_for_Windows_8.1"),
+            Some("windows")
+        );
+        assert_eq!(
+            platform_from_sshid(b"SSH-2.0-Foo_WINDOWS_1.0"),
+            Some("windows")
+        );
+        assert_eq!(platform_from_sshid(b"SSH-2.0-ROSSSH"), Some("routeros"));
     }
 
     #[test]
-    fn posix_banners_are_not_windows() {
-        assert!(!is_windows_sshid(b"SSH-2.0-OpenSSH_9.6"));
-        assert!(!is_windows_sshid(
-            b"SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.4"
-        ));
-        assert!(!is_windows_sshid(b"SSH-2.0-dropbear_2022.83"));
-        assert!(!is_windows_sshid(b""));
+    fn posix_banners_have_no_platform() {
+        for id in [
+            &b"SSH-2.0-OpenSSH_9.6"[..],
+            b"SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.4",
+            b"SSH-2.0-dropbear_2022.83",
+            b"",
+        ] {
+            assert_eq!(platform_from_sshid(id), None);
+        }
     }
 
     #[tokio::test]

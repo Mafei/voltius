@@ -156,7 +156,8 @@ export interface SshExecResult {
   exit_code: number | null;
 }
 
-export async function sshExecCommand(params: {
+/** A host reached by a one-shot connection (no PTY, no jump hosts). */
+export interface OneShotTarget {
   host: string;
   port: number;
   username: string;
@@ -164,52 +165,36 @@ export async function sshExecCommand(params: {
   privateKey?: string;
   passphrase?: string;
   systemAuth?: SystemSshAuth;
-  command: string;
   legacyAlgorithms?: boolean;
   proxy?: ProxySpec | null;
   knock?: KnockSpec | null;
-}): Promise<SshExecResult> {
-  return systemSshInvoke("ssh_exec_command", {
-    host: params.host,
-    port: params.port,
-    username: params.username,
-    password: params.password ?? null,
-    privateKey: params.privateKey ?? null,
-    passphrase: params.passphrase ?? null,
-    ...(params.systemAuth && { systemAuth: params.systemAuth }),
-    command: params.command,
-    legacyAlgorithms: params.legacyAlgorithms ?? false,
-    proxy: params.proxy ?? null,
-    knock: params.knock ?? null,
-  });
 }
 
-export async function sshKillPersistent(params: {
-  host: string;
-  port: number;
-  username: string;
-  password?: string;
-  privateKey?: string;
-  passphrase?: string;
-  systemAuth?: SystemSshAuth;
-  sessionId: string;
-  legacyAlgorithms?: boolean;
-  proxy?: ProxySpec | null;
-  knock?: KnockSpec | null;
-}): Promise<boolean> {
-  return systemSshInvoke("ssh_kill_persistent", {
-    host: params.host,
-    port: params.port,
-    username: params.username,
-    password: params.password ?? null,
-    privateKey: params.privateKey ?? null,
-    passphrase: params.passphrase ?? null,
-    ...(params.systemAuth && { systemAuth: params.systemAuth }),
-    sessionId: params.sessionId,
-    legacyAlgorithms: params.legacyAlgorithms ?? false,
-    proxy: params.proxy ?? null,
-    knock: params.knock ?? null,
-  });
+function oneShotTarget(t: OneShotTarget) {
+  return {
+    host: t.host,
+    port: t.port,
+    username: t.username,
+    password: t.password ?? null,
+    privateKey: t.privateKey ?? null,
+    passphrase: t.passphrase ?? null,
+    ...(t.systemAuth && { systemAuth: t.systemAuth }),
+    legacyAlgorithms: t.legacyAlgorithms ?? false,
+    proxy: t.proxy ?? null,
+    knock: t.knock ?? null,
+  };
+}
+
+export async function sshExecCommand(params: OneShotTarget & { command: string }): Promise<SshExecResult> {
+  return systemSshInvoke("ssh_exec_command", { target: oneShotTarget(params), command: params.command });
+}
+
+export async function sshKillPersistent(params: OneShotTarget & { sessionId: string }): Promise<boolean> {
+  return systemSshInvoke("ssh_kill_persistent", { target: oneShotTarget(params), sessionId: params.sessionId });
+}
+
+export async function sshDetectDistroDirect(target: OneShotTarget): Promise<string> {
+  return systemSshInvoke("ssh_detect_distro_direct", { target: oneShotTarget(target) });
 }
 
 export async function onSshOutput(

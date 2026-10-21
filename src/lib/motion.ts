@@ -139,6 +139,27 @@ export function springSamples(
   return { duration, values };
 }
 
+/** Android snackbar (M3, components/mobile/MobileSnackbar.tsx): timing and swipe-away gesture. */
+export const SNACKBAR_MOTION = {
+  enter: { duration: "medium2", easing: "emphasizedDecelerate" },
+  exit: { duration: "short3", easing: "emphasizedAccelerate" },
+  /** A swipe released short of dismissing goes back. */
+  settle: { duration: "medium1", easing: "standard" },
+  /** Rises this many px while fading in. */
+  enterShiftPx: 16,
+  /** On-screen time clamp (M3: 4–10 s; longer with an action so it can be reached). */
+  minMs: 4000,
+  actionMinMs: 6000,
+  maxMs: 10000,
+  /** Released past this fraction of its width, or flung faster than this (px/ms) the same way, it leaves. */
+  swipeFraction: 0.35,
+  flingVelocity: 0.5,
+  /** Movement before a touch becomes a swipe (B5 TOUCH_SLOP_PX). */
+  slopPx: 8,
+  /** Margin to the screen edges and to the docked chrome under it. */
+  gapPx: 8,
+} as const;
+
 /** Page push / pop (M3 shared axis X, see hooks/pageTransition.ts). */
 export const PAGE_MOTION = {
   push: { duration: "medium2", easing: "emphasizedDecelerate" },

@@ -161,7 +161,7 @@ export default function MobileHostsScreen() {
     <div ref={rootRef} data-mobile-hosts className="group/appbar relative flex-1 flex flex-col overflow-hidden">
       {nav.folderPath.map((f) => <FolderBackTrap key={f.id} onBack={nav.navigateUp} />)}
       <MobileLargeTopBar />
-      <div data-mobile-hosts-scroll className="flex-1 overflow-y-auto" style={{ overscrollBehavior: "contain" }} onScroll={onScroll}>
+      <div data-mobile-hosts-scroll className="flex-1 overflow-y-auto scrollbar-none" style={{ overscrollBehavior: "contain" }} onScroll={onScroll}>
         <MobileLargeTitle ref={titleRef} />
         <MobileFilterBar
           pill

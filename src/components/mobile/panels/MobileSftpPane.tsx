@@ -20,6 +20,7 @@ import { ConnectionAvatar } from "@/components/shared/ConnectionAvatar";
 import BottomSheet from "../sheets/BottomSheet";
 import { compareStrings } from "@/utils/localeFormat";
 import { describeError, type BackendErrorCode } from "@/services/backendErrors";
+import { haptic } from "@/lib/haptics";
 
 // Coded errors arrive translated, so only an uncoded one is matched by its English text.
 function isPermissionDenied(msg: string, code: BackendErrorCode | null): boolean {
@@ -221,7 +222,7 @@ export default function MobileSftpPane({
       {confirmDelete && (
         <BottomSheet title={t("mobile.sftp.deleteConfirmTitle", { name: confirmDelete.name })} onClose={() => setConfirmDelete(null)}>
           <button data-sftp-delete-go className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl" style={{ color: "var(--t-status-error)" }}
-            onClick={async () => { const f = confirmDelete; setConfirmDelete(null); try { await remove(f); } catch (e) { alert(describeError(e, t)); } }}>
+            onClick={async () => { const f = confirmDelete; setConfirmDelete(null); haptic("confirm"); try { await remove(f); } catch (e) { alert(describeError(e, t)); } }}>
             <Icon icon="lucide:trash-2" width={18} /><span className="text-sm font-medium">{t("common.action.delete")}</span>
           </button>
           <button className="w-full px-3 py-3.5 rounded-xl text-sm text-(--t-text-dim)" onClick={() => setConfirmDelete(null)}>{t("common.action.cancel")}</button>
@@ -290,6 +291,7 @@ function FileRow({ file, checked, onTap, onToggle, onLong }: { file: FileEntry; 
   const fired = useRef(false);
   const clear = () => { if (timer.current) { clearTimeout(timer.current); timer.current = null; } };
   useEffect(() => () => clear(), []);
+  // No haptic() here: the WebView already plays its own long-press haptic with the contextmenu.
   const startLong = () => { fired.current = false; clear(); timer.current = setTimeout(() => { fired.current = true; onLong(); }, 500); };
   return (
     <button data-sftp-row={file.path}

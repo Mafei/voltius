@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useVisualViewport } from "@/hooks/useVisualViewport";
 import { useBackInterceptor } from "@/hooks/useBackInterceptor";
 import { SHEET_MOTION, motionMs, springSamples, transition } from "@/lib/motion";
+import { haptic } from "@/lib/haptics";
 import { VelocityTracker, claimDrag, flingExit, releaseAction, rubberBand, scrimOpacity } from "./sheetDrag";
 
 interface Gesture {
@@ -214,6 +215,7 @@ export default function BottomSheet({ onClose, children, title }: {
       const released = e.type === "touchend";
       const velocity = released ? done.tracker.velocity(e.timeStamp) : 0;
       if (released && releaseAction(done.offset, velocity, panel.offsetHeight) === "dismiss") {
+        haptic("gesture");
         requestCloseRef.current({ offset: Math.max(0, done.offset), velocity });
       } else {
         settle(done.offset, velocity);

@@ -10,6 +10,7 @@ import { createNativeSelection } from "./nativeSelectionOverlay";
 import { readClipboard } from "@/utils/clipboard";
 import { MAX_TERMINAL_FONT_SIZE, MIN_TERMINAL_FONT_SIZE, useUIStore } from "@/stores/uiStore";
 import { useThemeStore } from "@/stores/themeStore";
+import { haptic } from "@/lib/haptics";
 
 const LONG_PRESS_MS = 380;
 const MOVE_THRESHOLD_PX = 10;
@@ -108,6 +109,7 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
         longPressTimer.current = null;
         if (phase.current !== "pending" || !start.current) return;
         longPressFired.current = true;
+        haptic("press");
         if (onText.current) {
           phase.current = "native";
           sel.arm();

@@ -73,6 +73,7 @@ class MainActivity : TauriActivity() {
     SystemInsets.install(webView)
     NativeBack.install(this, webView)
     NativeFeel.install(this, webView)
+    Haptics.install(webView)
   }
 
   override fun dispatchTouchEvent(ev: MotionEvent): Boolean {

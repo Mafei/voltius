@@ -6,6 +6,7 @@ import { useModifierLatchStore } from "@/stores/modifierLatchStore";
 import { sendSpecialKey } from "@/services/terminalInput";
 import type { SpecialKey } from "@/services/terminalKeyCore";
 import { useUIStore } from "@/stores/uiStore";
+import { haptic } from "@/lib/haptics";
 
 type KeyDef = { key: SpecialKey; label?: string; icon?: string };
 const KEYS: KeyDef[] = [
@@ -35,11 +36,12 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
 
   const press = (key: SpecialKey) => {
     if (!activeSessionId) return;
+    haptic("key");
     sendSpecialKey(activeSessionId, key, { ctrl: isActive(latch.ctrl), alt: isActive(latch.alt) });
     consume();
   };
-  const tapMod = (mod: Modifier) => tap(mod);
-  const lockMod = (mod: Modifier) => lock(mod);
+  const tapMod = (mod: Modifier) => { haptic("key"); tap(mod); };
+  const lockMod = (mod: Modifier) => { haptic("press"); lock(mod); };
   const noFocusSteal = (e: React.SyntheticEvent) => e.preventDefault();
   // The row must never summon the soft keyboard. The xterm textarea is programmatically focused
   // (Android keeps the IME hidden), so the first touch gesture would otherwise pop the IME for it.

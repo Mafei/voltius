@@ -193,3 +193,21 @@ export const SESSION_MOTION = {
   /** A cancelled session swipe settles back. */
   snapBack: { duration: "short4", easing: "standard" },
 } as const satisfies Record<string, number | { duration: DurationToken | number; easing: EasingToken }>;
+
+/** Pull to refresh (M3 swipe-to-refresh, see components/mobile/usePullToRefresh.ts). */
+export const PULL_MOTION = {
+  /** Released at least this far down (px, after resistance), the list refreshes. */
+  thresholdPx: 72,
+  /** The indicator never travels further than this, however far the finger goes. */
+  maxPx: 128,
+  /** Finger travel → indicator travel near the top (the rest is an exponential approach to maxPx). */
+  resistance: 0.6,
+  /** Where the spinning indicator rests while the list reloads. */
+  restPx: 64,
+  /** The spinner stays up at least this long, so a fast reload still reads as one. */
+  minSpinMs: 500,
+  /** Released short: back up. Released past: to the rest position. Done: shrinks away. */
+  cancel: { duration: "short4", easing: "standardAccelerate" },
+  settle: { duration: "medium1", easing: "emphasizedDecelerate" },
+  exit: { duration: "short4", easing: "emphasizedAccelerate" },
+} as const;

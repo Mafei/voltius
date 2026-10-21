@@ -161,7 +161,12 @@
       "batchDeleteTitle_other": "删除 {{count}} 个项目？",
       "newFileOption": "新建文件",
       "folderNamePlaceholder": "文件夹名称",
-      "fileNamePlaceholder": "文件名称"
+      "fileNamePlaceholder": "文件名称",
+      "selectAll": "全选",
+      "onePane": "单窗格",
+      "twoPanes": "双窗格",
+      "moreActions": "更多操作",
+      "itemActions": "{{name}} 的操作"
     },
     "folders": {
       "home": "首页"

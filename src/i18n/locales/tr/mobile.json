@@ -161,7 +161,12 @@
       "batchDeleteTitle_other": "{{count}} öğe silinsin mi?",
       "newFileOption": "Yeni dosya",
       "folderNamePlaceholder": "Klasör adı",
-      "fileNamePlaceholder": "Dosya adı"
+      "fileNamePlaceholder": "Dosya adı",
+      "selectAll": "Tümünü seç",
+      "onePane": "Tek panel",
+      "twoPanes": "İki panel",
+      "moreActions": "Diğer işlemler",
+      "itemActions": "{{name}} için işlemler"
     },
     "folders": {
       "home": "Ana sayfa"

@@ -162,7 +162,12 @@
       "batchDeleteTitle_other": "Supprimer {{count}} éléments ?",
       "newFileOption": "Nouveau fichier",
       "folderNamePlaceholder": "Nom du dossier",
-      "fileNamePlaceholder": "Nom du fichier"
+      "fileNamePlaceholder": "Nom du fichier",
+      "selectAll": "Tout sélectionner",
+      "onePane": "Un seul panneau",
+      "twoPanes": "Deux panneaux",
+      "moreActions": "Plus d'actions",
+      "itemActions": "Actions pour {{name}}"
     },
     "folders": {
       "home": "Accueil"

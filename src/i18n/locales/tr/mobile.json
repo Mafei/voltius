@@ -167,6 +167,9 @@
       "home": "Ana sayfa"
     },
     "sheets": {
+      "newSession": {
+        "noHosts": "Sunucu yok"
+      },
       "shared": {
         "moveToVault": "Kasaya taşı",
         "copyToVault": "Kasaya kopyala",

@@ -1,4 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { prefersReducedMotion } from "@/lib/motion";
+import NewSessionSheet from "./sheets/NewSessionSheet";
 import { Icon } from "@iconify/react";
 import { useTranslation } from "react-i18next";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -27,7 +29,22 @@ export default function MobileTerminalTopBar() {
   const openSheet = useMobileNavStore((s) => s.openSheet);
   const exitTo = useMobileNavStore((s) => s.lastNonTerminalTab);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const chipsRef = useRef<HTMLDivElement>(null);
+
+  // Keep the active chip on screen when the session or the chip list changes (swipe, new
+  // session, close). Measured on the next frame, once the new chip has its final width.
+  const chipKey = sessions.map((x) => `${x.id}:${x.status}`).join(",");
+  useEffect(() => {
+    if (!activeSessionId) return;
+    const raf = requestAnimationFrame(() => {
+      const chips = chipsRef.current?.children ?? [];
+      const chip = [...chips].find((el) => (el as HTMLElement).dataset.mobileSessionChip === activeSessionId);
+      chip?.scrollIntoView?.({ inline: "nearest", block: "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [activeSessionId, chipKey]);
   // Derive Proxmox gate as a primitive (boolean) — Zustand-safe; no fresh array/object from the selector.
   const activeConnId = allSessions.find((s) => s.id === activeSessionId)?.connectionId;
   const isProxmox = useConnectionStore((s) => s.connections.find((c) => c.id === activeConnId)?.distro === "proxmox");
@@ -52,14 +69,14 @@ export default function MobileTerminalTopBar() {
       >
         <Icon icon="lucide:chevron-left" width={22} />
       </button>
-      <div className="flex-1 flex items-center gap-1.5 overflow-x-auto px-1 h-full">
+      <div ref={chipsRef} data-mobile-session-chips className="flex-1 flex items-center gap-1.5 overflow-x-auto px-1 h-full scrollbar-none">
         {sessions.map((s) => {
           const active = s.id === activeSessionId;
           return (
             <span
               key={s.id}
               data-mobile-session-chip={s.id}
-              className="flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 py-1 text-xs font-medium whitespace-nowrap"
+              className="shrink-0 flex items-center gap-1.5 rounded-full pl-2.5 pr-1 h-8 text-xs font-medium whitespace-nowrap"
               style={{
                 background: active ? "var(--t-accent)" : "var(--t-bg-card)",
                 color: active ? "#fff" : "var(--t-text-primary)",
@@ -68,7 +85,7 @@ export default function MobileTerminalTopBar() {
             >
               <StatusDot tone={sessionStatusTone(s.status)} size="sm" />
               <button onClick={() => setActive(s.id)}>{sessionLabel(s)}</button>
-              <button data-mobile-session-close={s.id} onClick={() => void disconnect(s.id)} className="opacity-70">
+              <button data-mobile-session-close={s.id} onClick={() => void disconnect(s.id)} className="opacity-70 h-8 w-6 flex items-center justify-center">
                 <Icon icon="lucide:x" width={12} />
               </button>
             </span>
@@ -77,12 +94,13 @@ export default function MobileTerminalTopBar() {
       </div>
       <button
         data-mobile-terminal-new
-        onClick={() => setTab("hosts")}
+        onClick={() => setPickerOpen(true)}
         className="px-2 h-full text-(--t-text-primary) shrink-0"
         aria-label={t("mobile.terminalTopBar.newSessionAriaLabel")}
       >
         <Icon icon="lucide:plus" width={20} />
       </button>
+      {pickerOpen && <NewSessionSheet onClose={() => setPickerOpen(false)} />}
       <NotificationBell />
       <div className="shrink-0">
         <button

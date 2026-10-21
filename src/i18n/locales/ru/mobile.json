@@ -169,6 +169,9 @@
       "home": "Домой"
     },
     "sheets": {
+      "newSession": {
+        "noHosts": "Нет хостов"
+      },
       "shared": {
         "moveToVault": "Переместить в хранилище",
         "copyToVault": "Копировать в хранилище",

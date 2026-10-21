@@ -167,6 +167,9 @@
       "home": "Home"
     },
     "sheets": {
+      "newSession": {
+        "noHosts": "No hosts"
+      },
       "shared": {
         "moveToVault": "Move to vault",
         "copyToVault": "Copy to vault",

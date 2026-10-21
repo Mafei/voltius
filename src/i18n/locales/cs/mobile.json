@@ -169,6 +169,9 @@
       "home": "Domů"
     },
     "sheets": {
+      "newSession": {
+        "noHosts": "Žádné hosty"
+      },
       "shared": {
         "moveToVault": "Přesunout do trezoru",
         "copyToVault": "Kopírovat do trezoru",

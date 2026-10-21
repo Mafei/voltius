@@ -1,10 +1,10 @@
 import { useMemo, useRef, useState } from "react";
 import { Icon } from "@iconify/react";
 import { useTranslation } from "react-i18next";
+import { useOpenHost } from "../useOpenHost";
 import { useAllConnections } from "@/hooks/useAllConnections";
 import { useAllFolders } from "@/hooks/useAllFolders";
 import { useFolderStore } from "@/stores/folderStore";
-import { useSessionStore } from "@/stores/sessionStore";
 import { useMobileNavStore } from "@/stores/mobileNavStore";
 import { useToggle } from "@/stores/toggleSettingsStore";
 import { useHostPingStore } from "@/stores/hostPingStore";
@@ -33,7 +33,6 @@ import { TeamCredentialsNote } from "@/components/shared/VaultUnavailableNote";
 import { useTeamCredentialsUnavailable } from "@/hooks/useBlockedTeamVault";
 import { compareStrings } from "@/utils/localeFormat";
 import { searchMatcher } from "@/utils/search";
-import { isFileOnlyProtocol } from "@/utils/connectionType";
 import { ManagedBadge } from "@/components/sshConfig/ManagedHost";
 
 function MobileHostRow({
@@ -100,9 +99,8 @@ export default function MobileHostsScreen() {
   const connections = useAllConnections();
   const allFolders = useAllFolders();
   const { inScope, can, nav, folders: connFolders, folderIds: connFolderIds, targetVaultId, canCreateFolder, canEditFolder } = useMobileFolderScope(allFolders, "connection");
-  const connect = useSessionStore((s) => s.connect);
-  const setTab = useMobileNavStore((s) => s.setTab);
   const push = useMobileNavStore((s) => s.push);
+  const openHost = useOpenHost();
   const openSheet = useMobileNavStore((s) => s.openSheet);
   const search = useMobileNavStore((s) => s.hostSearch);
   const setSearch = useMobileNavStore((s) => s.setHostSearch);
@@ -133,17 +131,6 @@ export default function MobileHostsScreen() {
     const rest = sorted.filter((c) => !isPinnedFn(c, "connection"));
     return [...pinned, ...rest];
   }, [inVault, nav.activeFolderId, connFolderIds, search, isPinnedFn]);
-
-  const handleConnect = (id: string) => {
-    // File-only hosts (FTP, WebDAV) have no terminal — open the file browser instead.
-    const c = connections.find((x) => x.id === id);
-    if (c && isFileOnlyProtocol(c)) {
-      push({ kind: "panel-sftp", connectionId: id });
-      return;
-    }
-    void connect(id).catch(console.error);
-    setTab("terminal");
-  };
 
   const teamCredentialsUnavailable = useTeamCredentialsUnavailable();
 
@@ -196,7 +183,7 @@ export default function MobileHostsScreen() {
             c={c}
             pinned={isPinnedFn(c, "connection")}
             pingEnabled={pingEnabled}
-            onConnect={handleConnect}
+            onConnect={openHost}
             onActions={(id) => openSheet({ kind: "host-actions", hostId: id })}
           />
         ))}

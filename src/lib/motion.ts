@@ -182,3 +182,14 @@ export const NAV_MOTION = {
   barHide: { duration: "short4", easing: "emphasizedAccelerate" },
   barShow: { duration: "medium1", easing: "emphasizedDecelerate" },
 } as const satisfies Record<string, number | { duration: DurationToken | number; easing: EasingToken }>;
+
+/** Switching terminal sessions (M3 shared axis X between siblings, see MobileSessionLayer). */
+export const SESSION_MOTION = {
+  /** The leaving session fades out early while sliding a little the other way. */
+  exit: { duration: "short3", easing: "emphasizedAccelerate" },
+  /** The arriving one slides in from the side it lives on and fades in. */
+  enter: { duration: "medium2", easing: "emphasizedDecelerate" },
+  shiftPx: 30,
+  /** A cancelled session swipe settles back. */
+  snapBack: { duration: "short4", easing: "standard" },
+} as const satisfies Record<string, number | { duration: DurationToken | number; easing: EasingToken }>;

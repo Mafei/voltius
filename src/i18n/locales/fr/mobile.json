@@ -168,6 +168,9 @@
       "home": "Accueil"
     },
     "sheets": {
+      "newSession": {
+        "noHosts": "Aucun hôte"
+      },
       "shared": {
         "moveToVault": "Déplacer vers le coffre",
         "copyToVault": "Copier vers le coffre",

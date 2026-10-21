@@ -16,6 +16,10 @@ import { Toggle } from "@/components/shared/Toggle";
 import { SettingRow, SyncKeyButton } from "./shared";
 import { saveTextFile } from "@/services/saveFile";
 import { formatTime, HOUR_MINUTE } from "@/utils/localeFormat";
+import { useIsAndroid } from "@/utils/platform";
+import { MOBILE_HIDDEN_TOGGLES } from "@/components/settings/settingsMobileCore";
+import BottomSheet from "@/components/mobile/sheets/BottomSheet";
+import { SheetActionRow } from "@/components/mobile/sheets/SheetActionRow";
 
 function exportTheme(theme: AppTheme) {
   void saveTextFile(
@@ -48,6 +52,9 @@ export default function AppearanceSection() {
   const locale = useLocaleStore((s) => s.locale);
   const setLocale = useLocaleStore((s) => s.setLocale);
   const [groupTabsByHost, setGroupTabsByHost] = useToggle("group-tabs-by-host");
+  const isAndroid = useIsAndroid();
+  // Android: a custom theme's export / edit / delete live in a sheet (no hover there).
+  const [themeMenu, setThemeMenu] = useState<AppTheme | null>(null);
 
   const pluginThemes: AppTheme[] = [...pluginThemeMap.values()].map((theme) => ({ ...theme, builtIn: true }));
   const allThemes = [...BUILT_IN_THEMES, ...customThemes, ...pluginThemes];
@@ -75,7 +82,7 @@ export default function AppearanceSection() {
             onChange={(value) => setLocale(value as typeof locale)}
           />
         </SettingRow>
-        <SettingRow
+        {!(isAndroid && MOBILE_HIDDEN_TOGGLES.has("group-tabs-by-host")) && <SettingRow
           variant="card"
           className="mt-4"
           syncKey="appSettings.toggles.group-tabs-by-host"
@@ -85,7 +92,7 @@ export default function AppearanceSection() {
           onReset={() => setGroupTabsByHost(TOGGLE_DEFS["group-tabs-by-host"].default)}
         >
           <Toggle checked={groupTabsByHost} onChange={setGroupTabsByHost} />
-        </SettingRow>
+        </SettingRow>}
       </div>
 
       {(() => {
@@ -115,9 +122,23 @@ export default function AppearanceSection() {
             <h3 className="text-xs font-bold uppercase tracking-widest mb-4 text-(--t-text-dim)">
               {t("settings.appearance.automation.title")}
             </h3>
-            <div className="rounded-xl bg-(--t-bg-card) border border-(--t-border) p-4 space-y-4">
+            <div data-settings-card className="rounded-xl bg-(--t-bg-card) border border-(--t-border) p-4 space-y-4">
               <p className="text-xs text-(--t-text-dim)">{t("settings.appearance.automation.desc")}</p>
 
+              {isAndroid ? (
+                // M3 rows, the value trailing; each opens its picker sheet.
+                <>
+                  <SettingRow title={t("settings.appearance.automation.mode")}>
+                    <FormSelect value={mode} options={modeOptions} onChange={(v) => setMode(v as ThemeMode)} />
+                  </SettingRow>
+                  <SettingRow title={t("settings.appearance.automation.lightTheme")}>
+                    <FormSelect value={lightThemeId} options={themeOptions} onChange={setLightThemeId} />
+                  </SettingRow>
+                  <SettingRow title={t("settings.appearance.automation.darkTheme")}>
+                    <FormSelect value={darkThemeId} options={themeOptions} onChange={setDarkThemeId} />
+                  </SettingRow>
+                </>
+              ) : (<>
               <div className="grid grid-cols-2 gap-3">
                 <label className="flex flex-col gap-1 text-xs text-(--t-text-dim)">
                   {t("settings.appearance.automation.lightTheme")}
@@ -133,6 +154,7 @@ export default function AppearanceSection() {
                 {t("settings.appearance.automation.mode")}
                 <FormSelect value={mode} options={modeOptions} onChange={(v) => setMode(v as ThemeMode)} />
               </label>
+              </>)}
 
               {mode === "schedule" && (
                 <div className="flex items-center gap-4">
@@ -234,7 +256,20 @@ export default function AppearanceSection() {
                 <span className="text-xs font-medium leading-tight" style={{ color: isActive ? "var(--t-text-bright)" : "var(--t-text-primary)" }}>
                   {theme.name}
                 </span>
-                {!theme.builtIn && (
+                {!theme.builtIn && isAndroid && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    data-theme-actions={theme.id}
+                    aria-label={`${t("settings.appearance.themeActions")}: ${theme.name}`}
+                    aria-haspopup="menu"
+                    onClick={(e) => { e.stopPropagation(); setThemeMenu(theme); }}
+                    className="absolute bottom-0.5 right-0.5 w-10 h-10 rounded-full flex items-center justify-center text-(--t-text-muted)"
+                  >
+                    <Icon icon="lucide:ellipsis-vertical" width={18} />
+                  </span>
+                )}
+                {!theme.builtIn && !isAndroid && (
                   <div className="absolute bottom-2 right-2 flex gap-1">
                     <button
                       onClick={(e) => { e.stopPropagation(); exportTheme(theme); }}
@@ -281,6 +316,18 @@ export default function AppearanceSection() {
           </button>
         </div>
       </div>
+
+      {themeMenu && (
+        <BottomSheet title={themeMenu.name} onClose={() => setThemeMenu(null)}>
+          {[
+            { icon: "lucide:share", label: t("settings.appearance.exportTheme"), slug: "export", onTap: () => exportTheme(themeMenu) },
+            { icon: "lucide:pencil", label: t("settings.appearance.editTheme"), slug: "edit", onTap: () => openThemeCreator(themeMenu.id) },
+            { icon: "lucide:trash-2", label: t("settings.appearance.deleteTheme"), slug: "delete", danger: true, onTap: () => handleDelete(themeMenu.id) },
+          ].map((it) => (
+            <SheetActionRow key={it.slug} attr="theme-action" it={{ ...it, onTap: () => { setThemeMenu(null); it.onTap(); } }} />
+          ))}
+        </BottomSheet>
+      )}
     </div>
   );
 }

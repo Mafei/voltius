@@ -57,6 +57,7 @@
       }
     },
     "appearance": {
+      "themeActions": "Tema işlemleri",
       "interface": "Arayüz",
       "language": {
         "title": "Dil"
@@ -75,6 +76,7 @@
       "deleteTheme": "Temayı sil",
       "newCustomTheme": "Yeni Özel Tema",
       "uiScale": {
+        "clickHintMobile": "Değer girmek için dokunun",
         "title": "Arayüz Ölçeği",
         "desc": "Tüm arayüzü yakınlaştırın veya uzaklaştırın.",
         "clickHint": "Değer girmek için tıklayın",
@@ -84,6 +86,7 @@
         "reset": "Sıfırla"
       },
       "terminalFontSize": {
+        "clickHintMobile": "Değer girmek için dokunun",
         "title": "Terminal Yazı Boyutu",
         "desc": "Arayüzün geri kalanını ölçeklemeden yalnızca terminal metninin boyutunu değiştirin.",
         "clickHint": "Değer girmek için tıklayın",
@@ -114,6 +117,7 @@
     },
     "nav": {
       "appearance": {
+        "mobileSub": "Tema, ölçek, dil",
         "label": "Görünüm",
         "keywords": [
           "tema",
@@ -123,6 +127,7 @@
         ]
       },
       "account": {
+        "mobileSub": "Hesap modu, uygulama kilidi",
         "label": "Hesap",
         "keywords": [
           "profil",
@@ -133,6 +138,7 @@
         ]
       },
       "sync": {
+        "mobileSub": "Bulut eşitleme ve eşitlenenler",
         "label": "Eşitleme",
         "keywords": [
           "yedekleme",
@@ -143,6 +149,7 @@
         ]
       },
       "plugins": {
+        "mobileSub": "Yüklü eklentiler ve katalog",
         "label": "Eklentiler",
         "keywords": [
           "uzantılar",
@@ -153,6 +160,7 @@
         ]
       },
       "integrations": {
+        "mobileSub": "Yapay zekâ ajanları için MCP sunucusu",
         "label": "Entegrasyonlar",
         "keywords": [
           "mcp",
@@ -166,6 +174,7 @@
         ]
       },
       "terminal": {
+        "mobileSub": "İmleç, geçmiş, yapıştırma",
         "label": "Terminal",
         "keywords": [
           "geri kaydırma",
@@ -178,6 +187,7 @@
         ]
       },
       "sftp": {
+        "mobileSub": "İndirmeler, aktarımlar, düzenleyici",
         "label": "SFTP",
         "keywords": [
           "dosya",
@@ -187,6 +197,7 @@
         ]
       },
       "portForwarding": {
+        "mobileSub": "Otomatik yönlendirme",
         "label": "Port Yönlendirme",
         "keywords": [
           "tünel",
@@ -197,6 +208,7 @@
         ]
       },
       "hosts": {
+        "mobileSub": "Erişilebilirlik, keepalive, proxy",
         "label": "Sunucular",
         "keywords": [
           "ping",
@@ -216,6 +228,7 @@
         ]
       },
       "diagnostics": {
+        "mobileSub": "Günlükler ve hata raporları",
         "label": "Tanılama",
         "keywords": [
           "tanılama",
@@ -227,6 +240,7 @@
         ]
       },
       "about": {
+        "mobileSub": "Sürüm ve bağlantılar",
         "label": "Hakkında",
         "keywords": [
           "sürüm",
@@ -245,6 +259,14 @@
       "collapsePluginGroup": "Eklenti ayarlarını daralt"
     },
     "shared": {
+      "reset": "Sıfırla",
+      "rowActions": "Ayar işlemleri",
+      "sync": {
+        "label": "Bu ayarı eşitle",
+        "on": "Cihazlarınız arasında eşitlenir",
+        "off": "Bu cihazda tutulur",
+        "deviceDefault": "Varsayılan olarak bu cihazda tutulur"
+      },
       "cancel": "İptal",
       "resetToDefault": "Varsayılana sıfırla",
       "modifiedFromDefault": "Varsayılandan değiştirildi"

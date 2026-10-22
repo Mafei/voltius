@@ -64,7 +64,8 @@ export default function BottomTabBar({ visible = true }: { visible?: boolean }) 
             className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1 relative"
             style={{ color: active ? "var(--t-text-bright)" : "var(--t-text-dim)" }}
           >
-            <span className="relative w-16 h-8 flex items-center justify-center">
+            {/* M3: the press ripple and state layer live in the pill, the whole item takes the tap. */}
+            <span className="relative w-16 h-8 rounded-full flex items-center justify-center" data-ripple-target>
               <span
                 aria-hidden
                 className="absolute inset-0 rounded-full"

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { TOUCH_SLOP_PX, installRipples, rippleCircle, rippleTarget } from "./ripple";
+import { TOUCH_SLOP_PX, installRipples, rippleCircle, rippleSurface, rippleTarget } from "./ripple";
 import { stubAnimate, unstubAnimate } from "@/test/stubAnimate";
 
 const pointer = (type: string, target: Element, x = 10, y = 10, extra: PointerEventInit = {}) => {
@@ -79,5 +79,41 @@ describe("installRipples", () => {
   it("ignores secondary pointers", () => {
     pointer("pointerdown", b(), 10, 10, { isPrimary: false });
     expect(layer()).toBeNull();
+  });
+});
+
+describe("data-ripple-target (M3 navigation bar pill)", () => {
+  let uninstall: () => void;
+  beforeEach(() => {
+    document.body.innerHTML = `<button id="item"><span id="pill" data-ripple-target><i id="icon">i</i></span><span id="label">Hosts</span></button><button id="plain">x</button>`;
+    const pill = document.getElementById("pill")!;
+    pill.getBoundingClientRect = () => ({ left: 20, top: 12, width: 64, height: 32, right: 84, bottom: 44, x: 20, y: 12, toJSON: () => ({}) });
+    stubAnimate();
+    uninstall = installRipples(document);
+  });
+  afterEach(() => {
+    uninstall();
+    unstubAnimate();
+  });
+  const $ = (id: string) => document.getElementById(id)!;
+
+  it("resolves the surface to the marked descendant, else the control", () => {
+    expect(rippleSurface($("item"))).toBe($("pill"));
+    expect(rippleSurface($("plain"))).toBe($("plain"));
+  });
+
+  it("renders the press inside the pill wherever the item is touched, ripple centred on the pill", () => {
+    pointer("pointerdown", $("label"), 50, 70); // on the label, below the pill
+    expect($("item").querySelector(":scope > .vt-ripple")).toBeNull();
+    const layer = $("pill").querySelector<HTMLElement>(":scope > .vt-ripple");
+    expect(layer).not.toBeNull();
+    expect(layer!.dataset.pressed).toBe("");
+    const c = rippleCircle(64, 32, 32, 16);
+    const wave = layer!.querySelector<HTMLElement>("span")!;
+    expect(wave.style.width).toBe(`${c.size}px`);
+    expect(wave.style.left).toBe(`${c.left}px`);
+    expect(wave.style.top).toBe(`${c.top}px`);
+    pointer("pointerup", $("label"), 50, 70);
+    expect(layer!.dataset.pressed).toBeUndefined();
   });
 });

@@ -11,6 +11,10 @@ import { DURATION, EASING, prefersReducedMotion } from "@/lib/motion";
  *
  * Opt out with `data-no-ripple` on the control or any ancestor; opt in a non-button
  * with `data-ripple`. The terminal, text fields and disabled controls are skipped.
+ * A control whose visible feedback belongs to a part of it (M3 navigation bar: the
+ * 64x32 active-indicator pill, not the whole item) marks that descendant with
+ * `data-ripple-target`: the whole control still takes the touch, the state layer and a
+ * ripple centred on that part render inside it, clipped to its corners.
  */
 
 /** What gets feedback: anything tappable. */
@@ -37,6 +41,11 @@ export function rippleTarget(target: EventTarget | null): HTMLElement | null {
   return el;
 }
 
+/** Where the feedback of a press on `el` renders: its `data-ripple-target` descendant, else `el` itself. */
+export function rippleSurface(el: HTMLElement): HTMLElement {
+  return el.querySelector<HTMLElement>("[data-ripple-target]") ?? el;
+}
+
 /** Ripple geometry for a box and a touch point inside it: a circle centred on the touch that reaches the farthest corner. */
 export function rippleCircle(width: number, height: number, x: number, y: number) {
   const r = Math.hypot(Math.max(x, width - x), Math.max(y, height - y));
@@ -54,25 +63,31 @@ interface Press {
   layer: HTMLSpanElement;
   wave: HTMLSpanElement | null;
   grown: Promise<void>;
+  surface: HTMLElement;
   restorePosition: string | null;
 }
 
 function startPress(el: HTMLElement, e: PointerEvent): Press {
-  const rect = el.getBoundingClientRect();
+  const surface = rippleSurface(el);
+  const redirected = surface !== el;
+  const rect = surface.getBoundingClientRect();
   let restorePosition: string | null = null;
-  if (getComputedStyle(el).position === "static") {
-    restorePosition = el.style.position;
-    el.style.position = "relative";
+  if (getComputedStyle(surface).position === "static") {
+    restorePosition = surface.style.position;
+    surface.style.position = "relative";
   }
   const layer = document.createElement("span");
   layer.className = "vt-ripple";
   layer.setAttribute("aria-hidden", "true");
-  if (isIconButton(el, rect.width, rect.height)) layer.style.borderRadius = "9999px";
+  if (!redirected && isIconButton(el, rect.width, rect.height)) layer.style.borderRadius = "9999px";
   layer.dataset.pressed = "";
   let wave: HTMLSpanElement | null = null;
   let grown = Promise.resolve();
   if (!prefersReducedMotion() && typeof layer.animate === "function") {
-    const c = rippleCircle(rect.width, rect.height, e.clientX - rect.left, e.clientY - rect.top);
+    // A redirected press can land outside its surface (the label under the pill): grow from the surface centre.
+    const c = redirected
+      ? rippleCircle(rect.width, rect.height, rect.width / 2, rect.height / 2)
+      : rippleCircle(rect.width, rect.height, e.clientX - rect.left, e.clientY - rect.top);
     wave = document.createElement("span");
     wave.style.cssText = `width:${c.size}px;height:${c.size}px;left:${c.left}px;top:${c.top}px`;
     layer.append(wave);
@@ -81,11 +96,12 @@ function startPress(el: HTMLElement, e: PointerEvent): Press {
       .animate([{ transform: "scale(0)" }, { transform: "scale(1)" }], { duration: g.duration, easing: g.easing, fill: "forwards" })
       .finished.then(() => undefined, () => undefined);
   }
-  el.append(layer);
-  return { pointerId: e.pointerId, x: e.clientX, y: e.clientY, layer, wave, grown, restorePosition };
+  surface.append(layer);
+  return { pointerId: e.pointerId, x: e.clientX, y: e.clientY, layer, wave, grown, surface, restorePosition };
 }
 
-function endPress(el: HTMLElement, p: Press, cancelled: boolean) {
+function endPress(p: Press, cancelled: boolean) {
+  const el = p.surface;
   const m = cancelled ? RIPPLE_MOTION.cancel : RIPPLE_MOTION.fade;
   const remove = () => {
     p.layer.remove();
@@ -103,27 +119,27 @@ function endPress(el: HTMLElement, p: Press, cancelled: boolean) {
 
 /** Installs the delegated ripples on `doc`. Returns the uninstaller. */
 export function installRipples(doc: Document = document): () => void {
-  let active: { el: HTMLElement; press: Press } | null = null;
+  let active: Press | null = null;
   const finish = (cancelled: boolean) => {
     if (!active) return;
-    endPress(active.el, active.press, cancelled);
+    endPress(active, cancelled);
     active = null;
   };
   const onDown = (e: PointerEvent) => {
     if (!e.isPrimary || e.button > 0) return;
     finish(true);
     const el = rippleTarget(e.target);
-    if (el) active = { el, press: startPress(el, e) };
+    if (el) active = startPress(el, e);
   };
   const onMove = (e: PointerEvent) => {
-    if (active && e.pointerId === active.press.pointerId &&
-        Math.hypot(e.clientX - active.press.x, e.clientY - active.press.y) > TOUCH_SLOP_PX) finish(true);
+    if (active && e.pointerId === active.pointerId &&
+        Math.hypot(e.clientX - active.x, e.clientY - active.y) > TOUCH_SLOP_PX) finish(true);
   };
   const onUp = (e: PointerEvent) => {
-    if (active && e.pointerId === active.press.pointerId) finish(false);
+    if (active && e.pointerId === active.pointerId) finish(false);
   };
   const onCancel = (e: PointerEvent) => {
-    if (active && e.pointerId === active.press.pointerId) finish(true);
+    if (active && e.pointerId === active.pointerId) finish(true);
   };
   const opts = { capture: true, passive: true } as const;
   doc.addEventListener("pointerdown", onDown, opts);

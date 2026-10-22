@@ -258,6 +258,50 @@
     },
     "shortcuts": {
       "hostGone": "That host no longer exists. Its shortcut was removed."
+    },
+    "share": {
+      "action": "Share",
+      "publicKey": "Share public key",
+      "failed": "Couldn’t open the share sheet",
+      "downloadFailed": "Couldn’t download the file to share",
+      "largeTitle": "Share {{size}}?",
+      "largeBody": "The files are downloaded to this phone first, then handed to the app you pick.",
+      "tooLong": "Too long to share as text"
+    },
+    "vaultSettings": {
+      "title": "Vault settings",
+      "gone": "This vault no longer exists on this device.",
+      "openFor": "Settings for {{name}}",
+      "nameRequired": "A vault needs a name.",
+      "nameReadOnly": "Only the vault's managers can rename it.",
+      "kindTeam": "Team vault",
+      "kindPrivate": "Private vault",
+      "sections": {
+        "general": "General",
+        "people": "People",
+        "danger": "Danger zone"
+      },
+      "rows": {
+        "name": "Name",
+        "share": "Share & invite",
+        "members": "Members",
+        "roles": "Roles",
+        "security": "Security policy",
+        "makePrivate": "Make private",
+        "delete": "Delete vault",
+        "leave": "Leave vault"
+      },
+      "summaries": {
+        "share": "Invite people and manage join links",
+        "members_one": "{{count}} member",
+        "members_other": "{{count}} members",
+        "roles": "What each role can do",
+        "security": "Lock and session rules for members",
+        "makePrivate": "Remove everyone else and keep a private copy",
+        "delete": "Deletes the vault and everything in it",
+        "deleteTeam": "Deletes it for every member",
+        "leave": "Remove your access to this vault"
+      }
     }
   }
 }

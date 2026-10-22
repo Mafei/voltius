@@ -27,6 +27,7 @@ import { appToast } from "@/services/appToast";
 import { useBackInterceptor } from "@/hooks/useBackInterceptor";
 import { PullIndicator, usePullToRefresh } from "../usePullToRefresh";
 import { allSelected, pruneSelection, toggleAll, toggleItem } from "./sftpSelectionCore";
+import { canShare, shareFiles, shareStageId, shareTotalBytes, shareableFiles, SHARE_CONFIRM_BYTES } from "@/services/share";
 
 // Coded errors arrive translated, so only an uncoded one is matched by its English text.
 function isPermissionDenied(msg: string, code: BackendErrorCode | null): boolean {
@@ -76,6 +77,7 @@ export default function MobileSftpPane({
   const [selectionMore, setSelectionMore] = useState(false);
   const [detailFor, setDetailFor] = useState<FileEntry | null>(null);
   const [permissionsFor, setPermissionsFor] = useState<FileEntry[] | null>(null);
+  const [confirmShare, setConfirmShare] = useState<FileEntry[] | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const crumbsRef = useRef<HTMLDivElement | null>(null);
 
@@ -151,6 +153,27 @@ export default function MobileSftpPane({
       return;
     }
     await runTransfer(f.name, "←", async (tid) => fetchTo(joinPath(await appCacheDir(), f.name), tid), undefined, accelFor(mode, f.isDir));
+  };
+
+  // Share: the files download into the share staging folder (with the usual transfer cards),
+  // then the system chooser gets them. Large sets ask first. Folders can't be shared.
+  const canShareFiles = isAndroid && canShare();
+  const share = async (items: FileEntry[], confirmed = false) => {
+    const files = shareableFiles(items);
+    if (!sftpId || files.length === 0) return;
+    if (!confirmed && shareTotalBytes(files) > SHARE_CONFIRM_BYTES) { setConfirmShare(files); return; }
+    const staged: { path: string; name: string }[] = [];
+    for (const f of files) {
+      await runTransfer(f.name, "←", async (tid) => {
+        const tmp = await downloadTempPath(shareStageId(tid), f.name);
+        await transferItem({ from: "remote", to: "local", srcSftpId: sftpId, srcPath: f.path, dstPath: tmp, isDir: false, useTar: false, transferId: tid });
+        staged.push({ path: tmp, name: f.name });
+      });
+    }
+    if (staged.length < files.length) { appToast("error", t("mobile.share.downloadFailed")); return; }
+    if (!shareFiles(staged.map((x) => x.path), staged.map((x) => x.name), files.length === 1 ? files[0].name : "")) {
+      appToast("error", t("mobile.share.failed"));
+    }
   };
 
   if (!connection) {
@@ -264,6 +287,9 @@ export default function MobileSftpPane({
         <BottomSheet title={sheetFor.name} onClose={() => setSheetFor(null)}>
           {otherConnected && <SheetItem icon="lucide:arrow-right-left" label={t("mobile.sftp.copyToOtherPane")} onTap={() => { const f = sheetFor; setSheetFor(null); onCopyToOther([f]); }} />}
           <SheetItem icon="lucide:download" label={t("mobile.sftp.download")} onTap={() => { const f = sheetFor; setSheetFor(null); void download(f); }} />
+          {canShareFiles && !sheetFor.isDir && (
+            <SheetItem attr="share" icon="lucide:share-2" label={t("mobile.share.action")} onTap={() => { const f = sheetFor; setSheetFor(null); void share([f]); }} />
+          )}
           <SheetItem icon="lucide:info" label={t("mobile.sftp.details")} onTap={() => { setDetailFor(sheetFor); setSheetFor(null); }} />
           <SheetItem icon="lucide:text-cursor-input" label={t("common.action.rename")} onTap={() => { startRename(sheetFor); setSheetFor(null); }} />
           {sftpId && canEditPermissions([sheetFor]) && (
@@ -275,6 +301,9 @@ export default function MobileSftpPane({
       )}
       {selectionMore && (
         <BottomSheet title={t("mobile.sftp.selectedCount", { count: selected.length })} onClose={() => setSelectionMore(false)}>
+          {canShareFiles && selected.every((f) => !f.isDir) && (
+            <SheetItem attr="share" icon="lucide:share-2" label={t("mobile.share.action")} onTap={() => { const items = selected; setSelectionMore(false); clearSelection(); void share(items); }} />
+          )}
           {single && <SheetItem icon="lucide:text-cursor-input" label={t("common.action.rename")} onTap={() => { setSelectionMore(false); startRename(single); clearSelection(); }} />}
           {single && <SheetItem icon="lucide:info" label={t("mobile.sftp.details")} onTap={() => { setSelectionMore(false); setDetailFor(single); clearSelection(); }} />}
           {sftpId && canEditPermissions(selected) && (
@@ -319,6 +348,16 @@ export default function MobileSftpPane({
             {detailFor.permissions != null && <DetailRow label={t("mobile.sftp.detail.permissions")} value={`${formatPermissions(detailFor.permissions)} (0o${detailFor.permissions.toString(8)})`} />}
             {detailFor.modified != null && <DetailRow label={t("mobile.sftp.detail.modified")} value={formatModifiedFull(detailFor.modified)} />}
           </div>
+        </BottomSheet>
+      )}
+      {confirmShare && (
+        <BottomSheet title={t("mobile.share.largeTitle", { size: formatSize(shareTotalBytes(confirmShare)) })} onClose={() => setConfirmShare(null)}>
+          <div className="px-3 pt-1 pb-2 text-sm text-(--t-text-dim)">{t("mobile.share.largeBody")}</div>
+          <button data-sftp-share-go className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl text-(--t-text-primary)"
+            onClick={() => { const items = confirmShare; setConfirmShare(null); void share(items, true); }}>
+            <Icon icon="lucide:share-2" width={18} /><span className="text-sm font-medium">{t("mobile.share.action")}</span>
+          </button>
+          <button className="w-full px-3 py-3.5 rounded-xl text-sm text-(--t-text-dim)" onClick={() => setConfirmShare(null)}>{t("common.action.cancel")}</button>
         </BottomSheet>
       )}
       {confirmBatchDelete && (
@@ -411,9 +450,9 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SheetItem({ icon, label, onTap, danger }: { icon: string; label: string; onTap: () => void; danger?: boolean }) {
+function SheetItem({ icon, label, onTap, danger, attr }: { icon: string; label: string; onTap: () => void; danger?: boolean; attr?: string }) {
   return (
-    <button data-sftp-action={label.toLowerCase().replace(/\s+/g, "-")}
+    <button data-sftp-action={attr ?? label.toLowerCase().replace(/\s+/g, "-")}
       className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl text-left active:bg-(--t-bg-card)"
       style={{ color: danger ? "var(--t-status-error)" : "var(--t-text-primary)" }} onClick={onTap}>
       <Icon icon={icon} width={18} /><span className="text-sm font-medium">{label}</span>

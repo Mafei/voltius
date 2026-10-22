@@ -12,6 +12,8 @@ import { copyingRulesOf } from "@/services/ruleSetIntent";
 import { useAllSnippetFolders } from "@/hooks/useAllSnippetFolders";
 import { buildMoveTargets } from "@/components/mobile/folders/mobileFolderCore";
 import { compareStrings } from "@/utils/localeFormat";
+import { canShare, shareText, snippetShareText, MAX_SHARE_TEXT } from "@/services/share";
+import { appToast } from "@/services/appToast";
 import MoveToFolderSheet from "./MoveToFolderSheet";
 import { SheetActionRow, type SheetAction } from "./SheetActionRow";
 
@@ -38,6 +40,7 @@ export default function MobileSnippetActionsSheet({ snippetId }: { snippetId: st
   if (!snippet) return null;
   const currentVaultId = snippet.vault_id ?? "personal";
   const canEdit = can("EDIT_SNIPPETS", currentVaultId, snippet.id);
+  const shareable = canShare() ? snippetShareText(snippet) : null;
 
   if (mode === "confirm-delete") {
     return (
@@ -86,6 +89,10 @@ export default function MobileSnippetActionsSheet({ snippetId }: { snippetId: st
           closeSheet();
         } },
     ] : []),
+    ...(shareable ? [{ icon: "lucide:share-2", label: t("mobile.share.action"), slug: "share", onTap: () => {
+      closeSheet();
+      if (!shareText(shareable, snippet.name)) appToast("error", t(shareable.length > MAX_SHARE_TEXT ? "mobile.share.tooLong" : "mobile.share.failed"));
+    } }] : []),
     { icon: pinned ? "lucide:pin-off" : "lucide:pin", label: pinned ? t("mobile.sheets.shared.unpin") : t("mobile.sheets.shared.pin"), slug: pinned ? "unpin" : "pin", onTap: () => { void pinSnippet(snippetId, !pinned); closeSheet(); } },
     ...(canEdit && vaultTargets.length > 0 ? [{ icon: "lucide:folder-input", label: t("mobile.sheets.shared.moveToVault"), slug: "move-to-vault", onTap: () => setMode("move") }] : []),
     ...(vaultTargets.length > 0 ? [{ icon: "lucide:copy-plus", label: t("mobile.sheets.shared.copyToVault"), slug: "copy-to-vault", onTap: () => setMode("copy") }] : []),

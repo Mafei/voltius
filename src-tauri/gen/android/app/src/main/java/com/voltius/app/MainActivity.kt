@@ -76,6 +76,7 @@ class MainActivity : TauriActivity() {
     SystemColors.install(this, webView)
     Haptics.install(webView)
     LauncherShortcuts.install(this, webView)
+    ShareSheet.install(this, webView)
   }
 
   override fun dispatchTouchEvent(ev: MotionEvent): Boolean {

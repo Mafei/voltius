@@ -37,7 +37,7 @@ function HeaderActions({ onAdd }: { onAdd?: () => void }) {
         <button
           data-mobile-sync-status
           aria-label={syncStatusTooltip(t, sync, syncMotion.status)}
-          className="p-2 flex items-center"
+          className="vt-icon-btn"
           style={{ color: effectiveSyncColor(sync, syncMotion) }}
           onClick={() => openSheet({ kind: "sync" })}
         >
@@ -46,7 +46,7 @@ function HeaderActions({ onAdd }: { onAdd?: () => void }) {
       )}
       <NotificationBell />
       {onAdd && (
-        <button data-mobile-add onClick={onAdd} className="p-2 -mr-2 text-(--t-text-primary)">
+        <button data-mobile-add onClick={onAdd} className="vt-icon-btn -mr-2 text-(--t-text-primary)">
           <Icon icon="lucide:plus" width={22} />
         </button>
       )}
@@ -61,7 +61,7 @@ export default function MobileHeader({ title, onAdd }: { title?: string; onAdd?:
       className="shrink-0 flex items-center justify-between gap-2 px-4 py-2 border-b"
       style={{ background: "var(--t-bg-chrome)", borderColor: "var(--t-border)" }}
     >
-      <button data-mobile-vault-switch className="flex flex-col items-start min-w-0" onClick={openSwitcher}>
+      <button data-mobile-vault-switch className="vt-hit flex flex-col items-start min-w-0" onClick={openSwitcher}>
         <span className="flex items-center gap-1.5 text-base font-semibold text-(--t-text-primary)">
           {title ?? vaultName}
           <Icon icon="lucide:chevron-down" width={16} className="text-(--t-text-dim)" />

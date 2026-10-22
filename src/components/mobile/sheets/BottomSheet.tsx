@@ -287,7 +287,7 @@ export default function BottomSheet({ onClose, children, title }: {
       >
         <div
           ref={handleRef}
-          className="shrink-0 flex flex-col items-center pt-2 pb-1"
+          className="shrink-0 flex flex-col items-center pt-2 pb-1 min-h-12"
           style={{ touchAction: "none" }}
           data-mobile-sheet-handle
         >

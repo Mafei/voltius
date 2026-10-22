@@ -63,13 +63,13 @@ export default function HostPickerSheet({
   return (
     <BottomSheet title={title} onClose={onClose}>
       <input {...{ [`data-${attr}-search`]: "" }} autoFocus={autoFocusSearch} value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("mobile.hostsScreen.searchPlaceholder")}
-        className="w-full rounded-xl px-3 h-10 text-sm outline-none text-(--t-text-primary) mb-2"
+        className="w-full rounded-xl px-3 h-12 text-sm outline-none text-(--t-text-primary) mb-2"
         style={{ background: "var(--t-bg-card)", border: "1px solid var(--t-border)" }} />
       {vaults.length > 1 && (
-        <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
+        <div className="flex gap-1.5 overflow-x-auto -mt-2 py-2 -mx-1 px-1">
           {[{ id: null, name: t("shared.hostPicker.allVaults") }, ...vaults].map((v) => (
             <button key={v.id ?? ""} {...{ [`data-${attr}-vault`]: v.id ?? "all" }} onClick={() => setVaultFilter(v.id)}
-              className="shrink-0 px-3 h-8 rounded-full text-xs font-medium whitespace-nowrap"
+              className="vt-hit shrink-0 px-3 h-8 rounded-full text-xs font-medium whitespace-nowrap"
               style={v.id === vaultFilter
                 ? { background: "var(--t-accent)", color: "var(--t-bg-terminal)" }
                 : { background: "var(--t-bg-card)", color: "var(--t-text-secondary)", border: "1px solid var(--t-border)" }}>

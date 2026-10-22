@@ -120,7 +120,7 @@ export default function MobileSftpScreen({ presetConnectionId, asTab, visible = 
         {twoPanes && (
           <>
             {/* Middle transfer bar: ↓ copies top→bottom, ↑ copies bottom→top; disabled when N/A */}
-            <div className="shrink-0 flex items-center justify-center gap-3 px-3 py-1.5 border-y" style={{ borderColor: "var(--t-border)", background: "var(--t-bg-chrome)" }}>
+            <div className="shrink-0 flex items-center justify-center gap-3 px-3 h-12 border-y" style={{ borderColor: "var(--t-border)", background: "var(--t-bg-chrome)" }}>
               <TransferArrow dir="down" count={selA.length} enabled={selA.length > 0 && ctrlB.sftpId != null} onTap={() => void copy("a", selA)} />
               <TransferArrow dir="up" count={selB.length} enabled={selB.length > 0 && ctrlA.sftpId != null} onTap={() => void copy("b", selB)} />
             </div>
@@ -154,11 +154,11 @@ export default function MobileSftpScreen({ presetConnectionId, asTab, visible = 
                 {!failed && <span className="text-[11px] text-(--t-text-dim) tabular-nums shrink-0">{pct}%</span>}
                 {failed && canRetry(tr.id) && (
                   <button data-sftp-transfer-retry={tr.id} onClick={() => { setDismissed((d) => [...d, tr.id]); retryTransfer(tr.id); }}
-                    className="px-2 py-1 text-xs font-semibold shrink-0" style={{ color: "var(--t-accent)" }}>{t("common.action.retry")}</button>
+                    className="vt-hit px-2 py-1 text-xs font-semibold shrink-0" style={{ color: "var(--t-accent)" }}>{t("common.action.retry")}</button>
                 )}
                 <button data-sftp-transfer-cancel={tr.id} aria-label={failed ? t("common.action.dismiss") : t("common.action.cancel")}
                   onClick={() => (failed ? setDismissed((d) => [...d, tr.id]) : cancelTransfer(tr.id))}
-                  className="p-1 text-(--t-text-dim) shrink-0"><Icon icon="lucide:x" width={14} /></button>
+                  className="vt-icon-btn -my-3 -mr-2 text-(--t-text-dim)"><Icon icon="lucide:x" width={14} /></button>
               </div>
             );
           })}
@@ -183,7 +183,7 @@ export default function MobileSftpScreen({ presetConnectionId, asTab, visible = 
 function TransferArrow({ dir, count, enabled, onTap }: { dir: "up" | "down"; count: number; enabled: boolean; onTap: () => void }) {
   return (
     <button data-sftp-copy={dir === "down" ? "a" : "b"} disabled={!enabled} onClick={onTap}
-      className="flex items-center gap-1.5 px-6 py-1.5 rounded-xl text-sm font-medium"
+      className="vt-hit flex items-center gap-1.5 px-6 py-1.5 rounded-xl text-sm font-medium"
       style={{ background: enabled ? "var(--t-accent)" : "var(--t-bg-card)", color: enabled ? "#fff" : "var(--t-text-dim)", opacity: enabled ? 1 : 0.45 }}>
       <Icon icon={dir === "down" ? "lucide:arrow-down" : "lucide:arrow-up"} width={18} />
       {count > 0 && <span className="tabular-nums">{count}</span>}

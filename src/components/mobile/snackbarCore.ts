@@ -30,6 +30,15 @@ export function swipeOpacity(dx: number, width: number): number {
   return Math.max(0.2, 1 - Math.abs(dx) / width);
 }
 
+/**
+ * How far a floating element (the FAB) whose bottom edge rests at `bottom` must rise so
+ * it clears a snackbar whose top edge is at `snackbarTop`, keeping `gap` px between them
+ * (M3: the FAB moves up while a snackbar shows). 0 when it already clears it.
+ */
+export function avoidLift(bottom: number, snackbarTop: number, gap: number): number {
+  return Math.max(0, Math.round(bottom - (snackbarTop - gap)));
+}
+
 type Box = { top: number; bottom: number; height: number };
 
 /**

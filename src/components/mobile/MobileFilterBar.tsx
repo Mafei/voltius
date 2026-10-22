@@ -22,7 +22,7 @@ export default function MobileFilterBar({
   return (
     <div className={`${pill ? "px-4 py-2" : "px-3 py-2"} shrink-0 ${className}`}>
       <div
-        className={pill ? "flex items-center gap-3 px-4 h-12 rounded-full" : "flex items-center gap-2 px-3 h-10 rounded-xl"}
+        className={pill ? "flex items-center gap-3 px-4 h-12 rounded-full" : "flex items-center gap-2 px-3 h-12 rounded-xl"}
         style={pill ? { background: "var(--t-bg-card)" } : { background: "var(--t-bg-card)", border: "1px solid var(--t-border)" }}
       >
         <Icon icon="lucide:search" width={pill ? 20 : 16} className="text-(--t-text-dim) shrink-0" />
@@ -32,14 +32,14 @@ export default function MobileFilterBar({
           onChange={(e) => onChange(e.target.value)}
           placeholder={effectivePlaceholder}
           aria-label={effectivePlaceholder}
-          className={`flex-1 min-w-0 bg-transparent outline-none ${pill ? "text-base" : "text-sm"} text-(--t-text-primary) placeholder:text-(--t-text-dim)`}
+          className={`flex-1 min-w-0 self-stretch bg-transparent outline-none ${pill ? "text-base" : "text-sm"} text-(--t-text-primary) placeholder:text-(--t-text-dim)`}
         />
         {value && (
           <button
             {...{ [`data-${attr}-clear`]: "" }}
             onClick={() => onChange("")}
             aria-label={clearLabel}
-            className={`shrink-0 text-(--t-text-dim) active:text-(--t-text-primary) ${pill ? "p-1 -mr-1" : ""}`}
+            className="vt-icon-btn -mr-3 text-(--t-text-dim) active:text-(--t-text-primary)"
           >
             <Icon icon="lucide:x" width={pill ? 20 : 16} />
           </button>

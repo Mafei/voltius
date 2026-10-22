@@ -209,7 +209,7 @@ export default function AppearanceSection() {
           <div className="flex gap-1">
             <button
               onClick={() => openThemeImportExport("import")}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-colors text-(--t-text-muted) hover:text-(--t-text-primary) bg-(--t-bg-card) hover:bg-(--t-bg-elevated)"
+              className="vt-hit flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-colors text-(--t-text-muted) hover:text-(--t-text-primary) bg-(--t-bg-card) hover:bg-(--t-bg-elevated)"
               title={t("settings.appearance.importTitle")}
             >
               <Icon icon="lucide:download" width={12} />
@@ -218,7 +218,7 @@ export default function AppearanceSection() {
             {customThemes.length > 0 && (
               <button
                 onClick={() => openThemeImportExport("export")}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-colors text-(--t-text-muted) hover:text-(--t-text-primary) bg-(--t-bg-card) hover:bg-(--t-bg-elevated)"
+                className="vt-hit flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-colors text-(--t-text-muted) hover:text-(--t-text-primary) bg-(--t-bg-card) hover:bg-(--t-bg-elevated)"
                 title={t("settings.appearance.exportAllTitle")}
               >
                 <Icon icon="lucide:upload" width={12} />

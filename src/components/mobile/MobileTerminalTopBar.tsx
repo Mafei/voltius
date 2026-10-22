@@ -58,18 +58,18 @@ export default function MobileTerminalTopBar() {
 
   return (
     <div
-      className="shrink-0 flex items-center h-11 border-b"
+      className="shrink-0 flex items-center h-12 border-b"
       style={{ background: "var(--t-bg-chrome)", borderColor: "var(--t-border)" }}
     >
       <button
         data-mobile-terminal-exit
         onClick={() => setTab(exitTo)}
-        className="px-2 h-full text-(--t-text-primary) shrink-0"
+        className="vt-icon-btn text-(--t-text-primary)"
         aria-label={t("mobile.terminalTopBar.exitAriaLabel")}
       >
         <Icon icon="lucide:chevron-left" width={22} />
       </button>
-      <div ref={chipsRef} data-mobile-session-chips className="flex-1 flex items-center gap-1.5 overflow-x-auto px-1 h-full scrollbar-none">
+      <div ref={chipsRef} data-mobile-session-chips className="flex-1 flex items-center gap-1.5 overflow-x-auto pl-1 pr-2 h-full scrollbar-none">
         {sessions.map((s) => {
           const active = s.id === activeSessionId;
           return (
@@ -84,8 +84,8 @@ export default function MobileTerminalTopBar() {
               }}
             >
               <StatusDot tone={sessionStatusTone(s.status)} size="sm" />
-              <button onClick={() => setActive(s.id)}>{sessionLabel(s)}</button>
-              <button data-mobile-session-close={s.id} onClick={() => void disconnect(s.id)} className="opacity-70 h-8 w-6 flex items-center justify-center">
+              <button className="vt-hit self-stretch" onClick={() => setActive(s.id)}>{sessionLabel(s)}</button>
+              <button data-mobile-session-close={s.id} onClick={() => void disconnect(s.id)} className="vt-hit opacity-70 h-8 w-8 rounded-full flex items-center justify-center">
                 <Icon icon="lucide:x" width={12} />
               </button>
             </span>
@@ -95,7 +95,7 @@ export default function MobileTerminalTopBar() {
       <button
         data-mobile-terminal-new
         onClick={() => setPickerOpen(true)}
-        className="px-2 h-full text-(--t-text-primary) shrink-0"
+        className="vt-icon-btn text-(--t-text-primary)"
         aria-label={t("mobile.terminalTopBar.newSessionAriaLabel")}
       >
         <Icon icon="lucide:plus" width={20} />
@@ -107,7 +107,7 @@ export default function MobileTerminalTopBar() {
           ref={menuButtonRef}
           data-mobile-terminal-menu
           onClick={() => setMenuOpen((v) => !v)}
-          className="px-2 h-full text-(--t-text-primary)"
+          className="vt-icon-btn text-(--t-text-primary)"
           aria-label={t("mobile.terminalTopBar.panelsAriaLabel")}
         >
           <Icon icon="lucide:ellipsis-vertical" width={20} />

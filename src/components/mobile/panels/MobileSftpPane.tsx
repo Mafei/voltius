@@ -226,7 +226,7 @@ export default function MobileSftpPane({
               <Icon icon="lucide:wifi-off" width={26} className="text-(--t-status-error)" />
               <span className="text-sm text-(--t-status-error)">{phase.message}</span>
               {retrying && <span className="text-xs text-(--t-text-dim)">{t("mobile.sftp.reconnecting")}</span>}
-              <button data-sftp-reconnect onClick={reconnect} className="text-sm px-4 py-2 rounded-xl"
+              <button data-sftp-reconnect onClick={reconnect} className="vt-hit text-sm px-4 py-2 rounded-xl"
                 style={{ background: "var(--t-bg-card)", border: "1px solid var(--t-border)" }}>{t("mobile.sftp.reconnectNow")}</button>
             </div>
           )}
@@ -235,8 +235,8 @@ export default function MobileSftpPane({
               <Icon icon={isPermissionDenied(listError, listErrorCode) ? "lucide:lock" : "lucide:triangle-alert"} width={26} />
               <span className="text-sm">{isPermissionDenied(listError, listErrorCode) ? t("mobile.sftp.permissionDenied") : listError}</span>
               <div className="flex gap-2">
-                <button data-sftp-list-retry onClick={refresh} className="text-sm px-4 py-2 rounded-xl" style={{ background: "var(--t-bg-card)", border: "1px solid var(--t-border)" }}>{t("common.action.retry")}</button>
-                <button onClick={goUp} className="text-sm px-4 py-2 rounded-xl" style={{ background: "var(--t-bg-card)", border: "1px solid var(--t-border)" }}>{t("mobile.sftp.goUp")}</button>
+                <button data-sftp-list-retry onClick={refresh} className="vt-hit text-sm px-4 py-2 rounded-xl" style={{ background: "var(--t-bg-card)", border: "1px solid var(--t-border)" }}>{t("common.action.retry")}</button>
+                <button onClick={goUp} className="vt-hit text-sm px-4 py-2 rounded-xl" style={{ background: "var(--t-bg-card)", border: "1px solid var(--t-border)" }}>{t("mobile.sftp.goUp")}</button>
               </div>
             </div>
           )}

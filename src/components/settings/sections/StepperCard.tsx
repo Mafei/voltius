@@ -68,7 +68,7 @@ export default function StepperCard({
       onChange={(e) => setInputValue(e.target.value)}
       onBlur={commitEdit}
       onKeyDown={handleKeyDown}
-      className="text-sm font-semibold px-2 h-10 rounded-lg w-20 text-center bg-(--t-bg-elevated) text-(--t-text-secondary) border border-(--t-accent) outline-hidden"
+      className="text-sm font-semibold px-2 h-12 rounded-lg w-20 text-center bg-(--t-bg-elevated) text-(--t-text-secondary) border border-(--t-accent) outline-hidden"
       min={min}
       max={max}
     />
@@ -77,7 +77,7 @@ export default function StepperCard({
       onClick={startEditing}
       data-stepper-value
       aria-label={labels.clickHint}
-      className="h-10 px-3 rounded-full text-sm font-semibold tabular-nums text-(--t-accent)"
+      className="h-12 px-3 rounded-full text-sm font-semibold tabular-nums text-(--t-accent)"
     >
       {value}{unit}
     </button>
@@ -87,7 +87,7 @@ export default function StepperCard({
     // M3 list item with a slider underneath: full bleed, 40 dp -/+ targets, Reset as a
     // text button only while the value is off its default.
     const stepBy = buttonStep ?? step;
-    const iconBtn = "w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-(--t-text-primary) disabled:opacity-40";
+    const iconBtn = "w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-(--t-text-primary) disabled:opacity-40";
     return (
       <div data-settings-stepper className="-mx-4 px-4 py-3">
         <div className="flex items-center justify-between gap-3">
@@ -109,14 +109,14 @@ export default function StepperCard({
             value={value}
             aria-label={title}
             onChange={(e) => onChange(Number(e.target.value))}
-            className="flex-1 min-w-0 h-10"
+            className="flex-1 min-w-0 h-12"
             style={{ accentColor: "var(--t-accent)" }}
           />
           <button onClick={() => onChange(clamp(value + stepBy))} disabled={value >= max} className={iconBtn} aria-label={labels.zoomIn}>
             <Icon icon="lucide:plus" width={20} />
           </button>
           {dirty !== false && (
-            <button onClick={onReset} data-setting-reset aria-label={labels.resetTitle} className="shrink-0 h-10 px-3 rounded-full text-sm font-medium text-(--t-accent)">
+            <button onClick={onReset} data-setting-reset aria-label={labels.resetTitle} className="shrink-0 h-12 px-3 rounded-full text-sm font-medium text-(--t-accent)">
               {labels.reset}
             </button>
           )}

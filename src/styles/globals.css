@@ -929,8 +929,8 @@ html[data-android] [data-mobile-edit-form] [data-icon-tile] {
 /* Password reveal: a 48 dp target inside the field. */
 html[data-android] [data-mobile-edit-form] input.form-input + button.absolute {
   right: 0.25rem;
-  width: 3rem;
-  height: 3rem;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -988,4 +988,61 @@ html[data-android] .vt-ripple > span {
   background: currentColor;
   opacity: 0.12;
   transform: scale(0);
+}
+
+/* ── Tap targets (C7) ─────────────────────────────────────────────────────────────────
+   Every control on Android takes taps over at least 48 × 48 dp (CSS px = dp in the WebView).
+   1. The root font size is 15 px, so Tailwind's rem spacing made every "48 dp" `h-12`
+      45 px. On Android the spacing unit is 4 px (the M3 grid): h-12 = 48, p-4 = 16.
+   2. `.vt-icon-btn`: an M3 icon button, 48 × 48 container, icon centred.
+   3. `.vt-hit`: keeps the visual size and extends the hit area to ≥ 48 × 48 with an invisible
+      ::after centred on the control (taps on a pseudo-element hit its element). Needs room:
+      an `overflow` ancestor clips it, and a neighbour closer than the overlap takes the taps
+      in between (later in the DOM wins), so space or size neighbours accordingly.
+      `[data-vt-hit-scope]` applies it to every button of a desktop layout shown on a phone.
+   Audit: scripts/android-tap-target-audit.js (elementFromPoint probes around each control). */
+html[data-android] {
+  --spacing: 4px;
+}
+@layer base {
+  /* Zero specificity and layered, so any positioning utility on the control wins. */
+  :where(html[data-android] :is(.vt-hit, [data-vt-hit-scope] :is(button, [role="button"]))) {
+    position: relative;
+  }
+}
+html[data-android] :is(.vt-hit, [data-vt-hit-scope] :is(button, [role="button"]))::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100%, 48px);
+  height: max(100%, 48px);
+  transform: translate(-50%, -50%);
+}
+html[data-android] .vt-icon-btn {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+}
+/* Wrapped chip rows: 12 px between lines, so stacked 48 px hit areas don't overlap. */
+html[data-android] [data-chip-group] {
+  row-gap: 12px;
+}
+/* Full-width rows of a bottom sheet (menus, pickers) are at least one M3 list line. */
+html[data-android] [data-mobile-sheet-body] button.w-full {
+  min-height: 48px;
+}
+/* Text / number fields trailing a settings row, and the tag field of the edit forms. */
+html[data-android] [data-setting-row] input:is([type="number"], [type="text"], :not([type])) {
+  min-height: 48px;
+}
+html[data-android] [data-mobile-edit-form] [data-chip-input] {
+  padding-block: 0.25rem;
+}
+html[data-android] [data-mobile-edit-form] [data-chip-input] input {
+  min-height: 48px;
 }

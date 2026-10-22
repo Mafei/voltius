@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { Icon } from "@iconify/react";
 import { useTranslation } from "react-i18next";
 import { useNotificationStore, type ToastEntry } from "@/stores/notificationStore";
 import { SNACKBAR_MOTION, animate } from "@/lib/motion";
 import { haptic } from "@/lib/haptics";
 import { VelocityTracker } from "./sheets/sheetDrag";
-import { dockedInset, snackbarDuration, swipeAction, swipeOpacity } from "./snackbarCore";
+import { avoidLift, dockedInset, snackbarDuration, swipeAction, swipeOpacity } from "./snackbarCore";
 
 /** Docked bottom chrome the snackbar sits above (plus `data-snackbar-anchor` for screen-specific bars). */
 const DOCKED = "[data-mobile-tab-bar], [data-mobile-extra-keys], [data-snackbar-anchor]";
@@ -31,6 +31,45 @@ function useDockedInset(): number | null {
   return inset;
 }
 
+/** Where its rest position puts an element's bottom edge, ignoring transforms / translate. */
+function restBottom(el: HTMLElement): number {
+  const parent = el.offsetParent?.getBoundingClientRect().top ?? 0;
+  return parent + el.offsetTop + el.offsetHeight;
+}
+
+/**
+ * `[data-snackbar-avoid]` elements (the Hosts FAB) rise above the snackbar while it shows and
+ * come back down as it leaves, like M3's FAB / snackbar coordination. `down` = leaving.
+ */
+function useSnackbarAvoiders(ref: RefObject<HTMLDivElement | null>, down: boolean) {
+  useEffect(() => {
+    const lifted = new Map<HTMLElement, number>();
+    const move = (el: HTMLElement, to: number) => {
+      const from = lifted.get(el) ?? 0;
+      if (from === to) return;
+      lifted.set(el, to);
+      el.style.translate = to ? `0 ${-to}px` : "";
+      const { duration, easing } = to > from ? SNACKBAR_MOTION.enter : SNACKBAR_MOTION.exit;
+      if (typeof el.animate === "function") animate(el, [{ translate: `0 ${-from}px` }, { translate: `0 ${-to}px` }], duration, easing);
+    };
+    const measure = () => {
+      const bar = ref.current;
+      // Rest top of the (fixed) snackbar: its enter shift / swipe transforms don't count.
+      const top = bar && !down ? window.innerHeight - parseFloat(getComputedStyle(bar).bottom) - bar.offsetHeight : null;
+      for (const el of document.querySelectorAll<HTMLElement>("[data-snackbar-avoid]")) {
+        move(el, top === null || !el.offsetParent ? 0 : avoidLift(restBottom(el), top, SNACKBAR_MOTION.gapPx));
+      }
+      for (const el of [...lifted.keys()]) if (!el.isConnected) lifted.delete(el);
+    };
+    measure();
+    const id = setInterval(measure, 250);
+    return () => {
+      clearInterval(id);
+      for (const el of [...lifted.keys()]) move(el, 0);
+    };
+  }, [ref, down]);
+}
+
 /**
  * Android rendering of the app's toasts (notificationStore) as M3 snackbars: one at a
  * time, oldest first (the store's list is the queue), at the bottom above the navigation
@@ -47,6 +86,8 @@ function Snackbar({ toast }: { toast: ToastEntry }) {
   const ref = useRef<HTMLDivElement>(null);
   const inset = useDockedInset();
   const leaving = useRef(false);
+  const [exiting, setExiting] = useState(false);
+  useSnackbarAvoiders(ref, exiting);
   const [held, setHeld] = useState(false);
   const drag = useRef<{ x0: number; dx: number; dragging: boolean; tracker: VelocityTracker } | null>(null);
   const dragged = useRef(false);
@@ -55,6 +96,7 @@ function Snackbar({ toast }: { toast: ToastEntry }) {
   const leave = useCallback((dx = 0) => {
     if (leaving.current) return;
     leaving.current = true;
+    setExiting(true);
     const el = ref.current;
     const done = () => dismissToast(toast.id);
     if (!el || typeof el.animate !== "function") return done();
@@ -149,7 +191,7 @@ function Snackbar({ toast }: { toast: ToastEntry }) {
       {toast.action && (
         <button
           data-mobile-snackbar-action
-          className="shrink-0 px-3 h-10 rounded-full text-sm font-semibold"
+          className="vt-hit shrink-0 px-3 h-10 rounded-full text-sm font-semibold"
           style={{ color: "color-mix(in srgb, var(--t-accent) 55%, var(--t-bg-base))" }}
           onClick={() => {
             if (dragged.current) return;
@@ -161,7 +203,7 @@ function Snackbar({ toast }: { toast: ToastEntry }) {
         </button>
       )}
       {sticky && (
-        <button data-mobile-snackbar-close aria-label={t("common.action.dismiss")} className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full" onClick={() => leave()}>
+        <button data-mobile-snackbar-close aria-label={t("common.action.dismiss")} className="vt-hit shrink-0 w-10 h-10 flex items-center justify-center rounded-full" onClick={() => leave()}>
           <Icon icon="lucide:x" width={18} />
         </button>
       )}

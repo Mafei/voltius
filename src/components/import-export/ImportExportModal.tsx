@@ -59,7 +59,7 @@ export function ImportExportModal() {
 
   if (isAndroid) {
     return createPortal(
-      <div ref={overlay.ref} data-import-export-fullscreen className="fixed inset-0 z-50 flex flex-col surface-modal-solid"
+      <div ref={overlay.ref} data-import-export-fullscreen data-vt-hit-scope className="fixed inset-0 z-50 flex flex-col surface-modal-solid"
         style={{ paddingTop: "var(--vt-safe-top)", paddingBottom: "var(--vt-safe-bottom)", paddingLeft: "var(--vt-safe-left)", paddingRight: "var(--vt-safe-right)" }}>
         {body}
       </div>,

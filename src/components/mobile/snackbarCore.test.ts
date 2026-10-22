@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dockedInset, snackbarDuration, swipeAction, swipeOpacity } from "./snackbarCore";
+import { avoidLift, dockedInset, snackbarDuration, swipeAction, swipeOpacity } from "./snackbarCore";
 
 describe("snackbarDuration", () => {
   it("clamps to 4–10 s, 6 s minimum with an action", () => {
@@ -49,5 +49,16 @@ describe("dockedInset", () => {
     const cards = { top: 700, bottom: 900, height: 200 };
     expect(dockedInset([navBar], vh)).toBe(104);
     expect(dockedInset([navBar, cards], vh)).toBe(200);
+  });
+});
+
+describe("avoidLift", () => {
+  it("raises a FAB overlapping the snackbar to sit gap px above it", () => {
+    // FAB bottom at 800, snackbar top at 760, 8 px gap -> rise 48.
+    expect(avoidLift(800, 760, 8)).toBe(48);
+  });
+  it("leaves an element that already clears the snackbar", () => {
+    expect(avoidLift(700, 760, 8)).toBe(0);
+    expect(avoidLift(752, 760, 8)).toBe(0);
   });
 });

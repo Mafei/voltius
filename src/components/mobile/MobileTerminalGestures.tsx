@@ -336,7 +336,7 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
         >
           <button
             data-toolbar-paste
-            className="px-3 py-1.5 rounded-md text-xs font-medium text-(--t-text-primary)"
+            className="vt-hit px-3 py-1.5 rounded-md text-xs font-medium text-(--t-text-primary)"
             onClick={() => {
               void readClipboard().then((text) => {
                 if (text) getTerminalApi(sessionId)?.paste(text);

@@ -68,7 +68,7 @@ export default function MobilePortForwardingScreen() {
       <MobilePanelHeader
         title={t("mobile.morePages.portForwarding")}
         right={canCreateRule || canCreateFolder ? (
-          <button data-pf-add onClick={() => setAddMode("menu")} className="p-2 text-(--t-text-primary)">
+          <button data-pf-add onClick={() => setAddMode("menu")} className="vt-icon-btn text-(--t-text-primary)">
             <Icon icon="lucide:plus" width={22} />
           </button>
         ) : undefined}

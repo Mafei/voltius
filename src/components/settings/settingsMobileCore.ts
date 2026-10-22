@@ -1,7 +1,10 @@
 import type { SettingsSection } from "@/stores/uiStore";
 
-/** Sections hidden in mobile Settings (host-keyboard-only, etc.). */
-export const MOBILE_HIDDEN_SECTIONS = new Set<SettingsSection>(["shortcuts"]);
+/**
+ * Sections hidden in mobile Settings: shortcuts are host-keyboard-only, and integrations
+ * is all MCP, a local server no client on the phone can reach (the backend refuses it).
+ */
+export const MOBILE_HIDDEN_SECTIONS = new Set<SettingsSection>(["shortcuts", "integrations"]);
 
 /**
  * Toggles hidden in mobile Settings because nothing reads them on Android: tab grouping

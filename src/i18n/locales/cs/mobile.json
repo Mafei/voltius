@@ -118,7 +118,18 @@
       "newTitle": "Nový úryvek",
       "namePlaceholder": "Název úryvku",
       "contentPlaceholder": "echo hello",
-      "delete": "Smazat úryvek"
+      "delete": "Smazat úryvek",
+      "nameLabel": "Název",
+      "contentLabel": "Skript"
+    },
+    "editForm": {
+      "required": "Povinné",
+      "incompleteTitle": "Odejít bez uložení?",
+      "incompleteBody": "Povinné pole je prázdné, takže poslední změny zatím nelze uložit.",
+      "unsavedTitle": "Zahodit změny?",
+      "unsavedBody": "Změny tohoto snippetu nebyly uloženy.",
+      "keepEditing": "Pokračovat v úpravách",
+      "discard": "Zahodit"
     },
     "snippetsScreen": {
       "newSnippetLabel": "Nový úryvek"

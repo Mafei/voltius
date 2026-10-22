@@ -858,6 +858,109 @@ html[data-android] [data-settings-card] > [data-setting-row] {
   margin-block: 0;
 }
 
+/* ── Edit forms as M3 (C5, MobileEditScreen) ─────────────────────────────────────────
+   The shared desktop form parts (FormSection, form-input, PickerTrigger, SettingRow…)
+   restyled inside a mobile edit screen: titled sections without cards, 56 dp outlined
+   fields with 16 px text, accent focus, error outline from aria-invalid (and :invalid
+   once the screen asked to leave, `data-reveal-errors`), settings-style 56 dp rows. */
+html[data-android] [data-mobile-edit-form] [data-panel-shell] {
+  box-shadow: none !important; /* beats the inline ring / panel shadow */
+}
+html[data-android] [data-mobile-edit-form] [data-form-section] {
+  overflow: visible;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none !important; /* beats the inline ring / panel shadow */
+}
+html[data-android] [data-mobile-edit-form] [data-form-section] + [data-form-section] {
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--t-border);
+}
+html[data-android] [data-mobile-edit-form] [data-form-section-title] {
+  padding: 1rem 0 0.25rem;
+  border: 0;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--t-accent);
+}
+html[data-android] [data-mobile-edit-form] [data-form-section-body] {
+  padding: 0.5rem 0 0.5rem;
+}
+html[data-android] [data-mobile-edit-form] label {
+  margin-bottom: 0.375rem;
+  font-size: var(--text-xs);
+}
+html[data-android] [data-mobile-edit-form] :is(input.form-input, [data-picker-trigger], [data-form-select], [data-chip-input]) {
+  min-height: 3.5rem;
+  padding-inline: 1rem;
+  border-radius: 0.5rem;
+  font-size: var(--text-sm);
+}
+html[data-android] [data-mobile-edit-form] :is([data-picker-trigger], [data-form-select], [data-chip-input]) :is(span, input) {
+  font-size: var(--text-sm);
+}
+html[data-android] [data-mobile-edit-form] textarea.form-input {
+  padding: 0.875rem 1rem;
+  border-radius: 0.5rem;
+}
+html[data-android] [data-mobile-edit-form] :is(input.form-input, textarea.form-input, [data-picker-trigger], [data-form-select], [data-chip-input]) {
+  /* M3 outline: the theme border tokens are near-invisible on the page background. */
+  border-color: color-mix(in srgb, var(--t-text-primary) 30%, transparent) !important;
+  transition: border-color var(--vt-dur-short3) var(--vt-ease-standard), box-shadow var(--vt-dur-short3) var(--vt-ease-standard);
+}
+html[data-android] [data-mobile-edit-form] :is(input.form-input, textarea.form-input):focus,
+html[data-android] [data-mobile-edit-form] [data-chip-input]:focus-within {
+  border-color: var(--t-accent) !important;
+  box-shadow: inset 0 0 0 1px var(--t-accent);
+}
+html[data-android] [data-mobile-edit-form] :is(input, textarea)[aria-invalid="true"],
+html[data-android] [data-mobile-edit-form][data-reveal-errors] :is(input, textarea):invalid {
+  border-color: var(--t-status-error) !important;
+  box-shadow: inset 0 0 0 1px var(--t-status-error);
+}
+/* 40 px tile beside a 56 px field (host label row). */
+html[data-android] [data-mobile-edit-form] [data-icon-tile] {
+  width: 3.5rem;
+  height: 3.5rem;
+}
+/* Password reveal: a 48 dp target inside the field. */
+html[data-android] [data-mobile-edit-form] input.form-input + button.absolute {
+  right: 0.25rem;
+  width: 3rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+html[data-android] [data-mobile-edit-form] input.form-input + button.absolute svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+/* SettingRow / DrillInRow / Advanced: M3 list rows (label left, control trailing). */
+html[data-android] [data-mobile-edit-form] :is([data-form-setting-row], [data-form-drill-row], [data-advanced-toggle]) {
+  min-height: 3.5rem;
+  gap: 1rem;
+  padding-block: 0;
+  font-size: var(--text-sm);
+  color: var(--t-text-primary);
+}
+html[data-android] [data-mobile-edit-form] :is([data-form-setting-row], [data-form-drill-row]) > svg:first-child {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--t-text-dim);
+}
+html[data-android] [data-mobile-edit-form] [data-advanced-toggle] {
+  color: var(--t-accent);
+  font-weight: 500;
+}
+html[data-android] [data-mobile-edit-form] [data-advanced-toggle] svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
 /* ── Ripples + pressed state layer (B5, lib/ripple.ts) ───────────────────────────────
    Spans appended to the pressed control on touch-down: the state layer (::before, 10 %
    of currentColor while held) and the ripple circle (child span, grown by WAAPI). */

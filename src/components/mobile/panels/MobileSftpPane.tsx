@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Icon } from "@iconify/react";
+import { useLongPress } from "@/components/mobile/useLongPress";
 import { useTranslation } from "react-i18next";
 import { appCacheDir } from "@tauri-apps/api/path";
 import { breadcrumbs, type useSftpDir } from "@/services/useSftpDir";
@@ -297,17 +298,9 @@ export default function MobileSftpPane({
 
 function FileRow({ file, checked, onTap, onToggle, onLong }: { file: FileEntry; checked: boolean; onTap: () => void; onToggle: () => void; onLong: () => void }) {
   const icon = file.isDir ? "lucide:folder" : file.isSymlink ? "lucide:link" : "lucide:file";
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const fired = useRef(false);
-  const clear = () => { if (timer.current) { clearTimeout(timer.current); timer.current = null; } };
-  useEffect(() => () => clear(), []);
-  // No haptic() here: the WebView already plays its own long-press haptic with the contextmenu.
-  const startLong = () => { fired.current = false; clear(); timer.current = setTimeout(() => { fired.current = true; onLong(); }, 500); };
+  const press = useLongPress(onLong, onTap);
   return (
-    <button data-sftp-row={file.path}
-      onClick={() => { if (!fired.current) onTap(); fired.current = false; }}
-      onContextMenu={(e) => { e.preventDefault(); fired.current = true; onLong(); }}
-      onTouchStart={startLong} onTouchEnd={clear} onTouchMove={clear} onTouchCancel={clear}
+    <button data-sftp-row={file.path} {...press}
       className="w-full flex items-center gap-3 px-4 py-3 text-left active:bg-(--t-bg-card) border-b"
       style={{ borderColor: "var(--t-border)", background: checked ? "var(--t-bg-card)" : undefined }}>
       <span

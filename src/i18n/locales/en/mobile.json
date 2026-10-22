@@ -118,7 +118,18 @@
       "newTitle": "New snippet",
       "namePlaceholder": "Snippet name",
       "contentPlaceholder": "echo hello",
-      "delete": "Delete snippet"
+      "delete": "Delete snippet",
+      "nameLabel": "Name",
+      "contentLabel": "Script"
+    },
+    "editForm": {
+      "required": "Required",
+      "incompleteTitle": "Leave without saving?",
+      "incompleteBody": "A required field is empty, so your latest changes can't be saved yet.",
+      "unsavedTitle": "Discard changes?",
+      "unsavedBody": "Your changes to this snippet haven't been saved.",
+      "keepEditing": "Keep editing",
+      "discard": "Discard"
     },
     "snippetsScreen": {
       "newSnippetLabel": "New snippet"

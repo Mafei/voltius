@@ -118,7 +118,18 @@
       "newTitle": "新建代码片段",
       "namePlaceholder": "代码片段名称",
       "contentPlaceholder": "echo hello",
-      "delete": "删除代码片段"
+      "delete": "删除代码片段",
+      "nameLabel": "名称",
+      "contentLabel": "脚本"
+    },
+    "editForm": {
+      "required": "必填",
+      "incompleteTitle": "不保存就离开？",
+      "incompleteBody": "有必填项为空，最近的更改暂时无法保存。",
+      "unsavedTitle": "放弃更改？",
+      "unsavedBody": "此代码片段的更改尚未保存。",
+      "keepEditing": "继续编辑",
+      "discard": "放弃"
     },
     "snippetsScreen": {
       "newSnippetLabel": "新建代码片段"

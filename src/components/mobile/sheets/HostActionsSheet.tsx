@@ -28,7 +28,11 @@ type Mode = "menu" | "confirm-delete" | "move" | "move-folder";
 
 const Row = ({ it }: { it: SheetAction }) => <SheetActionRow attr="host-action" it={it} />;
 
-export default function HostActionsSheet({ hostId }: { hostId: string }) {
+/** Rows left out when the sheet is the edit screen's ⋮: the screen is the editor, and the
+ *  form holds its own folder / vault / ping state, which its next autosave would write back. */
+const EDITOR_HIDDEN = new Set(["edit", "move-to-folder", "move-to-vault", "enable-reachability-check", "disable-reachability-check"]);
+
+export default function HostActionsSheet({ hostId, fromEditor = false }: { hostId: string; fromEditor?: boolean }) {
   const { t } = useTranslation();
   const closeSheet = useMobileNavStore((s) => s.closeSheet);
   const push = useMobileNavStore((s) => s.push);
@@ -125,7 +129,7 @@ export default function HostActionsSheet({ hostId }: { hostId: string }) {
 
   return (
     <BottomSheet title={name} onClose={closeSheet}>
-      {items.map((it) => <Row key={it.slug ?? it.label} it={it} />)}
+      {items.filter((it) => !fromEditor || !EDITOR_HIDDEN.has(it.slug ?? "")).map((it) => <Row key={it.slug ?? it.label} it={it} />)}
     </BottomSheet>
   );
 }

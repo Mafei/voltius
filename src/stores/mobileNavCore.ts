@@ -21,7 +21,7 @@ export type MobileScreen =
 export type MobileSheet =
   | { kind: "vault-switcher" }
   | { kind: "sync" }
-  | { kind: "host-actions"; hostId: string }
+  | { kind: "host-actions"; hostId: string; /** Opened from the host's own edit screen (⋮): no Edit row. */ fromEditor?: boolean }
   | { kind: "snippet-target"; snippetId: string; mode: "insert" | "execute"; preselectSessionId?: string }
   | { kind: "snippet-actions"; snippetId: string }
   | { kind: "snippets"; sessionId?: string }

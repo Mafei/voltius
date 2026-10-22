@@ -118,7 +118,18 @@
       "newTitle": "Новый сниппет",
       "namePlaceholder": "Название сниппета",
       "contentPlaceholder": "echo hello",
-      "delete": "Удалить сниппет"
+      "delete": "Удалить сниппет",
+      "nameLabel": "Название",
+      "contentLabel": "Скрипт"
+    },
+    "editForm": {
+      "required": "Обязательное поле",
+      "incompleteTitle": "Выйти без сохранения?",
+      "incompleteBody": "Обязательное поле не заполнено, поэтому последние изменения пока нельзя сохранить.",
+      "unsavedTitle": "Отменить изменения?",
+      "unsavedBody": "Изменения этого сниппета не сохранены.",
+      "keepEditing": "Продолжить редактирование",
+      "discard": "Отменить"
     },
     "snippetsScreen": {
       "newSnippetLabel": "Новый сниппет"

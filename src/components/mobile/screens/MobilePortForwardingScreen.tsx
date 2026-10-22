@@ -1,12 +1,10 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Icon } from "@iconify/react";
 import { useTranslation } from "react-i18next";
 import { useAllPortForwardingRules } from "@/hooks/useAllPortForwardingRules";
 import { useAllFolders } from "@/hooks/useAllFolders";
 import { useRuleTunnels } from "@/hooks/useRuleTunnels";
-import { useCloseWhenGone } from "@/hooks/useCloseWhenGone";
 import { useFolderStore } from "@/stores/folderStore";
-import { usePortForwardingStore } from "@/stores/portForwardingStore";
 import { useMobileFolderScope } from "@/components/mobile/folders/useMobileFolderScope";
 import { AvatarTile } from "@/components/shared/AvatarTile";
 import MobileFilterBar from "@/components/mobile/MobileFilterBar";
@@ -19,7 +17,7 @@ import FolderActionsSheet from "@/components/mobile/sheets/FolderActionsSheet";
 import MobileFolderBreadcrumb from "@/components/mobile/folders/MobileFolderBreadcrumb";
 import MobileFolderRow from "@/components/mobile/folders/MobileFolderRow";
 import FolderBackTrap from "@/components/mobile/folders/FolderBackTrap";
-import { RuleForm } from "@/components/port_forwarding/RuleForm";
+import MobileRuleEditScreen from "./MobileRuleEditScreen";
 import { tunnelTypeChoices } from "@/components/port_forwarding/tunnelTypeChoices";
 import { scopeItems } from "@/components/mobile/folders/mobileFolderCore";
 import { folderItemCounter } from "@/utils/folderTree";
@@ -38,8 +36,6 @@ export default function MobilePortForwardingScreen() {
   const allRules = useMemo(() => everyRule.filter(inScope), [everyRule, inScope]);
   const folderCount = useMemo(() => folderItemCounter(allRules, pfFolders), [allRules, pfFolders]);
   const { statusFor, startRule, stopRule } = useRuleTunnels();
-  const createRule = usePortForwardingStore((s) => s.createRule);
-  const updateRule = usePortForwardingStore((s) => s.updateRule);
   const saveFolder = useFolderStore((s) => s.saveFolder);
   const updateFolder = useFolderStore((s) => s.updateFolder);
   const deleteFolder = useFolderStore((s) => s.deleteFolder);
@@ -49,7 +45,6 @@ export default function MobilePortForwardingScreen() {
   const [formRule, setFormRule] = useState<FormRule>(undefined);
   const [addMode, setAddMode] = useState<AddMode>(null);
   const [folderSheet, setFolderSheet] = useState<Folder | null>(null);
-  const dirtyRef = useRef<boolean>(false);
 
   const subfolders = useMemo(() => [...nav.visibleFolders].sort((a, b) => compareStrings(a.name, b.name)), [nav.visibleFolders]);
 
@@ -61,11 +56,9 @@ export default function MobilePortForwardingScreen() {
   }, [allRules, nav.activeFolderId, pfFolderIds, search]);
 
   const canCreateRule = can("EDIT_CONNECTIONS", targetVaultId);
-  const closeForm = () => { setFormRule(undefined); dirtyRef.current = false; };
+  const closeForm = () => setFormRule(undefined);
   const newRuleType = typeof formRule === "string" ? formRule : undefined;
   const editedRule = typeof formRule === "object" ? formRule : null;
-  const shownRuleId = editedRule?.id ?? null;
-  useCloseWhenGone(shownRuleId, allRules.some((r) => r.id === shownRuleId), closeForm);
   const createFolder = (edit: FolderEdit) =>
     void saveFolder({ ...edit, object_type: "port_forwarding", parent_folder_id: nav.activeFolderId ?? undefined, vault_id: targetVaultId });
 
@@ -119,17 +112,7 @@ export default function MobilePortForwardingScreen() {
       </div>
 
       {formRule !== undefined && formRule !== null && (
-        <div className="absolute inset-0 z-40 flex flex-col bg-(--t-bg-base)">
-          <div className="flex-1 overflow-y-auto">
-            <RuleForm
-              rule={editedRule}
-              initialTunnelType={newRuleType}
-              isDirtyRef={dirtyRef}
-              onClose={closeForm}
-              onSave={async (data) => { if (editedRule) await updateRule(editedRule.id, data); else await createRule(data); closeForm(); }}
-            />
-          </div>
-        </div>
+        <MobileRuleEditScreen rule={editedRule} tunnelType={newRuleType} onClose={closeForm} />
       )}
 
       {addMode === "menu" && (

@@ -20,16 +20,19 @@ type Mode = "menu" | "confirm-delete" | "move-folder";
 
 const Row = ({ it }: { it: SheetAction }) => <SheetActionRow attr="keychain-action" it={it} />;
 
+/** Rows left out from the edit screen's ⋮: it is the editor, and its form autosaves its own folder. */
+const EDITOR_HIDDEN = new Set(["edit", "move-folder"]);
+
 type Props =
-  | { kind: "key"; item: SshKey; onClose: () => void }
-  | { kind: "identity"; item: Identity; onClose: () => void };
+  | { kind: "key"; item: SshKey; onClose: () => void; fromEditor?: boolean }
+  | { kind: "identity"; item: Identity; onClose: () => void; fromEditor?: boolean };
 
 function toast(message: string, severity: "success" | "error") {
   useNotificationStore.getState().addToast({ source: APP_SOURCE, type: "toast", message, severity, duration: 2000 });
 }
 
 export default function KeychainItemActionsSheet(props: Props) {
-  const { kind, item, onClose } = props;
+  const { kind, item, onClose, fromEditor = false } = props;
   const { t } = useTranslation();
   const deleteKey = useKeyStore((s) => s.deleteKey);
   const deleteIdentity = useIdentityStore((s) => s.deleteIdentity);
@@ -95,7 +98,7 @@ export default function KeychainItemActionsSheet(props: Props) {
 
   return (
     <BottomSheet title={name} onClose={onClose}>
-      {items.map((it) => <Row key={it.slug} it={it} />)}
+      {items.filter((it) => !fromEditor || !EDITOR_HIDDEN.has(it.slug ?? "")).map((it) => <Row key={it.slug} it={it} />)}
     </BottomSheet>
   );
 }

@@ -118,7 +118,18 @@
       "newTitle": "Nouveau snippet",
       "namePlaceholder": "Nom du snippet",
       "contentPlaceholder": "echo hello",
-      "delete": "Supprimer le snippet"
+      "delete": "Supprimer le snippet",
+      "nameLabel": "Nom",
+      "contentLabel": "Script"
+    },
+    "editForm": {
+      "required": "Obligatoire",
+      "incompleteTitle": "Quitter sans enregistrer ?",
+      "incompleteBody": "Un champ obligatoire est vide : vos dernières modifications ne peuvent pas encore être enregistrées.",
+      "unsavedTitle": "Abandonner les modifications ?",
+      "unsavedBody": "Les modifications de ce snippet n'ont pas été enregistrées.",
+      "keepEditing": "Continuer l'édition",
+      "discard": "Abandonner"
     },
     "snippetsScreen": {
       "newSnippetLabel": "Nouveau snippet"

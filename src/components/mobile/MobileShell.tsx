@@ -223,7 +223,7 @@ export default function MobileShell() {
       <BottomTabBar visible={!immersive && !top} />
       {sheet?.kind === "vault-switcher" && <VaultSwitcherSheet />}
       {sheet?.kind === "sync" && <SyncSheet />}
-      {sheet?.kind === "host-actions" && <HostActionsSheet hostId={sheet.hostId} />}
+      {sheet?.kind === "host-actions" && <HostActionsSheet hostId={sheet.hostId} fromEditor={sheet.fromEditor} />}
       {sheet?.kind === "snippet-target" && (
         <MobileSnippetTargetSheet snippetId={sheet.snippetId} mode={sheet.mode} preselectSessionId={sheet.preselectSessionId} />
       )}

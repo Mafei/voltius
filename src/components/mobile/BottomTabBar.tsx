@@ -6,6 +6,7 @@ import { useSessionStore } from "@/stores/sessionStore";
 import type { MobileTab } from "@/stores/mobileNavCore";
 import { useSlideAway } from "@/hooks/pageTransition";
 import { transition } from "@/lib/motion";
+import { haptic } from "@/lib/haptics";
 
 function getTabs(t: TFunction): { id: MobileTab; label: string; icon: string }[] {
   return [
@@ -59,7 +60,7 @@ export default function BottomTabBar({ visible = true }: { visible?: boolean }) 
             data-mobile-tab={t.id}
             data-active={active || undefined}
             aria-current={active ? "page" : undefined}
-            onClick={() => setTab(t.id)}
+            onClick={() => { if (!active) haptic("tick"); setTab(t.id); }}
             className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1 relative"
             style={{ color: active ? "var(--t-text-bright)" : "var(--t-text-dim)" }}
           >

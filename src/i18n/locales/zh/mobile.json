@@ -267,6 +267,40 @@
       "largeTitle": "分享 {{size}}？",
       "largeBody": "文件会先下载到这部手机，再交给你选择的应用。",
       "tooLong": "文本太长，无法分享"
+    },
+    "vaultSettings": {
+      "title": "保管库设置",
+      "gone": "此设备上已不存在该保管库。",
+      "openFor": "{{name}} 的设置",
+      "nameRequired": "保管库需要一个名称。",
+      "nameReadOnly": "只有保管库管理员可以重命名。",
+      "kindTeam": "团队保管库",
+      "kindPrivate": "私人保管库",
+      "sections": {
+        "general": "常规",
+        "people": "成员与共享",
+        "danger": "危险操作"
+      },
+      "rows": {
+        "name": "名称",
+        "share": "共享和邀请",
+        "members": "成员",
+        "roles": "角色",
+        "security": "安全策略",
+        "makePrivate": "设为私有",
+        "delete": "删除保管库",
+        "leave": "离开保管库"
+      },
+      "summaries": {
+        "share": "邀请他人并管理加入链接",
+        "members_other": "{{count}} 名成员",
+        "roles": "每个角色可以做什么",
+        "security": "成员的锁定和会话规则",
+        "makePrivate": "移除其他所有人并保留私人副本",
+        "delete": "删除保管库及其全部内容",
+        "deleteTeam": "为所有成员删除",
+        "leave": "移除你对此保管库的访问权限"
+      }
     }
   }
 }

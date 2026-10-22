@@ -267,6 +267,41 @@
       "largeTitle": "{{size}} paylaşılsın mı?",
       "largeBody": "Dosyalar önce bu telefona indirilir, ardından seçtiğiniz uygulamaya aktarılır.",
       "tooLong": "Metin olarak paylaşmak için çok uzun"
+    },
+    "vaultSettings": {
+      "title": "Kasa ayarları",
+      "gone": "Bu kasa artık bu cihazda yok.",
+      "openFor": "{{name}} ayarları",
+      "nameRequired": "Kasanın bir adı olmalı.",
+      "nameReadOnly": "Yalnızca kasa yöneticileri yeniden adlandırabilir.",
+      "kindTeam": "Ekip kasası",
+      "kindPrivate": "Özel kasa",
+      "sections": {
+        "general": "Genel",
+        "people": "Kişiler",
+        "danger": "Tehlikeli bölge"
+      },
+      "rows": {
+        "name": "Ad",
+        "share": "Paylaş ve davet et",
+        "members": "Üyeler",
+        "roles": "Roller",
+        "security": "Güvenlik politikası",
+        "makePrivate": "Özel yap",
+        "delete": "Kasayı sil",
+        "leave": "Kasadan ayrıl"
+      },
+      "summaries": {
+        "share": "Kişileri davet edin ve katılma bağlantılarını yönetin",
+        "members_one": "{{count}} üye",
+        "members_other": "{{count}} üye",
+        "roles": "Her rolün neler yapabileceği",
+        "security": "Üyeler için kilit ve oturum kuralları",
+        "makePrivate": "Diğer herkesi çıkarın ve özel bir kopya tutun",
+        "delete": "Kasayı ve içindeki her şeyi siler",
+        "deleteTeam": "Tüm üyeler için siler",
+        "leave": "Bu kasaya erişiminizi kaldırın"
+      }
     }
   }
 }

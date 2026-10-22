@@ -22,6 +22,7 @@ import MobileKnownHostsScreen from "./screens/MobileKnownHostsScreen";
 import MobileLogsScreen from "./screens/MobileLogsScreen";
 import MobileSftpScreen from "./panels/MobileSftpScreen";
 import MobileAccountPage from "./screens/MobileAccountPage";
+import MobileVaultSettingsScreen from "./screens/MobileVaultSettingsScreen";
 import MobilePanelHeader from "./panels/MobilePanelHeader";
 import MobileHeader from "./MobileHeader";
 import TeamVaultStatePanel from "@/components/team/TeamVaultStatePanel";
@@ -158,6 +159,7 @@ export default function MobileShell() {
         {panel && renderMobileScreen(panel.screenKind, panel.props)}
         {screen.kind === "panel-sftp" && <MobileSftpScreen presetConnectionId={screen.connectionId} />}
         {screen.kind === "account" && <MobileAccountPage />}
+        {screen.kind === "vault-settings" && <MobileVaultSettingsScreen vaultId={screen.vaultId} page={screen.page} />}
       </>
     );
   };

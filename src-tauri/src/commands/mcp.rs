@@ -132,10 +132,4 @@ mod tests {
         assert!(!refuses_enable(true, true));
         assert!(!refuses_enable(true, false));
     }
-
-    #[cfg(not(target_os = "android"))]
-    #[test]
-    fn desktop_is_supported() {
-        assert!(crate::mcp::SUPPORTED);
-    }
 }

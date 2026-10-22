@@ -21,6 +21,7 @@ import BottomSheet from "../sheets/BottomSheet";
 import { compareStrings } from "@/utils/localeFormat";
 import { describeError, type BackendErrorCode } from "@/services/backendErrors";
 import { haptic } from "@/lib/haptics";
+import { appToast } from "@/services/appToast";
 
 // Coded errors arrive translated, so only an uncoded one is matched by its English text.
 function isPermissionDenied(msg: string, code: BackendErrorCode | null): boolean {
@@ -61,9 +62,15 @@ export default function MobileSftpPane({
   const [detailFor, setDetailFor] = useState<FileEntry | null>(null);
   const [permissionsFor, setPermissionsFor] = useState<FileEntry[] | null>(null);
 
+  // A failed operation: error snackbar whose Retry runs it again (and reports again if it fails again).
+  const fail = (e: unknown, retry: () => Promise<unknown>) => {
+    appToast("error", describeError(e, t), { action: { label: t("common.action.retry"), onClick: () => void attempt(retry) } });
+  };
+  const attempt = (op: () => Promise<unknown>) => op().catch((e) => fail(e, op));
+
   const downloadSelected = async () => { for (const f of selected) await download(f); };
   const deleteSelected = async () => {
-    for (const f of selected) { try { await remove(f); } catch (e) { alert(describeError(e, t)); } }
+    for (const f of selected) await attempt(() => remove(f));
     setConfirmBatchDelete(false); onClearSelect();
   };
 
@@ -90,7 +97,7 @@ export default function MobileSftpPane({
           if (needsPicker(dir)) return; // user cancelled the folder picker
         }
       } catch (e) {
-        alert(describeError(e, t));
+        fail(e, () => download(f));
         return;
       }
       await runTransfer(f.name, "←", async (tid) => {
@@ -160,7 +167,10 @@ export default function MobileSftpPane({
           <div className="flex flex-col items-center gap-2 pt-10 px-6 text-center text-(--t-text-dim)">
             <Icon icon={isPermissionDenied(listError, listErrorCode) ? "lucide:lock" : "lucide:triangle-alert"} width={26} />
             <span className="text-sm">{isPermissionDenied(listError, listErrorCode) ? t("mobile.sftp.permissionDenied") : listError}</span>
-            <button onClick={goUp} className="text-sm px-4 py-2 rounded-xl" style={{ background: "var(--t-bg-card)", border: "1px solid var(--t-border)" }}>{t("mobile.sftp.goUp")}</button>
+            <div className="flex gap-2">
+              <button data-sftp-list-retry onClick={refresh} className="text-sm px-4 py-2 rounded-xl" style={{ background: "var(--t-bg-card)", border: "1px solid var(--t-border)" }}>{t("common.action.retry")}</button>
+              <button onClick={goUp} className="text-sm px-4 py-2 rounded-xl" style={{ background: "var(--t-bg-card)", border: "1px solid var(--t-border)" }}>{t("mobile.sftp.goUp")}</button>
+            </div>
           </div>
         )}
         {phase.tag === "connected" && !listError && visible.length === 0 && !listing && (
@@ -216,13 +226,13 @@ export default function MobileSftpPane({
             className="w-full rounded-xl px-3 h-11 text-sm outline-none text-(--t-text-primary) mb-2"
             style={{ background: "var(--t-bg-card)", border: "1px solid var(--t-border)" }} />
           <button data-sftp-rename-go className="w-full px-3 py-3 rounded-xl text-sm font-medium" style={{ background: "var(--t-accent)", color: "#fff" }}
-            onClick={async () => { const f = renaming; const v = renameVal.trim(); setRenaming(null); if (v && v !== f.name) try { await rename(f, v); } catch (e) { alert(describeError(e, t)); } }}>{t("common.action.rename")}</button>
+            onClick={async () => { const f = renaming; const v = renameVal.trim(); setRenaming(null); if (v && v !== f.name) await attempt(() => rename(f, v)); }}>{t("common.action.rename")}</button>
         </BottomSheet>
       )}
       {confirmDelete && (
         <BottomSheet title={t("mobile.sftp.deleteConfirmTitle", { name: confirmDelete.name })} onClose={() => setConfirmDelete(null)}>
           <button data-sftp-delete-go className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl" style={{ color: "var(--t-status-error)" }}
-            onClick={async () => { const f = confirmDelete; setConfirmDelete(null); haptic("confirm"); try { await remove(f); } catch (e) { alert(describeError(e, t)); } }}>
+            onClick={async () => { const f = confirmDelete; setConfirmDelete(null); haptic("confirm"); await attempt(() => remove(f)); }}>
             <Icon icon="lucide:trash-2" width={18} /><span className="text-sm font-medium">{t("common.action.delete")}</span>
           </button>
           <button className="w-full px-3 py-3.5 rounded-xl text-sm text-(--t-text-dim)" onClick={() => setConfirmDelete(null)}>{t("common.action.cancel")}</button>
@@ -269,7 +279,7 @@ export default function MobileSftpPane({
             className="w-full rounded-xl px-3 h-11 text-sm outline-none text-(--t-text-primary) mb-2"
             style={{ background: "var(--t-bg-card)", border: "1px solid var(--t-border)" }} />
           <button data-sftp-mkdir-go className="w-full px-3 py-3 rounded-xl text-sm font-medium" style={{ background: "var(--t-accent)", color: "#fff" }}
-            onClick={async () => { const n = newFolderName.trim(); setNewFolder(false); setNewFolderName(""); if (n) try { await mkdir(n); } catch (e) { alert(describeError(e, t)); } }}>{t("common.action.create")}</button>
+            onClick={async () => { const n = newFolderName.trim(); setNewFolder(false); setNewFolderName(""); if (n) await attempt(() => mkdir(n)); }}>{t("common.action.create")}</button>
         </BottomSheet>
       )}
       {newFile && (
@@ -278,7 +288,7 @@ export default function MobileSftpPane({
             className="w-full rounded-xl px-3 h-11 text-sm outline-none text-(--t-text-primary) mb-2"
             style={{ background: "var(--t-bg-card)", border: "1px solid var(--t-border)" }} />
           <button data-sftp-touch-go className="w-full px-3 py-3 rounded-xl text-sm font-medium" style={{ background: "var(--t-accent)", color: "#fff" }}
-            onClick={async () => { const n = newFileName.trim(); setNewFile(false); setNewFileName(""); if (n) try { await touch(n); } catch (e) { alert(describeError(e, t)); } }}>{t("common.action.create")}</button>
+            onClick={async () => { const n = newFileName.trim(); setNewFile(false); setNewFileName(""); if (n) await attempt(() => touch(n)); }}>{t("common.action.create")}</button>
         </BottomSheet>
       )}
     </div>

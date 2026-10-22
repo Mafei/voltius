@@ -20,6 +20,8 @@ export default function MobileSftpScreen({ presetConnectionId, asTab }: { preset
   const runTransfer = useTransferQueueStore((s) => s.runTransfer);
   const transfers = useTransferQueueStore((s) => s.transfers);
   const cancelTransfer = useTransferQueueStore((s) => s.cancelTransfer);
+  const canRetry = useTransferQueueStore((s) => s.canRetry);
+  const retryTransfer = useTransferQueueStore((s) => s.retryTransfer);
   const [dismissed, setDismissed] = useState<string[]>([]);
   const active = transfers.filter(
     (t) => (t.status === "running" || t.status === "error") && !dismissed.includes(t.id),
@@ -81,7 +83,7 @@ export default function MobileSftpScreen({ presetConnectionId, asTab }: { preset
       </div>
 
       {active.length > 0 && (
-        <div className="absolute left-0 right-0 bottom-0 px-3 pb-3 flex flex-col gap-1.5" style={{ paddingBottom: "calc(var(--vt-safe-bottom) + 0.75rem)" }}>
+        <div data-snackbar-anchor className="absolute left-0 right-0 bottom-0 px-3 pb-3 flex flex-col gap-1.5" style={{ paddingBottom: "calc(var(--vt-safe-bottom) + 0.75rem)" }}>
           {active.map((tr) => {
             const pct = tr.total > 0 ? Math.round((tr.transferred / tr.total) * 100) : 0;
             const failed = tr.status === "error";
@@ -103,6 +105,10 @@ export default function MobileSftpScreen({ presetConnectionId, asTab }: { preset
                   )}
                 </span>
                 {!failed && <span className="text-[11px] text-(--t-text-dim) tabular-nums shrink-0">{pct}%</span>}
+                {failed && canRetry(tr.id) && (
+                  <button data-sftp-transfer-retry={tr.id} onClick={() => { setDismissed((d) => [...d, tr.id]); retryTransfer(tr.id); }}
+                    className="px-2 py-1 text-xs font-semibold shrink-0" style={{ color: "var(--t-accent)" }}>{t("common.action.retry")}</button>
+                )}
                 <button data-sftp-transfer-cancel={tr.id} aria-label={failed ? t("common.action.dismiss") : t("common.action.cancel")}
                   onClick={() => (failed ? setDismissed((d) => [...d, tr.id]) : cancelTransfer(tr.id))}
                   className="p-1 text-(--t-text-dim) shrink-0"><Icon icon="lucide:x" width={14} /></button>

@@ -258,6 +258,9 @@
         "newVault": "Nouveau coffre",
         "namePlaceholder": "Nom du coffre"
       }
+    },
+    "shortcuts": {
+      "hostGone": "Cet hôte n'existe plus. Son raccourci a été supprimé."
     }
   }
 }

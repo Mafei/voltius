@@ -10,4 +10,5 @@
         <item quantity="one">%d SSH oturumu bağlı</item>
         <item quantity="other">%d SSH oturumu bağlı</item>
     </plurals>
+    <string name="shortcut_host_removed">Bu sunucu silindi</string>
 </resources>

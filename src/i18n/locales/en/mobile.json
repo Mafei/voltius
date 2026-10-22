@@ -255,6 +255,9 @@
         "newVault": "New vault",
         "namePlaceholder": "Vault name"
       }
+    },
+    "shortcuts": {
+      "hostGone": "That host no longer exists. Its shortcut was removed."
     }
   }
 }

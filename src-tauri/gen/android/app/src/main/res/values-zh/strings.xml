@@ -8,4 +8,5 @@
     <plurals name="session_notification_title">
         <item quantity="other">已连接 %d 个 SSH 会话</item>
     </plurals>
+    <string name="shortcut_host_removed">该主机已删除</string>
 </resources>

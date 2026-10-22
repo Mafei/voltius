@@ -14,4 +14,5 @@
         <item quantity="many">Připojeno %d relace SSH</item>
         <item quantity="other">Připojeno %d relací SSH</item>
     </plurals>
+    <string name="shortcut_host_removed">Tento hostitel byl smazán</string>
 </resources>

@@ -20,7 +20,7 @@ class MainActivity : TauriActivity() {
   private lateinit var dirPicker: ActivityResultLauncher<Uri?>
 
   override fun onCreate(savedInstanceState: Bundle?) {
-    intent?.let(::withLinkType)
+    intent?.let { withLinkType(LauncherShortcuts.gate(it)) }
     // Before super.onCreate: swaps Theme.voltius.Starting for Theme.voltius once released.
     SplashGate.install(this)
     enableEdgeToEdge()
@@ -75,6 +75,7 @@ class MainActivity : TauriActivity() {
     NativeFeel.install(this, webView)
     SystemColors.install(this, webView)
     Haptics.install(webView)
+    LauncherShortcuts.install(this, webView)
   }
 
   override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
@@ -86,7 +87,7 @@ class MainActivity : TauriActivity() {
     TerminalKeyboard.onVolumeKey(event) || super.dispatchKeyEvent(event)
 
   override fun onNewIntent(intent: Intent) {
-    super.onNewIntent(withLinkType(intent))
+    super.onNewIntent(withLinkType(LauncherShortcuts.gate(intent)))
   }
 
   // Root Back of a task the launcher icon didn't start (deep link, notification tap, `am start`)

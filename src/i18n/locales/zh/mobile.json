@@ -255,6 +255,9 @@
         "newVault": "新建保险库",
         "namePlaceholder": "保险库名称"
       }
+    },
+    "shortcuts": {
+      "hostGone": "该主机已不存在，其快捷方式已移除。"
     }
   }
 }

@@ -261,6 +261,9 @@
         "newVault": "Nový trezor",
         "namePlaceholder": "Název trezoru"
       }
+    },
+    "shortcuts": {
+      "hostGone": "Tento hostitel už neexistuje. Jeho zkratka byla odebrána."
     }
   }
 }

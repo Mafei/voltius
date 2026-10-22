@@ -255,6 +255,9 @@
         "newVault": "Yeni kasa",
         "namePlaceholder": "Kasa adı"
       }
+    },
+    "shortcuts": {
+      "hostGone": "Bu sunucu artık yok. Kısayolu kaldırıldı."
     }
   }
 }

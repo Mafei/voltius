@@ -14,4 +14,5 @@
         <item quantity="many">%d SSH-сессий подключено</item>
         <item quantity="other">%d SSH-сессии подключено</item>
     </plurals>
+    <string name="shortcut_host_removed">Этот хост удалён</string>
 </resources>

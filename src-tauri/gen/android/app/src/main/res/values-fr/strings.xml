@@ -12,4 +12,5 @@
         <item quantity="many">%d sessions SSH connectées</item>
         <item quantity="other">%d sessions SSH connectées</item>
     </plurals>
+    <string name="shortcut_host_removed">Cet hôte a été supprimé</string>
 </resources>

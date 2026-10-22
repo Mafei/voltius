@@ -56,6 +56,7 @@ import { openPortForwardingPage } from "@/services/portForwardingNav";
 import { useBlockedTeamVault } from "@/hooks/useBlockedTeamVault";
 import { refitSession } from "@/hooks/useTerminal";
 import { installRipples } from "@/lib/ripple";
+import { useLauncherShortcuts } from "./useLauncherShortcuts";
 
 export default function MobileShell() {
   const { t } = useTranslation();
@@ -65,6 +66,7 @@ export default function MobileShell() {
   // Touch feedback on every row / button / key, delegated from the document (Android only).
   useEffect(() => (document.documentElement.hasAttribute("data-android") ? installRipples() : undefined), []);
   usePfToastBridge(openPortForwardingPage);
+  useLauncherShortcuts();
   const navTab = useMobileNavStore((s) => s.tab);
   const stack = useMobileNavStore((s) => s.stack);
   const sheet = useMobileNavStore((s) => s.sheet);

@@ -60,6 +60,15 @@
             <!-- DEEP LINK PLUGIN. AUTO-GENERATED. DO NOT REMOVE. -->
         </activity>
 
+        <!-- Launcher shortcut hop (LauncherShortcuts.kt): not exported, own empty task, invisible. -->
+        <activity
+            android:name=".ShortcutTrampoline"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <!-- dataSync would be stopped after 6 h a day on Android 15; sessions and tunnels have no natural end. -->
         <service
           android:name=".VoltiusTunnelService"

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import BottomTabBar from "./BottomTabBar";
 import VaultSwitcherSheet from "./sheets/VaultSwitcherSheet";
 import SyncSheet from "./sheets/SyncSheet";
+import NotificationsSheet from "./sheets/NotificationsSheet";
 import MobileHostsScreen from "./screens/MobileHostsScreen";
 import MobileHostEditScreen from "./screens/MobileHostEditScreen";
 import MobileSnippetsScreen from "./screens/MobileSnippetsScreen";
@@ -88,6 +89,7 @@ export default function MobileShell() {
   const hasSessions = useSessionStore((s) => s.sessions.length > 0);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const panelsRowOpen = useUIStore((s) => s.terminalPanelsRowOpen);
+  const notificationsOpen = useUIStore((s) => s.notificationCenterOpen);
   const mobileScreens = usePluginStore((s) => s.mobileScreens);
   const pop = useMobileNavStore((s) => s.pop);
 
@@ -229,6 +231,8 @@ export default function MobileShell() {
       )}
       {sheet?.kind === "snippet-actions" && <MobileSnippetActionsSheet snippetId={sheet.snippetId} />}
       {sheet?.kind === "snippets" && <MobileSnippetsSheet sessionId={sheet.sessionId} />}
+      {/* The bells only toggle this; one sheet, whichever tab (or deep link) opened it. */}
+      {notificationsOpen && <NotificationsSheet />}
     </div>
   );
 }

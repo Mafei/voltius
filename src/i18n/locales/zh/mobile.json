@@ -167,6 +167,9 @@
       "home": "首页"
     },
     "sheets": {
+      "newSession": {
+        "noHosts": "没有主机"
+      },
       "shared": {
         "moveToVault": "移动到保险库",
         "copyToVault": "复制到保险库",

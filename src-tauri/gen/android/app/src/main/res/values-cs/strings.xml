@@ -15,4 +15,11 @@
         <item quantity="other">Připojeno %d relací SSH</item>
     </plurals>
     <string name="shortcut_host_removed">Tento hostitel byl smazán</string>
+    <string name="tunnel_action_stop">Zastavit tunely</string>
+    <plurals name="tunnel_notification_more">
+        <item quantity="one">+%d další</item>
+        <item quantity="few">+%d další</item>
+        <item quantity="many">+%d dalšího</item>
+        <item quantity="other">+%d dalších</item>
+    </plurals>
 </resources>

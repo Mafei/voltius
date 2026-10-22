@@ -13,4 +13,9 @@
         <item quantity="other">%d sessions SSH connectées</item>
     </plurals>
     <string name="shortcut_host_removed">Cet hôte a été supprimé</string>
+    <string name="tunnel_action_stop">Arrêter les tunnels</string>
+    <plurals name="tunnel_notification_more">
+        <item quantity="one">+%d autre</item>
+        <item quantity="other">+%d autres</item>
+    </plurals>
 </resources>

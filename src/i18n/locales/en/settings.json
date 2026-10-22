@@ -75,6 +75,7 @@
       "editTheme": "Edit theme",
       "deleteTheme": "Delete theme",
       "newCustomTheme": "New Custom Theme",
+      "dynamicThemeHint": "From your wallpaper",
       "uiScale": {
         "clickHintMobile": "Tap to enter a value",
         "title": "UI Scale",

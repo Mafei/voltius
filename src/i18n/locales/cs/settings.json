@@ -75,6 +75,7 @@
       "editTheme": "Upravit motiv",
       "deleteTheme": "Smazat motiv",
       "newCustomTheme": "Nový vlastní motiv",
+      "dynamicThemeHint": "Z barev tapety",
       "uiScale": {
         "clickHintMobile": "Klepnutím zadejte hodnotu",
         "title": "Měřítko rozhraní",

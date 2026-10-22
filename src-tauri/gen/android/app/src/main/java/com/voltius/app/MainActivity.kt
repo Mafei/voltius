@@ -73,6 +73,7 @@ class MainActivity : TauriActivity() {
     SystemInsets.install(webView)
     NativeBack.install(this, webView)
     NativeFeel.install(this, webView)
+    SystemColors.install(this, webView)
     Haptics.install(webView)
   }
 

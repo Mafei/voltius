@@ -75,6 +75,7 @@
       "editTheme": "Modifier le thème",
       "deleteTheme": "Supprimer le thème",
       "newCustomTheme": "Nouveau thème personnalisé",
+      "dynamicThemeHint": "Couleurs du fond d'écran",
       "uiScale": {
         "clickHintMobile": "Touchez pour saisir une valeur",
         "title": "Échelle de l'interface",

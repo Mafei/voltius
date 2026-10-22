@@ -5,6 +5,7 @@ import type { AppTheme } from "@/themes/types";
 import { terminalFontStack, withFlagEmojiFallback } from "@/utils/fontStack";
 import { appearanceFromColor, luminanceFromHex, prefersDarkForeground } from "@/utils/appearance";
 import { syncSystemBars } from "@/services/androidSystemBars";
+import { useSystemColorsStore } from "@/services/androidSystemColors";
 
 export function applyThemeToDom(theme: AppTheme) {
   const root = document.documentElement;
@@ -80,8 +81,11 @@ export function useApplyTheme() {
   // Folded into the active theme by getActiveTheme, so it has to re-run the
   // DOM apply — and with it the theme-preview event live terminals listen on.
   const terminalFontSize = useUIStore((s) => s.terminalFontSize);
+  // Android: Material You re-derives from these (wallpaper palette, phone light/dark).
+  const systemPalette = useSystemColorsStore((s) => s.palette);
+  const systemDark = useSystemColorsStore((s) => s.dark);
 
   useEffect(() => {
     applyThemeToDom(getActiveTheme());
-  }, [activeThemeId, customThemes, mode, lightThemeId, darkThemeId, resolvedPhase, terminalFontSize, getActiveTheme]);
+  }, [activeThemeId, customThemes, mode, lightThemeId, darkThemeId, resolvedPhase, terminalFontSize, systemPalette, systemDark, getActiveTheme]);
 }

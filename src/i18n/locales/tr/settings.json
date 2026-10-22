@@ -75,6 +75,7 @@
       "editTheme": "Temayı düzenle",
       "deleteTheme": "Temayı sil",
       "newCustomTheme": "Yeni Özel Tema",
+      "dynamicThemeHint": "Duvar kağıdınızdan",
       "uiScale": {
         "clickHintMobile": "Değer girmek için dokunun",
         "title": "Arayüz Ölçeği",

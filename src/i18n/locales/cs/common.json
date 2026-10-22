@@ -1,6 +1,7 @@
 {
   "common": {
     "action": {
+      "retry": "Zkusit znovu",
       "dismiss": "Zavřít",
       "cancel": "Zrušit",
       "save": "Uložit",

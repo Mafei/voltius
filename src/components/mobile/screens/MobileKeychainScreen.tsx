@@ -88,7 +88,7 @@ export default function MobileKeychainScreen() {
       <MobilePanelHeader
         title={t("mobile.morePages.keychain")}
         right={canCreateKey || canCreateIdentity || canCreateFolder ? (
-          <button data-keychain-add onClick={() => setAddMenuOpen(true)} className="p-2 text-(--t-text-primary)">
+          <button data-keychain-add onClick={() => setAddMenuOpen(true)} className="vt-icon-btn text-(--t-text-primary)">
             <Icon icon="lucide:plus" width={20} />
           </button>
         ) : undefined}

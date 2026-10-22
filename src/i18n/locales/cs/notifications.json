@@ -3,7 +3,10 @@
     "bell": {
       "title": "Oznámení",
       "clearHistory": "Vymazat historii",
-      "noNotifications": "Žádná oznámení"
+      "noNotifications": "Žádná oznámení",
+      "emptyHint": "Máte vše přečteno",
+      "newSection": "Nové",
+      "earlierSection": "Dříve"
     },
     "emailVerification": {
       "banner": {

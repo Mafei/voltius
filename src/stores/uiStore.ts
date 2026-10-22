@@ -208,6 +208,9 @@ interface UIStore {
   toggleTerminalPanelsRow: () => void;
   hostPanelPinned: boolean;
   setHostPanelPinned: (pinned: boolean) => void;
+  /** Mobile SFTP shows two panes (else one). Device-local, like terminalPanelsRowOpen. */
+  mobileSftpTwoPanes: boolean;
+  toggleMobileSftpTwoPanes: () => void;
 }
 
 export const useUIStore = create<UIStore>()(
@@ -263,6 +266,7 @@ export const useUIStore = create<UIStore>()(
         imagePasteNoticeSeen: false,
         terminalPanelsRowOpen: false,
         hostPanelPinned: false,
+        mobileSftpTwoPanes: false,
         prefsUpdatedAt: new Date(0).toISOString(),
         keychainPendingAction: null as KeychainPendingAction,
         importExportModal: { open: false, mode: "export" as const, section: "vaults" as ImportExportSection },
@@ -337,6 +341,7 @@ export const useUIStore = create<UIStore>()(
         markImagePasteNoticeSeen: () => set({ imagePasteNoticeSeen: true }),
         toggleTerminalPanelsRow: () => set((s) => ({ terminalPanelsRowOpen: !s.terminalPanelsRowOpen })),
         setHostPanelPinned: (pinned) => set({ hostPanelPinned: pinned }),
+        toggleMobileSftpTwoPanes: () => set((s) => ({ mobileSftpTwoPanes: !s.mobileSftpTwoPanes })),
       };
     },
     {
@@ -375,6 +380,7 @@ export const useUIStore = create<UIStore>()(
         imagePasteNoticeSeen: state.imagePasteNoticeSeen,
         terminalPanelsRowOpen: state.terminalPanelsRowOpen,
         hostPanelPinned: state.hostPanelPinned,
+        mobileSftpTwoPanes: state.mobileSftpTwoPanes,
       }),
     },
   ),

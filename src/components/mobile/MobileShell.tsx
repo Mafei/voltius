@@ -191,7 +191,7 @@ export default function MobileShell() {
           {/* Always-mounted SFTP tab; visibility toggled so connections + cwd survive tab switches.
               MobileSftpScreen's own root is absolute inset-0 z-30 — it stacks above the overlay above. */}
           <div className={sftpVisible ? "contents" : "invisible pointer-events-none"}>
-            <MobileSftpScreen asTab />
+            <MobileSftpScreen asTab visible={sftpVisible} />
           </div>
         </div>
         {/* Extra-keys row: always present while the terminal is foreground with a session — usable

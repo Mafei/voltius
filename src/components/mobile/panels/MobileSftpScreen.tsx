@@ -1,20 +1,29 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@iconify/react";
 import { useTranslation } from "react-i18next";
 import { useAllConnections } from "@/hooks/useAllConnections";
 import { useSftpDir } from "@/services/useSftpDir";
 import { buildTransferTargets } from "@/services/sftpTransferCore";
 import { sftpTransfer, sftpTransferDir } from "@/services/sftp";
+import { isSshConnection } from "@/services/credentialScope";
 import { useTransferQueueStore } from "@/stores/transferQueueStore";
+import { useSessionStore } from "@/stores/sessionStore";
+import { useUIStore } from "@/stores/uiStore";
 import { formatTransferProgress, type FileEntry } from "@/components/filetransfer/SFTPTypes";
 import MobilePanelHeader from "./MobilePanelHeader";
 import MobileSftpPane from "./MobileSftpPane";
 import SftpHostPickerSheet from "../sheets/SftpHostPickerSheet";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { NO_SELECTION, paneItems, setPaneSelection, type SftpPaneId, type SftpSelection } from "./sftpSelectionCore";
 
-type PaneId = "a" | "b";
-
-export default function MobileSftpScreen({ presetConnectionId, asTab }: { presetConnectionId?: string; asTab?: boolean }) {
+/**
+ * Mobile SFTP: one remote pane by default; the top-bar toggle (remembered) adds the second
+ * pane and the copy bar between them. Long-press a row for selection mode: its contextual
+ * bar replaces the top bar (the owning pane portals it into the header slot).
+ * `visible` = this screen is on screen (the SFTP tab stays mounted while hidden); it gates
+ * the panes' Back handlers.
+ */
+export default function MobileSftpScreen({ presetConnectionId, asTab, visible = true }: { presetConnectionId?: string; asTab?: boolean; visible?: boolean }) {
   const { t } = useTranslation();
   const connections = useAllConnections();
   const runTransfer = useTransferQueueStore((s) => s.runTransfer);
@@ -22,6 +31,8 @@ export default function MobileSftpScreen({ presetConnectionId, asTab }: { preset
   const cancelTransfer = useTransferQueueStore((s) => s.cancelTransfer);
   const canRetry = useTransferQueueStore((s) => s.canRetry);
   const retryTransfer = useTransferQueueStore((s) => s.retryTransfer);
+  const twoPanes = useUIStore((s) => s.mobileSftpTwoPanes);
+  const toggleTwoPanes = useUIStore((s) => s.toggleMobileSftpTwoPanes);
   const [dismissed, setDismissed] = useState<string[]>([]);
   const active = transfers.filter(
     (t) => (t.status === "running" || t.status === "error") && !dismissed.includes(t.id),
@@ -29,21 +40,33 @@ export default function MobileSftpScreen({ presetConnectionId, asTab }: { preset
 
   const [connAId, setConnAId] = useState<string | undefined>(presetConnectionId);
   const [connBId, setConnBId] = useState<string | undefined>(undefined);
-  const [selA, setSelA] = useState<FileEntry[]>([]);
-  const [selB, setSelB] = useState<FileEntry[]>([]);
-  const [picking, setPicking] = useState<PaneId | null>(null);
+  const [sel, setSel] = useState<SftpSelection>(NO_SELECTION);
+  const [picking, setPicking] = useState<SftpPaneId | null>(null);
+  // The pane Back navigates up in: the one last touched (always "a" with one pane).
+  const [focused, setFocused] = useState<SftpPaneId>("a");
+  const [headerSlot, setHeaderSlot] = useState<HTMLDivElement | null>(null);
+  const backPane: SftpPaneId = twoPanes ? focused : "a";
 
   const connA = useMemo(() => connections.find((c) => c.id === connAId), [connections, connAId]);
   const connB = useMemo(() => connections.find((c) => c.id === connBId), [connections, connBId]);
   const ctrlA = useSftpDir(connA);
   const ctrlB = useSftpDir(connB);
 
-  const toggle = (paneId: PaneId, f: FileEntry) => {
-    const setSel = paneId === "a" ? setSelA : setSelB;
-    setSel((prev) => (prev.some((x) => x.path === f.path) ? prev.filter((x) => x.path !== f.path) : [...prev, f]));
-  };
+  // The SFTP tab opens on the current terminal session's host when nothing is picked yet.
+  const activeConnId = useSessionStore((s) => s.sessions.find((x) => x.id === s.activeSessionId)?.connectionId);
+  useEffect(() => {
+    if (!asTab || !visible || connAId || !activeConnId) return;
+    const c = connections.find((x) => x.id === activeConnId);
+    if (c && isSshConnection(c)) setConnAId(c.id);
+  }, [asTab, visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const copy = async (from: PaneId, items: FileEntry[]) => {
+  // Back to one pane: pane b's selection goes with it.
+  useEffect(() => { if (!twoPanes) setSel((s) => (s.pane === "b" ? NO_SELECTION : s)); }, [twoPanes]);
+
+  const selA = paneItems(sel, "a");
+  const selB = paneItems(sel, "b");
+
+  const copy = async (from: SftpPaneId, items: FileEntry[]) => {
     const src = from === "a" ? ctrlA : ctrlB;
     const dst = from === "a" ? ctrlB : ctrlA;
     if (!src.sftpId || !dst.sftpId || items.length === 0) return;
@@ -55,31 +78,55 @@ export default function MobileSftpScreen({ presetConnectionId, asTab }: { preset
         : sftpTransfer({ srcSftpId: src.sftpId!, srcPath: t.srcPath, dstSftpId: dst.sftpId!, dstPath: t.dstPath, transferId: tid })),
         () => { ok++; }); // onDone fires only on success — keep selection if all failed
     }
-    if (ok > 0) (from === "a" ? setSelA : setSelB)([]);
+    if (ok > 0) setSel((s) => (s.pane === from ? NO_SELECTION : s));
     dst.refresh();
   };
 
+  const pane = (id: SftpPaneId) => {
+    const [ctrl, conn, other] = id === "a" ? [ctrlA, connA, ctrlB] : [ctrlB, connB, ctrlA];
+    return (
+      <div className="flex-1 min-h-0 flex flex-col" data-sftp-pane={id} onPointerDown={() => setFocused(id)}>
+        <MobileSftpPane controller={ctrl} connection={conn} selected={paneItems(sel, id)}
+          onSelectionChange={(items) => setSel(setPaneSelection(id, items))} onPickHost={() => setPicking(id)}
+          onCopyToOther={(items) => void copy(id, items)} otherConnected={twoPanes && other.sftpId != null}
+          headerSlot={headerSlot} onScreen={visible} backUp={visible && backPane === id && sel.pane == null} />
+      </div>
+    );
+  };
+
+  const paneToggleLabel = twoPanes ? t("mobile.sftp.onePane") : t("mobile.sftp.twoPanes");
+
   return (
-    <div className="absolute inset-0 z-30 flex flex-col bg-(--t-bg-base)">
-      <MobilePanelHeader title={t("mobile.tabBar.sftp")} hideBack={asTab} right={<NotificationBell />} />
+    <div className="absolute inset-0 z-30 flex flex-col bg-(--t-bg-base)" data-mobile-sftp={twoPanes ? "two" : "one"}>
+      {/* Selection mode: the owning pane portals its contextual bar here, in place of the top bar. */}
+      <div ref={setHeaderSlot} className="contents" data-sftp-header-slot />
+      {sel.pane == null && (
+        <MobilePanelHeader title={t("mobile.tabBar.sftp")} hideBack={asTab} right={(
+          <span className="flex items-center">
+            <button data-sftp-two-panes={twoPanes ? "on" : "off"} aria-pressed={twoPanes} onClick={toggleTwoPanes}
+              aria-label={paneToggleLabel} title={paneToggleLabel}
+              className="w-12 h-12 flex items-center justify-center rounded-full"
+              style={twoPanes
+                ? { color: "var(--t-accent)", background: "color-mix(in srgb, var(--t-accent) 16%, transparent)" }
+                : { color: "var(--t-text-dim)" }}>
+              <Icon icon="lucide:rows-2" width={20} />
+            </button>
+            <NotificationBell />
+          </span>
+        )} />
+      )}
       <div className="flex-1 min-h-0 flex flex-col">
-        <div className="flex-1 min-h-0 flex flex-col">
-          <MobileSftpPane controller={ctrlA} connection={connA} selected={selA}
-            onToggleSelect={(f) => toggle("a", f)} onPickHost={() => setPicking("a")}
-            onCopyToOther={(f) => void copy("a", [f])} otherConnected={ctrlB.sftpId != null}
-            onClearSelect={() => setSelA([])} />
-        </div>
-        {/* Middle transfer bar: ↓ copies top→bottom, ↑ copies bottom→top; disabled when N/A */}
-        <div className="shrink-0 flex items-center justify-center gap-3 px-3 py-1.5 border-y" style={{ borderColor: "var(--t-border)", background: "var(--t-bg-chrome)" }}>
-          <TransferArrow dir="down" count={selA.length} enabled={selA.length > 0 && ctrlB.sftpId != null} onTap={() => void copy("a", selA)} />
-          <TransferArrow dir="up" count={selB.length} enabled={selB.length > 0 && ctrlA.sftpId != null} onTap={() => void copy("b", selB)} />
-        </div>
-        <div className="flex-1 min-h-0 flex flex-col">
-          <MobileSftpPane controller={ctrlB} connection={connB} selected={selB}
-            onToggleSelect={(f) => toggle("b", f)} onPickHost={() => setPicking("b")}
-            onCopyToOther={(f) => void copy("b", [f])} otherConnected={ctrlA.sftpId != null}
-            onClearSelect={() => setSelB([])} />
-        </div>
+        {pane("a")}
+        {twoPanes && (
+          <>
+            {/* Middle transfer bar: ↓ copies top→bottom, ↑ copies bottom→top; disabled when N/A */}
+            <div className="shrink-0 flex items-center justify-center gap-3 px-3 py-1.5 border-y" style={{ borderColor: "var(--t-border)", background: "var(--t-bg-chrome)" }}>
+              <TransferArrow dir="down" count={selA.length} enabled={selA.length > 0 && ctrlB.sftpId != null} onTap={() => void copy("a", selA)} />
+              <TransferArrow dir="up" count={selB.length} enabled={selB.length > 0 && ctrlA.sftpId != null} onTap={() => void copy("b", selB)} />
+            </div>
+            {pane("b")}
+          </>
+        )}
       </div>
 
       {active.length > 0 && (
@@ -122,7 +169,11 @@ export default function MobileSftpScreen({ presetConnectionId, asTab }: { preset
         <SftpHostPickerSheet
           excludeId={picking === "a" ? connBId : connAId}
           onClose={() => setPicking(null)}
-          onPick={(id) => { if (picking === "a") { setConnAId(id); setSelA([]); } else { setConnBId(id); setSelB([]); } setPicking(null); }}
+          onPick={(id) => {
+            if (picking === "a") setConnAId(id); else setConnBId(id);
+            setSel((s) => (s.pane === picking ? NO_SELECTION : s));
+            setPicking(null);
+          }}
         />
       )}
     </div>

@@ -161,7 +161,12 @@
       "batchDeleteTitle_other": "Delete {{count}} items?",
       "newFileOption": "New file",
       "folderNamePlaceholder": "Folder name",
-      "fileNamePlaceholder": "File name"
+      "fileNamePlaceholder": "File name",
+      "selectAll": "Select all",
+      "onePane": "One pane",
+      "twoPanes": "Two panes",
+      "moreActions": "More actions",
+      "itemActions": "Actions for {{name}}"
     },
     "folders": {
       "home": "Home"

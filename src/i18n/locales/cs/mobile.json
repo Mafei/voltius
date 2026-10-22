@@ -163,7 +163,12 @@
       "batchDeleteTitle_other": "Smazat {{count}} položek?",
       "newFileOption": "Nový soubor",
       "folderNamePlaceholder": "Název složky",
-      "fileNamePlaceholder": "Název souboru"
+      "fileNamePlaceholder": "Název souboru",
+      "selectAll": "Vybrat vše",
+      "onePane": "Jeden panel",
+      "twoPanes": "Dva panely",
+      "moreActions": "Další akce",
+      "itemActions": "Akce pro {{name}}"
     },
     "folders": {
       "home": "Domů"

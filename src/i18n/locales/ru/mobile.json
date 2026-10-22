@@ -163,7 +163,12 @@
       "batchDeleteTitle_other": "Удалить {{count}} элементов?",
       "newFileOption": "Новый файл",
       "folderNamePlaceholder": "Название папки",
-      "fileNamePlaceholder": "Название файла"
+      "fileNamePlaceholder": "Название файла",
+      "selectAll": "Выбрать все",
+      "onePane": "Одна панель",
+      "twoPanes": "Две панели",
+      "moreActions": "Другие действия",
+      "itemActions": "Действия для {{name}}"
     },
     "folders": {
       "home": "Домой"

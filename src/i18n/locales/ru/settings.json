@@ -75,6 +75,7 @@
       "editTheme": "Изменить тему",
       "deleteTheme": "Удалить тему",
       "newCustomTheme": "Новая пользовательская тема",
+      "dynamicThemeHint": "Из цветов обоев",
       "uiScale": {
         "clickHintMobile": "Нажмите, чтобы ввести значение",
         "title": "Масштаб интерфейса",

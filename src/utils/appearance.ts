@@ -48,3 +48,11 @@ export function appearanceFromColor(color: string): Appearance {
   if (!rgb) return "dark";
   return relativeLuminance(rgb[0], rgb[1], rgb[2]) >= 0.5 ? "light" : "dark";
 }
+
+/** WCAG contrast ratio (1..21) between two hex colours; null when either can't be parsed. */
+export function contrastRatio(a: string, b: string): number | null {
+  const la = luminanceFromHex(a);
+  const lb = luminanceFromHex(b);
+  if (la === null || lb === null) return null;
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}

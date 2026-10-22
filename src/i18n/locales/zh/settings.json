@@ -73,6 +73,7 @@
       "editTheme": "编辑主题",
       "deleteTheme": "删除主题",
       "newCustomTheme": "新建自定义主题",
+      "dynamicThemeHint": "取自壁纸",
       "uiScale": {
         "clickHintMobile": "轻触以输入数值",
         "title": "UI 缩放",

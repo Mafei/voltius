@@ -20,6 +20,8 @@ import { useIsAndroid } from "@/utils/platform";
 import { MOBILE_HIDDEN_TOGGLES } from "@/components/settings/settingsMobileCore";
 import BottomSheet from "@/components/mobile/sheets/BottomSheet";
 import { SheetActionRow } from "@/components/mobile/sheets/SheetActionRow";
+import { useSystemColorsStore } from "@/services/androidSystemColors";
+import { DYNAMIC_THEME_ID } from "@/themes/dynamic";
 
 function exportTheme(theme: AppTheme) {
   void saveTextFile(
@@ -57,7 +59,12 @@ export default function AppearanceSection() {
   const [themeMenu, setThemeMenu] = useState<AppTheme | null>(null);
 
   const pluginThemes: AppTheme[] = [...pluginThemeMap.values()].map((theme) => ({ ...theme, builtIn: true }));
-  const allThemes = [...BUILT_IN_THEMES, ...customThemes, ...pluginThemes];
+  // Android 12+: Material You (wallpaper colours) leads the list; re-derived when the palette
+  // or the phone's light/dark mode changes. Never listed where there is no palette.
+  const systemPalette = useSystemColorsStore((s) => s.palette);
+  useSystemColorsStore((s) => s.dark);
+  const dynamicTheme = isAndroid && systemPalette ? useThemeStore.getState().getDynamicTheme() : null;
+  const allThemes = [...(dynamicTheme ? [dynamicTheme] : []), ...BUILT_IN_THEMES, ...customThemes, ...pluginThemes];
 
   const handleDelete = (id: string) => {
     deleteCustomTheme(id);
@@ -234,6 +241,7 @@ export default function AppearanceSection() {
             return (
               <button
                 key={theme.id}
+                data-theme-card={theme.id}
                 onClick={() => setTheme(theme.id)}
                 className="group relative flex flex-col gap-2.5 p-3 rounded-xl text-left transition-all"
                 style={{
@@ -256,6 +264,11 @@ export default function AppearanceSection() {
                 <span className="text-xs font-medium leading-tight" style={{ color: isActive ? "var(--t-text-bright)" : "var(--t-text-primary)" }}>
                   {theme.name}
                 </span>
+                {theme.id === DYNAMIC_THEME_ID && (
+                  <span data-theme-dynamic className="-mt-2 text-[11px] leading-tight text-(--t-text-dim)">
+                    {t("settings.appearance.dynamicThemeHint")}
+                  </span>
+                )}
                 {!theme.builtIn && isAndroid && (
                   <span
                     role="button"

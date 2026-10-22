@@ -92,11 +92,52 @@ export const BACK_PREVIEW = {
   commit: { duration: "short2", easing: "emphasizedAccelerate" },
 } as const satisfies Record<string, number | { duration: DurationToken; easing: EasingToken }>;
 
-/** Bottom sheet: decelerate in (also the settle after a short drag), accelerate out. */
+/** Bottom sheet: decelerate in, accelerate out; the drag gesture (components/mobile/sheets/sheetDrag.ts). */
 export const SHEET_MOTION = {
   enter: { duration: "medium2", easing: "emphasizedDecelerate" },
   exit: { duration: "short4", easing: "emphasizedAccelerate" },
-} as const satisfies Record<string, { duration: DurationToken; easing: EasingToken }>;
+  /** Release past this fraction of the sheet height dismisses it. */
+  dismissFraction: 0.4,
+  /** A downward fling faster than this (px/ms) dismisses it at any offset; upward keeps it. */
+  flingVelocity: 0.5,
+  /** Release velocity = movement over this window before the finger lifted. */
+  velocityWindowMs: 100,
+  /** Movement before a touch becomes a sheet drag (B5 TOUCH_SLOP_PX). */
+  slopPx: 8,
+  /** Upward drags rubber-band toward this many px. */
+  rubberBandPx: 48,
+  /** Spring back to rest (critically damped), rad/ms: ~300 ms to settle. */
+  settleOmega: 0.026,
+  /** A dismiss that continues from the release velocity takes between these many ms. */
+  flingMinMs: 90,
+  flingMaxMs: 250,
+} as const;
+
+/**
+ * Critically damped spring (no overshoot) from `from` to `to`, starting at `velocity`
+ * (units/ms, same sign convention as the values): `x(t) = to + (d + (v + ω·d)·t)·e^(−ωt)`.
+ * Returns `samples` positions evenly spread over `duration` ms (until within `epsilon`
+ * of the target), the last one exactly `to`. Feed it to WAAPI with linear easing.
+ */
+export function springSamples(
+  from: number,
+  to: number,
+  velocity: number,
+  omega: number,
+  epsilon = 0.5,
+  samples = 30,
+): { duration: number; values: number[] } {
+  const d = from - to;
+  const x = (t: number) => (d + (velocity + omega * d) * t) * Math.exp(-omega * t);
+  // Settled = displacement within epsilon from here on; step forward until it holds for good.
+  let t = 0;
+  const step = 1 / omega / 4;
+  while (t < 20 / omega && (Math.abs(x(t)) > epsilon || Math.abs(x(t + step)) > epsilon)) t += step;
+  const duration = Math.round(t);
+  if (duration <= 0 || d === 0 && velocity === 0) return { duration: 0, values: [to] };
+  const values = Array.from({ length: samples + 1 }, (_, i) => (i === samples ? to : to + x((duration * i) / samples)));
+  return { duration, values };
+}
 
 /** Page push / pop (M3 shared axis X, see hooks/pageTransition.ts). */
 export const PAGE_MOTION = {

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.62.0] - 2026-10-22
+
+### Added
+
+- Sessions running on your other devices now appear on Android as the same cards as on desktop, with the device, how long ago it was active, and the working directory. Long-press a card to join the session or kill it. Killing waits 5 seconds and can be undone (#702)
+- On Android, opening or leaving a folder in Hosts, Snippets, Keychain, Port Forwarding and SFTP now slides the new level in from the side, instead of switching instantly (#703)
+
 ## [0.61.1] - 2026-10-22
 
 ### Added

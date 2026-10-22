@@ -829,6 +829,35 @@ html[data-android] :is(input, textarea, [contenteditable]:not([contenteditable="
   }
 }
 
+/* ── Settings pages as M3 lists (C4, MobileSettings) ─────────────────────────────────
+   Section bodies keep 16 px gutters; SettingsGroup / SettingRow / ActionItem bleed to the
+   edges themselves. Section headers become M3 list subheaders, and the hand-built cards
+   (`data-settings-card`) lose their box so they read as part of the same flat list. */
+html[data-android] [data-settings-page] > div {
+  padding: 0.25rem 1rem 1.5rem;
+}
+html[data-android] [data-settings-page] h3 {
+  margin: 0.75rem 0 0;
+  padding: 0.5rem 0;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--t-accent);
+}
+html[data-android] [data-settings-card] {
+  margin-inline: -1rem;
+  padding-inline: 1rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+html[data-android] [data-settings-card] > [data-setting-row] {
+  margin-block: 0;
+}
+
 /* ── Ripples + pressed state layer (B5, lib/ripple.ts) ───────────────────────────────
    Spans appended to the pressed control on touch-down: the state layer (::before, 10 %
    of currentColor while held) and the ripple circle (child span, grown by WAAPI). */

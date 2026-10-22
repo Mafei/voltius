@@ -258,6 +258,15 @@
     },
     "shortcuts": {
       "hostGone": "该主机已不存在，其快捷方式已移除。"
+    },
+    "share": {
+      "action": "分享",
+      "publicKey": "分享公钥",
+      "failed": "无法打开分享菜单",
+      "downloadFailed": "无法下载要分享的文件",
+      "largeTitle": "分享 {{size}}？",
+      "largeBody": "文件会先下载到这部手机，再交给你选择的应用。",
+      "tooLong": "文本太长，无法分享"
     }
   }
 }

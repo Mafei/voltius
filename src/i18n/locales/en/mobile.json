@@ -258,6 +258,15 @@
     },
     "shortcuts": {
       "hostGone": "That host no longer exists. Its shortcut was removed."
+    },
+    "share": {
+      "action": "Share",
+      "publicKey": "Share public key",
+      "failed": "Couldn’t open the share sheet",
+      "downloadFailed": "Couldn’t download the file to share",
+      "largeTitle": "Share {{size}}?",
+      "largeBody": "The files are downloaded to this phone first, then handed to the app you pick.",
+      "tooLong": "Too long to share as text"
     }
   }
 }

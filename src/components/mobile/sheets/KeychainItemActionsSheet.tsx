@@ -10,6 +10,7 @@ import { useMobileNavStore } from "@/stores/mobileNavStore";
 import { useAllFolders } from "@/hooks/useAllFolders";
 import { ensurePublicKey } from "@/services/publicKeyStore";
 import { writeClipboard } from "@/utils/clipboard";
+import { canShare, publicKeyShareText, shareText } from "@/services/share";
 import { buildMoveTargets } from "@/components/mobile/folders/mobileFolderCore";
 import { usePermissions } from "@/hooks/usePermission";
 import { compareStrings } from "@/utils/localeFormat";
@@ -90,6 +91,13 @@ export default function KeychainItemActionsSheet(props: Props) {
           toast(t("mobile.sheets.keychainActions.copiedUsername"), "success");
           onClose();
         } },
+    // The public line only: publicKeyShareText refuses anything else, the private half included.
+    ...(kind === "key" && canShare() ? [{ icon: "lucide:share-2", label: t("mobile.share.publicKey"), slug: "share-public-key", onTap: async () => {
+      const pub = publicKeyShareText(await ensurePublicKey(item as SshKey).catch(() => null));
+      onClose();
+      if (!pub) toast(t("mobile.sheets.keychainActions.noPublicKeyStored"), "error");
+      else if (!shareText(pub, name)) toast(t("mobile.share.failed"), "error");
+    } }] : []),
     ...(canEdit ? [
       { icon: "lucide:folder-tree", label: t("mobile.sheets.shared.moveToFolder"), slug: "move-folder", onTap: () => setMode("move-folder") },
       { icon: "lucide:trash-2", label: t("common.action.delete"), danger: true, slug: "delete", onTap: () => setMode("confirm-delete") },

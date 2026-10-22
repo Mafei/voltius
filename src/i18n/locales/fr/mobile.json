@@ -261,6 +261,15 @@
     },
     "shortcuts": {
       "hostGone": "Cet hôte n'existe plus. Son raccourci a été supprimé."
+    },
+    "share": {
+      "action": "Partager",
+      "publicKey": "Partager la clé publique",
+      "failed": "Impossible d’ouvrir le menu de partage",
+      "downloadFailed": "Impossible de télécharger le fichier à partager",
+      "largeTitle": "Partager {{size}} ?",
+      "largeBody": "Les fichiers sont d’abord téléchargés sur ce téléphone, puis transmis à l’application choisie.",
+      "tooLong": "Trop long pour être partagé en texte"
     }
   }
 }

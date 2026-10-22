@@ -258,6 +258,15 @@
     },
     "shortcuts": {
       "hostGone": "Bu sunucu artık yok. Kısayolu kaldırıldı."
+    },
+    "share": {
+      "action": "Paylaş",
+      "publicKey": "Genel anahtarı paylaş",
+      "failed": "Paylaşım menüsü açılamadı",
+      "downloadFailed": "Paylaşılacak dosya indirilemedi",
+      "largeTitle": "{{size}} paylaşılsın mı?",
+      "largeBody": "Dosyalar önce bu telefona indirilir, ardından seçtiğiniz uygulamaya aktarılır.",
+      "tooLong": "Metin olarak paylaşmak için çok uzun"
     }
   }
 }

@@ -264,6 +264,15 @@
     },
     "shortcuts": {
       "hostGone": "Tento hostitel už neexistuje. Jeho zkratka byla odebrána."
+    },
+    "share": {
+      "action": "Sdílet",
+      "publicKey": "Sdílet veřejný klíč",
+      "failed": "Nabídku sdílení se nepodařilo otevřít",
+      "downloadFailed": "Soubor ke sdílení se nepodařilo stáhnout",
+      "largeTitle": "Sdílet {{size}}?",
+      "largeBody": "Soubory se nejprve stáhnou do tohoto telefonu a pak se předají vybrané aplikaci.",
+      "tooLong": "Příliš dlouhé pro sdílení jako text"
     }
   }
 }

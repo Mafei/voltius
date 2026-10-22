@@ -11,6 +11,7 @@ import android.content.pm.ServiceInfo
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -18,7 +19,9 @@ import androidx.core.content.ContextCompat
 /** Held while tunnels are up or SSH sessions are connected, so Android neither freezes the
  *  backgrounded app nor cuts its network (which drops every SSH connection about a minute
  *  after leaving the app). Driven over JNI from `port_forward/keepalive.rs` through
- *  [update] (listening tunnels) and [updateSessions] (connected SSH sessions). */
+ *  [updateTunnels] (one line per listening tunnel) and [updateSessions] (connected SSH
+ *  sessions). The notification lists the tunnels and offers "Stop tunnels", which closes
+ *  every tunnel through Rust ([nativeStopTunnels]) and leaves the SSH sessions alone. */
 class VoltiusTunnelService : Service() {
   override fun onBind(intent: Intent?): IBinder? = null
 
@@ -32,11 +35,12 @@ class VoltiusTunnelService : Service() {
     // already closed in the meantime, or the system kills the app.
     val type = if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0
     try {
-      ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(this), type)
+      synchronized(lock) { ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(this), type) }
     } catch (e: Exception) {
       stopSelf()
       return START_NOT_STICKY
     }
+    if (intent?.action == ACTION_STOP_TUNNELS) stopTunnels()
     apply()
     return START_NOT_STICKY
   }
@@ -47,8 +51,11 @@ class VoltiusTunnelService : Service() {
     super.onDestroy()
   }
 
-  private fun apply() {
-    if (tunnels == 0 && sessions == 0) {
+  // Under [lock], like every state change: Rust updates arrive on its own threads while the
+  // service runs this on the main thread, and an unlocked post could land after a newer one
+  // with a stale snapshot (seen with Stop tunnels: the last tunnel stayed listed).
+  private fun apply() = synchronized(lock) {
+    if (tunnels.isEmpty() && sessions == 0) {
       ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
       stopSelf()
     } else {
@@ -56,31 +63,50 @@ class VoltiusTunnelService : Service() {
     }
   }
 
+  // Rust closes them asynchronously and reports back through updateTunnels.
+  private fun stopTunnels() {
+    try {
+      nativeStopTunnels()
+    } catch (e: UnsatisfiedLinkError) {
+      Log.w(TAG, "native lib not loaded", e)
+    }
+  }
+
   companion object {
+    private const val TAG = "VoltiusTunnelService"
     private const val CHANNEL_ID = "tunnels"
     private const val NOTIFICATION_ID = 0x7e1
+    private const val ACTION_STOP_TUNNELS = "com.voltius.app.action.STOP_TUNNELS"
+    /** Lines shown expanded; the rest is summed up as "+N more". */
+    private const val MAX_LINES = 5
 
     @Volatile private var instance: VoltiusTunnelService? = null
-    @Volatile private var tunnels = 0
+    @Volatile private var tunnels: List<String> = emptyList()
     @Volatile private var sessions = 0
     @Volatile private var starting = false
+    private val lock = Any()
 
-    /** Number of listening tunnels; with no session either, 0 stops the service. */
+    /** Closes every tunnel (keepalive.rs); SSH sessions stay connected. */
     @JvmStatic
-    fun update(ctx: Context, count: Int) {
-      tunnels = count
+    external fun nativeStopTunnels()
+
+    /** Listening tunnels, one `L 8080 → db:5432` line each, `\n`-joined; with no session
+     *  either, an empty list stops the service. */
+    @JvmStatic
+    fun updateTunnels(ctx: Context, lines: String) {
+      synchronized(lock) { tunnels = lines.split('\n').filter { it.isNotBlank() } }
       sync(ctx)
     }
 
     /** Number of connected SSH sessions; with no tunnel either, 0 stops the service. */
     @JvmStatic
     fun updateSessions(ctx: Context, count: Int) {
-      sessions = count
+      synchronized(lock) { sessions = count }
       sync(ctx)
     }
 
     private fun sync(ctx: Context) {
-      val count = tunnels + sessions
+      val count = tunnels.size + sessions
       val running = instance
       if (running != null) {
         running.apply()
@@ -90,6 +116,7 @@ class VoltiusTunnelService : Service() {
       try {
         starting = true
         ContextCompat.startForegroundService(ctx, Intent(ctx, VoltiusTunnelService::class.java))
+        // First background-relevant moment (a session or tunnel just went up): ask once.
         MainActivity.instance?.requestNotificationPermission()
       } catch (e: Exception) {
         // Android 12+ refuses a start from the background; the next change retries.
@@ -109,7 +136,8 @@ class VoltiusTunnelService : Service() {
         manager.createNotificationChannel(channel)
       }
       val res = ctx.resources
-      val t = tunnels
+      val lines = tunnels
+      val t = lines.size
       val s = sessions
       val tunnelTitle = res.getQuantityString(R.plurals.tunnel_notification_title, t, t)
       // Sessions: plain launcher intent (resumes the app where it was); tunnels only: their screen.
@@ -131,15 +159,35 @@ class VoltiusTunnelService : Service() {
         s > 0 -> ctx.getString(R.string.session_notification_text)
         else -> ctx.getString(R.string.tunnel_notification_text)
       }
-      return NotificationCompat.Builder(ctx, CHANNEL_ID)
+      val builder = NotificationCompat.Builder(ctx, CHANNEL_ID)
         .setSmallIcon(R.drawable.ic_stat_tunnel)
         .setContentTitle(title)
         .setContentText(text)
         .setContentIntent(open)
+        .setCategory(NotificationCompat.CATEGORY_SERVICE)
         .setOngoing(true)
         .setOnlyAlertOnce(true)
         .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-        .build()
+      if (t > 0) {
+        // Expanded: one line per forward; with sessions too, the port count is the summary.
+        val style = NotificationCompat.InboxStyle().setBigContentTitle(title)
+        lines.take(MAX_LINES).forEach { style.addLine(it) }
+        if (t > MAX_LINES) {
+          style.addLine(res.getQuantityString(R.plurals.tunnel_notification_more, t - MAX_LINES, t - MAX_LINES))
+        }
+        if (s > 0) style.setSummaryText(tunnelTitle)
+        builder.setStyle(style)
+        // Tunnels only: the sessions have their own way out (the app), and a tunnel-labelled
+        // button must not drop someone's shell.
+        val stop = PendingIntent.getService(
+          ctx,
+          1,
+          Intent(ctx, VoltiusTunnelService::class.java).setAction(ACTION_STOP_TUNNELS),
+          PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        builder.addAction(R.drawable.ic_stat_tunnel, ctx.getString(R.string.tunnel_action_stop), stop)
+      }
+      return builder.build()
     }
   }
 }

@@ -15,4 +15,11 @@
         <item quantity="other">%d SSH-сессии подключено</item>
     </plurals>
     <string name="shortcut_host_removed">Этот хост удалён</string>
+    <string name="tunnel_action_stop">Остановить туннели</string>
+    <plurals name="tunnel_notification_more">
+        <item quantity="one">ещё %d</item>
+        <item quantity="few">ещё %d</item>
+        <item quantity="many">ещё %d</item>
+        <item quantity="other">ещё %d</item>
+    </plurals>
 </resources>

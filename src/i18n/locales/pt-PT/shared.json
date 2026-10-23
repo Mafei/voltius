@@ -198,7 +198,7 @@
       "deletedTitle": "Conta eliminada",
       "deleted": "A sua conta Voltius foi eliminada.",
       "failed": "Não foi possível eliminar a sua conta (erro {{status}}). Tente novamente mais tarde ou contacte o suporte.",
-      "ownsTeamWithMembers": "É proprietário de uma equipa que ainda tem outros membros ({{teams}}). Remova esses membros ou elimine a equipa e tente novamente.",
+      "ownsTeamWithMembers": "É o único proprietário de uma equipa que ainda tem outros membros ({{teams}}). Torne outro membro proprietário, remova os membros ou elimine a equipa e tente novamente.",
       "subscriptionCancelFailed": "Não foi possível cancelar a sua subscrição, por isso a sua conta não foi eliminada. Tente novamente dentro de alguns minutos ou contacte o suporte."
     }
   }

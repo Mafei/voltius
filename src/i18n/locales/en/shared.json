@@ -19,7 +19,7 @@
       "deletedTitle": "Account deleted",
       "deleted": "Your Voltius account has been deleted.",
       "failed": "Could not delete your account (error {{status}}). Try again later, or contact support.",
-      "ownsTeamWithMembers": "You own a team that still has other members ({{teams}}). Remove those members or delete the team, then try again.",
+      "ownsTeamWithMembers": "You are the only Owner of a team that still has other members ({{teams}}). Make another member an Owner, remove the members or delete the team, then try again.",
       "subscriptionCancelFailed": "Your subscription could not be cancelled, so your account was not deleted. Try again in a few minutes, or contact support."
     },
     "errorBanner": {

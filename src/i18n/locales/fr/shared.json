@@ -19,7 +19,7 @@
       "deletedTitle": "Compte supprimé",
       "deleted": "Votre compte Voltius a été supprimé.",
       "failed": "Impossible de supprimer votre compte (erreur {{status}}). Réessayez plus tard ou contactez le support.",
-      "ownsTeamWithMembers": "Vous êtes propriétaire d'une équipe qui compte encore d'autres membres ({{teams}}). Retirez ces membres ou supprimez l'équipe, puis réessayez.",
+      "ownsTeamWithMembers": "Vous êtes le seul propriétaire d'une équipe qui a encore d'autres membres ({{teams}}). Nommez un autre membre propriétaire, retirez les membres ou supprimez l'équipe, puis réessayez.",
       "subscriptionCancelFailed": "Votre abonnement n'a pas pu être annulé, votre compte n'a donc pas été supprimé. Réessayez dans quelques minutes ou contactez le support."
     },
     "errorBanner": {

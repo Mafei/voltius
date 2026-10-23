@@ -19,7 +19,7 @@
       "deletedTitle": "账户已删除",
       "deleted": "你的 Voltius 账户已被删除。",
       "failed": "无法删除你的账户（错误 {{status}}）。请稍后重试，或联系支持。",
-      "ownsTeamWithMembers": "你拥有的团队仍有其他成员（{{teams}}）。请先移除这些成员或删除该团队，然后重试。",
+      "ownsTeamWithMembers": "您是一个仍有其他成员的团队的唯一所有者（{{teams}}）。请将其他成员设为所有者、移除成员或删除该团队，然后重试。",
       "subscriptionCancelFailed": "无法取消你的订阅，因此账户未被删除。请几分钟后重试，或联系支持。"
     },
     "errorBanner": {

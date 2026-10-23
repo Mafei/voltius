@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.63.0] - 2026-10-23
+
+### Added
+
+- You can delete your Voltius account from the app: Settings → Account on desktop, and the Account page on Android. You confirm by typing your email. Your cloud account, encrypted vault and sync data are deleted, any subscription is cancelled, and this device is signed out. If you are the billing owner of a team that has another Owner, they take the team over; if you are its only Owner and it still has members, you are asked to make someone else an Owner first. You can also request deletion at voltius.app/delete-account (#705)
+- Portuguese, in three variants: Portuguese, Brazilian Portuguese and European Portuguese. Thanks to @heliopereira (#706, #707)
+
+### Changed
+
+- The macOS app is now signed with an Apple Developer ID and notarized by Apple, so it opens without a security warning. After updating, macOS asks once for access to the keychain (#704)
+
 ## [0.62.0] - 2026-10-22
 
 ### Added

@@ -38,6 +38,7 @@ jobs:
   # and assume Tauri's per-user layout, which is exactly the assumption that
   # cannot be checked by reading it.
   scoop:
+    if: github.repository == 'VoltiusApp/voltius'
     runs-on: windows-latest
     steps:
       - name: Checkout repository
@@ -113,6 +114,7 @@ jobs:
   # nothing else in this repo can. This is a check, never a submission: it builds
   # from a branch, where tauri.conf.json still carries the previous version.
   msix:
+    if: github.repository == 'VoltiusApp/voltius'
     uses: ./.github/workflows/publish-msix.yml
     with:
       ref: ${{ github.sha }}
@@ -121,6 +123,7 @@ jobs:
 
   # Proves the self-signed certificate signs on a hosted runner, which no release can afford to discover.
   macos-signing:
+    if: github.repository == 'VoltiusApp/voltius'
     runs-on: macos-latest
     steps:
       - name: Checkout repository

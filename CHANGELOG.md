@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.63.1] - 2026-10-24
+
+### Changed
+
+- On Android, every search field (Snippets, Keychain, Known Hosts, Logs, Port Forwarding, the host and snippet pickers, Processes) now uses the same rounded search bar as Hosts (#710)
+- The Android app is now built with R8, which shrinks and optimizes its code (#712)
+
+### Fixed
+
+- On Android, unlocking no longer fails with "Keychain read error" after reinstalling the app, for example when moving from the GitHub APK to the Google Play build. Android restored the old keychain file, which the new install can't decrypt; Voltius now sets it aside and opens a fresh one, and the keychain is no longer included in Android backups or device transfers (#713)
+- The session type badge no longer overflows the pane header and the drag preview
+
 ## [0.63.0] - 2026-10-23
 
 ### Added

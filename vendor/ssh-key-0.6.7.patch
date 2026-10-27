@@ -1,0 +1,37 @@
+--- published/src/private/ecdsa.rs
++++ local/src/private/ecdsa.rs
+@@ -42,3 +42,3 @@
+-            if reader.remaining_len() == SIZE.checked_add(1).ok_or(encoding::Error::Length)? {
+-                // Strip leading zero
+-                // TODO(tarcieri): make sure leading zero was necessary
++            let mut len = reader.remaining_len();
++            let sign_padding = len == SIZE.checked_add(1).ok_or(encoding::Error::Length)?;
++            if sign_padding {
+@@ -48,2 +48,7 @@
+-            }
+-
++                len = SIZE;
++            }
++            // RFC4251 mpint omits leading zeros. Its width is not curve strength.
++            if len == 0 || len > SIZE {
++                return Err(encoding::Error::Length.into());
++            }
++            let leading_zeros = SIZE.checked_sub(len).ok_or(encoding::Error::Length)?;
+@@ -51 +56,7 @@
+-            reader.read(&mut bytes)?;
++            reader.read(&mut bytes[leading_zeros..])?;
++            if !sign_padding && bytes[leading_zeros] & 0x80 != 0 {
++                return Err(Error::FormatEncoding);
++            }
++            if bool::from(bytes.as_slice().ct_eq(&[0u8; SIZE])) {
++                return Err(Error::FormatEncoding);
++            }
+--- published/src/private/rsa.rs
++++ local/src/private/rsa.rs
+@@ -200,5 +200,5 @@
+             vec![
+                 rsa::BigUint::try_from(&key.private.p)?,
+-                rsa::BigUint::try_from(&key.private.p)?,
++                rsa::BigUint::try_from(&key.private.q)?,
+             ],
+         )?;

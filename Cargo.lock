@@ -6325,8 +6325,6 @@ dependencies = [
 [[package]]
 name = "ssh-key"
 version = "0.6.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b86f5297f0f04d08cabaa0f6bff7cb6aec4d9c3b49d87990d63da9d9156a8c3"
 dependencies = [
  "bcrypt-pbkdf 0.10.0",
  "ed25519-dalek 2.2.0",
@@ -6348,8 +6346,6 @@ dependencies = [
 [[package]]
 name = "ssh-key"
 version = "0.7.0-rc.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9a32fae177b74a22aa9c5b01bf7e68b33545be32d9e381e248058d2adc15ce3"
 dependencies = [
  "argon2",
  "bcrypt-pbkdf 0.11.0",
@@ -6682,8 +6678,6 @@ dependencies = [
 [[package]]
 name = "tauri-build"
 version = "2.7.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "adddb0e648752aaac5da9c3c3c6a68e1e87cab55e3b757b18a9441ef8c3ac614"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -7650,6 +7644,7 @@ dependencies = [
  "objc2",
  "objc2-foundation",
  "objc2-local-authentication",
+ "p256 0.14.0",
  "percent-encoding",
  "png",
  "portable-pty",

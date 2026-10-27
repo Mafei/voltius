@@ -1,0 +1,18 @@
+--- published/src/mobile.rs
++++ local/src/mobile.rs
+@@ -149 +149 @@
+-  let app_build_gradle_path = project_dir.join("app").join("tauri.build.gradle.kts");
++  let app_build_gradle_path = project_dir.join("app").join("tauri.build.gradle");
+@@ -154 +153,0 @@
+-val implementation = configurations.getByName(\"implementation\")
+@@ -156 +155 @@
+-  implementation(\"androidx.lifecycle:lifecycle-process:2.10.0\")"
++  add(\"implementation\", \"androidx.lifecycle:lifecycle-process:2.10.0\")"
+@@ -184 +183,3 @@
+-      app_build_gradle.push_str(&format!(r#"  implementation(project(":{plugin_name}"))"#));
++      app_build_gradle.push_str(&format!(
++        r#"  add("implementation", project(":{plugin_name}"))"#
++      ));
+@@ -195 +196 @@
+-    .context("failed to write tauri.build.gradle.kts")?;
++    .context("failed to write tauri.build.gradle")?;

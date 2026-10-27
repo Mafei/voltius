@@ -21,4 +21,13 @@ tokio-rustls = { version = "=0.26.6", default-features = false, features = ["rin
 rustls-native-certs = "=0.8.5"
 rcgen = { version = "=0.14.10", default-features = false, features = ["crypto", "ring"] }
 
+[dev-dependencies]
+p256 = { version = "=0.14.0", features = ["ecdsa"] }
+base64 = "=0.23.1"
+ssh-key = { version = "=0.6.7", features = ["ed25519", "p256", "p384", "p521", "rsa", "encryption"] }
+
 [workspace]
+
+[patch.crates-io]
+ssh-key-legacy = { package = "ssh-key", path = "../../vendor/ssh-key-0.6.7" }
+ssh-key-current = { package = "ssh-key", path = "../../vendor/ssh-key-0.7.0-rc.11" }

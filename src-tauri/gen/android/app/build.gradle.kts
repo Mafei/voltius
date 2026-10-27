@@ -120,4 +120,4 @@ dependencies {
     androidTestImplementation(libs.espresso)
 }
 
-apply(from = "tauri.build.gradle.kts")
+apply(from = "tauri.build.gradle")

@@ -67,3 +67,7 @@ mod tests {
         assert!(decode("not a key", None).is_err());
     }
 }
+
+#[cfg(test)]
+#[path = "private_key_scalar_tests.rs"]
+mod scalar_tests;

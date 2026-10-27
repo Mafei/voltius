@@ -3,7 +3,7 @@
 
 graphify-out/
 
-node_modules/
+node_modules
 .pnpm-store/
 .pnpmrc
 dist/
@@ -12,8 +12,8 @@ src-tauri/resources/plugins/
 .wrangler/
 
 # tauri rust
-target/
-src-tauri/target/
+target
+src-tauri/target
 src-tauri/gen/ 
 
 # local planning docs and Claude artifacts

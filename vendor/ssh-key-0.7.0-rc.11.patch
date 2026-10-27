@@ -1,0 +1,35 @@
+--- published/src/private/ecdsa.rs
++++ local/src/private/ecdsa.rs
+@@ -3 +3 @@
+-use crate::{Algorithm, EcdsaCurve, Error, Result, public::EcdsaPublicKey};
++use crate::{public::EcdsaPublicKey, Algorithm, EcdsaCurve, Error, Result};
+@@ -51,5 +51,2 @@
+-
+-            // Strip leading zero if necessary:
+-            // `mpint` is signed and may need a leading zero for unsigned integers
+-            if len == SIZE.checked_add(1).ok_or(encoding::Error::Length)? {
+-                // TODO(tarcieri): make sure leading zero was necessary
++            let sign_padding = len == SIZE.checked_add(1).ok_or(encoding::Error::Length)?;
++            if sign_padding {
+@@ -59 +55,0 @@
+-
+@@ -62,4 +58,2 @@
+-
+-            // Minimum allowed key size: may be smaller than modulus size
+-            const MIN_SIZE: usize = 32;
+-            if len < MIN_SIZE || len > SIZE {
++            // RFC4251 mpint omits leading zeros. Its width is not curve strength.
++            if len == 0 || len > SIZE {
+@@ -68,3 +61,0 @@
+-
+-            // Add leading zeros if the encoded key is smaller than `SIZE`.
+-            // The resulting value is big endian and needs leading zero padding.
+@@ -72 +62,0 @@
+-
+@@ -74,0 +65,6 @@
++            if !sign_padding && bytes[leading_zeros] & 0x80 != 0 {
++                return Err(Error::FormatEncoding);
++            }
++            if bool::from(bytes.as_slice().ct_eq(&[0u8; SIZE])) {
++                return Err(Error::FormatEncoding);
++            }

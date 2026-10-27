@@ -1,0 +1,84 @@
+{
+  "baseline_commit": "9b1c96bca2e2dd38b9237bf21f5e9b1151cd8d13",
+  "sources": [
+    {
+      "name": "ssh-key",
+      "version": "0.6.7",
+      "registry_checksum": "3b86f5297f0f04d08cabaa0f6bff7cb6aec4d9c3b49d87990d63da9d9156a8c3",
+      "cached_archive_sha256_verified": true,
+      "production_changed_files": [
+        "src/private/ecdsa.rs",
+        "src/private/rsa.rs"
+      ],
+      "test_adaptations_sha256": {
+        "src/lib.rs": "13f03f48b51d32cdb05c78ab5b2f8d8c3222a0eded9db378be7148c77f6f627d",
+        "src/private.rs": "f3d129bbe950c9c576808a000f4e02f57d3b8b80b9b61f12cc8b8bc41146958c",
+        "src/signature.rs": "5f5d93f632466d2f0f60660d90e495350840b12bfd7fc4da124277d5c8043705",
+        "tests/private_key.rs": "416de3f95671044dc9801c0aa6c857808418eded0364eb0ee3d206eb801b07c5",
+        "tests/encrypted_private_key.rs": "6babcea43023dd5cda03273ffb2fa174cbd5b809da04df94f5301c4ee3797eaf",
+        "tests/sshsig.rs": "9a5236f0c2aff7f397b28a298a0bf56c23e9dd26e3aa329df17db5752cc1d142",
+        "tests/certificate_builder.rs": "fdfae704bac07621773c1f9e2be87288478ad906443c250e1f68c1f98417bd98"
+      },
+      "standalone_test_lock_sha256": "fd5f2b8228114e79755d3d7f92c0ab3d9cf5c30bc802d02ad6c300b0e0acaa4e",
+      "production_patch_sha256": "7e8f200895b29dff6957790efd87c9a74b81d1fbf80329cf497d211844fb30d9"
+    },
+    {
+      "name": "ssh-key",
+      "version": "0.7.0-rc.11",
+      "registry_checksum": "f9a32fae177b74a22aa9c5b01bf7e68b33545be32d9e381e248058d2adc15ce3",
+      "cached_archive_sha256_verified": true,
+      "changed_file": "src/private/ecdsa.rs",
+      "test_adaptations_sha256": {
+        "src/lib.rs": "6a78229b99f0aa2bf23b35ef8041b143adc1109532b8360d5e0c32be67fe0ba4",
+        "src/private.rs": "22337cd2643fd22826a29a162f734c768a6366b7d2bd5dbb8a5185c6eb712110",
+        "src/signature.rs": "68fb511840104387ed46898050dff0b03d1e122217de70e52ec8d4000c830c7c",
+        "tests/private_key.rs": "ddd99e3e2a027068e4f79d8cc1a842312863ed0b6e8052bda7fc180a7f8b2cec",
+        "tests/encrypted_private_key.rs": "6da825d5d7ae8de8b60608a8d6ad294a32ac0743999041b8986c0c8fe31b0a60",
+        "tests/sshsig.rs": "d83b600a980b8ad8a1f9189182588c50e1928fda4ce13da693ba8712940d539e",
+        "tests/certificate_builder.rs": "2890a8ec739ca13a91db5177ee0a80c58712b8d8aa841d267bffbe90ff26f833",
+        "tests/dot_ssh.rs": "2351aa22b791c4d6f505f74d93f202869391add72a532a2dc122c85278ea75ae"
+      },
+      "standalone_test_lock_sha256": "b1737048fc9be625056fbd8134ce9147b2f4cfd543b15a0611430e480b32acd4",
+      "production_patch_sha256": "b90bf6d7cf57b4c49ab362bfbdb27a8615c553696cc193e8447f1366c80373fb"
+    },
+    {
+      "name": "tauri-build",
+      "version": "2.7.4",
+      "registry_checksum": "adddb0e648752aaac5da9c3c3c6a68e1e87cab55e3b757b18a9441ef8c3ac614",
+      "cached_archive_sha256_verified": true,
+      "changed_file": "src/mobile.rs"
+    }
+  ],
+  "licenses_unchanged": true,
+  "test_fixture_policy": {
+    "private_resource_files_removed": 50,
+    "inline_pem_blocks_removed": 9,
+    "raw_dsa_private_blobs_removed": 2,
+    "constant_ed25519_signing_seeds_removed": 2,
+    "integration_targets_retained": 19,
+    "generator": "tests/vendor-fixtures/generate.py",
+    "runner": "tests/vendor-fixtures/run.py",
+    "private_keys": "fresh temporary test-only material; never account credentials; cleaned by runner",
+    "independent_oracles": [
+      "published public/signature vectors",
+      "OpenSSH signature and format verification",
+      "cryptography legacy DSA verification",
+      "RFC6979/SHA1 short-component selection"
+    ],
+    "puttygen_interoperability": "not verified in this environment",
+    "ppk_argon2_parameters": "upstream cases retained: memory8192KiB, passes21(DSA)/34(other), parallelism1",
+    "export_scanner": "tests/vendor-fixtures/scan_export.py; every proposed tree; exact reviewed-input pins; content-free findings; not an absolute secret-free guarantee"
+  },
+  "test_tools_sha256": {
+    "tests/vendor-fixtures/.gitignore": "32dae3052f331ee34d628ef535709b301259a45df7c7522c4d35dcf49873f00b",
+    "tests/vendor-fixtures/README.md": "f0574e155f75e024a1b7545d6723e93d544f2a178d512915abb6eb9dbfac3104",
+    "tests/vendor-fixtures/generate.py": "b402aa93b137797379fa25467179f5a5f67a86b1c30f0952dbb640e0f049fc0e",
+    "tests/vendor-fixtures/requirements.txt": "56e6301f491d336997805ec0e824b163ce5797a708440d68f52b6c3e60d63909",
+    "tests/vendor-fixtures/run.py": "d62e57ceed980c1a81da89cf78e4c3748e38cdb24a9cb0b9cd7c8f4db4ec85c1",
+    "tests/vendor-fixtures/scan-policy.json": "3fbe3d0b195b96f62e5981a005237076a1827844a34950924ad51f023bcbf772",
+    "tests/vendor-fixtures/scan_export.py": "18086f1891077b7dee38d5cfe964ee75b45b048ad0ade6de51ff1f39e004cdf7",
+    "tests/vendor-fixtures/support.rs": "ecafd421a111abe91603a217078cdb7587f6d60362920de6b4a6f6d8af6e796f",
+    "tests/vendor-fixtures/test_scan_export.py": "14b545e50cd2f912bd4e8c7c700f10bab373df4dde7d4ccbb3c111992faecf28",
+    "tests/vendor-fixtures/verify.py": "22e5f6a6ac76e0869ff70127029f398ec7c2aa33e9ceea9589bb153ee82b325d"
+  }
+}

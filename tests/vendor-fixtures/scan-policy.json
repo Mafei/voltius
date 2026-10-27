@@ -1,0 +1,398 @@
+{
+  "schema": 1,
+  "reviewed_inputs": [
+    {
+      "path": "crates/voltius-crypto/src/lib.rs",
+      "blob_sha": "2807ff70d2f0574502f46bdeebbf793dababa215",
+      "rules": [
+        "literal-private-component-array"
+      ],
+      "lines": [
+        224
+      ],
+      "classification": "preexisting-published-crypto-unit-vector",
+      "reason": "Existing published mock authentication or wrapping unit vector; unchanged code, no production account use.",
+      "already_published_import_commit": "1cbbc2297d40ca599d945f5d60c707ccfe42c81b"
+    },
+    {
+      "path": "crates/voltius-crypto/src/lib.rs",
+      "blob_sha": "8cbe47d4f3e5944c47db04b4ed608e98d2528b05",
+      "rules": [
+        "literal-private-component-array"
+      ],
+      "lines": [
+        217
+      ],
+      "classification": "preexisting-published-crypto-unit-vector",
+      "reason": "Existing published mock authentication or wrapping unit vector; unchanged code, no production account use.",
+      "already_published_import_commit": "34b81e896d5e186376ddc65406f836ebe7f42ada"
+    },
+    {
+      "path": "crates/voltius-crypto/src/lib.rs",
+      "blob_sha": "a26e8a93a15fe1c3dd9b3d14c13c6ddd805e1433",
+      "rules": [
+        "literal-private-component-array"
+      ],
+      "lines": [
+        174
+      ],
+      "classification": "preexisting-published-crypto-unit-vector",
+      "reason": "Existing published mock authentication or wrapping unit vector; unchanged code, no production account use.",
+      "already_published_import_commit": "8c59ec6c49f14dfd75db4b7f3b8d298c01fb8896"
+    },
+    {
+      "path": "crates/voltius-diagnostics/src/redact.rs",
+      "blob_sha": "b7d3cfd75970f37074add479383c901f3346f8d6",
+      "rules": [
+        "private-pem-envelope"
+      ],
+      "lines": [
+        43
+      ],
+      "classification": "invalid-public-parser-marker",
+      "reason": "Reviewed fake PEM marker in public parser, UI or redaction tests; payload is malformed or lacks a private key container.",
+      "already_published_import_commit": "8c59ec6c49f14dfd75db4b7f3b8d298c01fb8896"
+    },
+    {
+      "path": "src-tauri/src/commands/fixtures/ecdsa-v2.ppk",
+      "blob_sha": "6a74f3822a1e28766d40df2c3d49e172e46035a0",
+      "rules": [
+        "putty-private-resource"
+      ],
+      "lines": [
+        1
+      ],
+      "classification": "preexisting-published-ppk-test-fixture",
+      "reason": "Exact preexisting public PR22 parser fixture; not a new key payload and not an account credential.",
+      "already_published_import_commit": "8c59ec6c49f14dfd75db4b7f3b8d298c01fb8896"
+    },
+    {
+      "path": "src-tauri/src/commands/fixtures/ed25519.ppk",
+      "blob_sha": "9c3cc460d145819494a4cffa2ba5ed86847a0980",
+      "rules": [
+        "putty-private-resource"
+      ],
+      "lines": [
+        1
+      ],
+      "classification": "preexisting-published-ppk-test-fixture",
+      "reason": "Exact preexisting public PR22 parser fixture; not a new key payload and not an account credential.",
+      "already_published_import_commit": "8c59ec6c49f14dfd75db4b7f3b8d298c01fb8896"
+    },
+    {
+      "path": "src-tauri/src/commands/fixtures/rsa-encrypted.ppk",
+      "blob_sha": "ca3871c77232b8ca1670f11c10863f5f2c089db9",
+      "rules": [
+        "putty-private-resource"
+      ],
+      "lines": [
+        1
+      ],
+      "classification": "preexisting-published-ppk-test-fixture",
+      "reason": "Exact preexisting public PR22 parser fixture; not a new key payload and not an account credential.",
+      "already_published_import_commit": "8c59ec6c49f14dfd75db4b7f3b8d298c01fb8896"
+    },
+    {
+      "path": "src-tauri/src/commands/openssh.rs",
+      "blob_sha": "02e0ea47c379dc2e4e38161d17002d9892d4c248",
+      "rules": [
+        "private-pem-envelope"
+      ],
+      "lines": [
+        601
+      ],
+      "classification": "invalid-public-parser-marker",
+      "reason": "Reviewed fake PEM marker in public parser, UI or redaction tests; payload is malformed or lacks a private key container.",
+      "already_published_import_commit": "8c59ec6c49f14dfd75db4b7f3b8d298c01fb8896"
+    },
+    {
+      "path": "src-tauri/src/ssh/client.rs",
+      "blob_sha": "200db6fcf23a4b93589155d9bd76e07fafcd660b",
+      "rules": [
+        "literal-private-key-or-seed"
+      ],
+      "lines": [
+        1726
+      ],
+      "classification": "preexisting-published-crypto-unit-vector",
+      "reason": "Existing published mock authentication or wrapping unit vector; unchanged code, no production account use.",
+      "already_published_import_commit": "2f85ef8ecc8647d40b1c1c197c3e8f473251caaa"
+    },
+    {
+      "path": "src-tauri/src/ssh/client.rs",
+      "blob_sha": "2b7f3762e9a18ccb458aef14c98282e439616bd9",
+      "rules": [
+        "literal-private-key-or-seed"
+      ],
+      "lines": [
+        1720
+      ],
+      "classification": "preexisting-published-crypto-unit-vector",
+      "reason": "Existing published mock authentication or wrapping unit vector; unchanged code, no production account use.",
+      "already_published_import_commit": "8c59ec6c49f14dfd75db4b7f3b8d298c01fb8896"
+    },
+    {
+      "path": "src-tauri/src/ssh/client.rs",
+      "blob_sha": "3ef78440abd205a200610d8bb043a40ebce4f0b9",
+      "rules": [
+        "literal-private-key-or-seed"
+      ],
+      "lines": [
+        1726
+      ],
+      "classification": "preexisting-published-crypto-unit-vector",
+      "reason": "Existing published mock authentication or wrapping unit vector; unchanged code, no production account use.",
+      "already_published_import_commit": "a70c9b0112c45b43843a67a7c874ac4d68017c88"
+    },
+    {
+      "path": "src-tauri/src/ssh/client.rs",
+      "blob_sha": "d6adb32630d24f8982e189c59602ce08e6fd1fdd",
+      "rules": [
+        "literal-private-key-or-seed"
+      ],
+      "lines": [
+        1726
+      ],
+      "classification": "preexisting-published-crypto-unit-vector",
+      "reason": "Existing published mock authentication or wrapping unit vector; unchanged code, no production account use.",
+      "already_published_import_commit": "34b81e896d5e186376ddc65406f836ebe7f42ada"
+    },
+    {
+      "path": "src/components/keychain/keychainForms.characterisation.test.tsx",
+      "blob_sha": "7ef39bafad10b9514f9d7992593750adf21964b7",
+      "rules": [
+        "private-pem-envelope"
+      ],
+      "lines": [
+        363
+      ],
+      "classification": "invalid-public-parser-marker",
+      "reason": "Reviewed fake PEM marker in public parser, UI or redaction tests; payload is malformed or lacks a private key container.",
+      "already_published_import_commit": "8c59ec6c49f14dfd75db4b7f3b8d298c01fb8896"
+    },
+    {
+      "path": "src/components/mobile/sheets/KeychainItemActionsSheet.test.tsx",
+      "blob_sha": "6ab9cb215931c41f7b868220903c32fe45ec8e43",
+      "rules": [
+        "private-pem-envelope"
+      ],
+      "lines": [
+        82
+      ],
+      "classification": "invalid-public-parser-marker",
+      "reason": "Reviewed fake PEM marker in public parser, UI or redaction tests; payload is malformed or lacks a private key container.",
+      "already_published_import_commit": "8c59ec6c49f14dfd75db4b7f3b8d298c01fb8896"
+    },
+    {
+      "path": "src/services/import-export/parsers/openssh.test.ts",
+      "blob_sha": "040b0e8d87324c13a10bdb916160e0aa64fe9a47",
+      "rules": [
+        "private-pem-envelope"
+      ],
+      "lines": [
+        78
+      ],
+      "classification": "invalid-public-parser-marker",
+      "reason": "Reviewed fake PEM marker in public parser, UI or redaction tests; payload is malformed or lacks a private key container.",
+      "already_published_import_commit": "8c59ec6c49f14dfd75db4b7f3b8d298c01fb8896"
+    },
+    {
+      "path": "src/services/import-export/parsers/securecrt.test.ts",
+      "blob_sha": "a46d17d2db00cc54d1ecfdfb457715c808656978",
+      "rules": [
+        "private-pem-envelope"
+      ],
+      "lines": [
+        85
+      ],
+      "classification": "invalid-public-parser-marker",
+      "reason": "Reviewed fake PEM marker in public parser, UI or redaction tests; payload is malformed or lacks a private key container.",
+      "already_published_import_commit": "8c59ec6c49f14dfd75db4b7f3b8d298c01fb8896"
+    },
+    {
+      "path": "src/services/share.test.ts",
+      "blob_sha": "c316b42299900978ac55ee4bb56d3ad9c4867ae1",
+      "rules": [
+        "private-pem-envelope"
+      ],
+      "lines": [
+        11
+      ],
+      "classification": "invalid-public-parser-marker",
+      "reason": "Reviewed fake PEM marker in public parser, UI or redaction tests; payload is malformed or lacks a private key container.",
+      "already_published_import_commit": "8c59ec6c49f14dfd75db4b7f3b8d298c01fb8896"
+    },
+    {
+      "path": "src/services/sshConfig/hostFields.test.ts",
+      "blob_sha": "7ebbca07d73e2a380bbea3862ca7709b43e090bc",
+      "rules": [
+        "private-pem-envelope"
+      ],
+      "lines": [
+        39
+      ],
+      "classification": "invalid-public-parser-marker",
+      "reason": "Reviewed fake PEM marker in public parser, UI or redaction tests; payload is malformed or lacks a private key container.",
+      "already_published_import_commit": "8c59ec6c49f14dfd75db4b7f3b8d298c01fb8896"
+    },
+    {
+      "path": "src/services/sshConfig/sync.test.ts",
+      "blob_sha": "80a920c5641fd113e9c5649bc83d9d6e5767c173",
+      "rules": [
+        "private-pem-envelope"
+      ],
+      "lines": [
+        66
+      ],
+      "classification": "invalid-public-parser-marker",
+      "reason": "Reviewed fake PEM marker in public parser, UI or redaction tests; payload is malformed or lacks a private key container.",
+      "already_published_import_commit": "8c59ec6c49f14dfd75db4b7f3b8d298c01fb8896"
+    },
+    {
+      "path": "vendor/ssh-key-0.6.7/tests/certificate_builder.rs",
+      "blob_sha": "c50ff9a71298c72cf7ce547718165e3235f23fbb",
+      "rules": [
+        "literal-private-component-array"
+      ],
+      "lines": [
+        34
+      ],
+      "classification": "public-certificate-nonce-prng",
+      "reason": "Fixed RNG supplies only public nonce bytes; all certificate signing and subject keys come from fresh external fixtures."
+    },
+    {
+      "path": "vendor/ssh-key-0.7.0-rc.11/tests/certificate_builder.rs",
+      "blob_sha": "b9848ff0ca57ef93c9dbcebee53b7426c8f12f6e",
+      "rules": [
+        "literal-private-component-array"
+      ],
+      "lines": [
+        35
+      ],
+      "classification": "public-certificate-nonce-prng",
+      "reason": "Fixed RNG supplies only public nonce bytes; all certificate signing and subject keys come from fresh external fixtures."
+    },
+    {
+      "path": "tests/vendor-fixtures/test_scan_export.py",
+      "blob_sha": "4a788ba21aeb65b35b68f06ec91d2b7a676cc8fc",
+      "rules": [
+        "asserted-private-component"
+      ],
+      "lines": [
+        131
+      ],
+      "classification": "invalid-scanner-regression-input",
+      "reason": "Source examples use length3 arrays, deliberately invalid key containers or public marker prose; no usable private material is stored."
+    },
+    {
+      "path": "tests/vendor-fixtures/test_scan_export.py",
+      "blob_sha": "4a788ba21aeb65b35b68f06ec91d2b7a676cc8fc",
+      "rules": [
+        "asserted-private-component"
+      ],
+      "lines": [
+        132
+      ],
+      "classification": "invalid-scanner-regression-input",
+      "reason": "Source examples use length3 arrays, deliberately invalid key containers or public marker prose; no usable private material is stored."
+    },
+    {
+      "path": "tests/vendor-fixtures/test_scan_export.py",
+      "blob_sha": "4a788ba21aeb65b35b68f06ec91d2b7a676cc8fc",
+      "rules": [
+        "asserted-private-component"
+      ],
+      "lines": [
+        133
+      ],
+      "classification": "invalid-scanner-regression-input",
+      "reason": "Source examples use length3 arrays, deliberately invalid key containers or public marker prose; no usable private material is stored."
+    },
+    {
+      "path": "tests/vendor-fixtures/test_scan_export.py",
+      "blob_sha": "4a788ba21aeb65b35b68f06ec91d2b7a676cc8fc",
+      "rules": [
+        "literal-private-component-array"
+      ],
+      "lines": [
+        117
+      ],
+      "classification": "invalid-scanner-regression-input",
+      "reason": "Source examples use length3 arrays, deliberately invalid key containers or public marker prose; no usable private material is stored."
+    },
+    {
+      "path": "tests/vendor-fixtures/test_scan_export.py",
+      "blob_sha": "4a788ba21aeb65b35b68f06ec91d2b7a676cc8fc",
+      "rules": [
+        "literal-private-component-array"
+      ],
+      "lines": [
+        118
+      ],
+      "classification": "invalid-scanner-regression-input",
+      "reason": "Source examples use length3 arrays, deliberately invalid key containers or public marker prose; no usable private material is stored."
+    },
+    {
+      "path": "tests/vendor-fixtures/test_scan_export.py",
+      "blob_sha": "4a788ba21aeb65b35b68f06ec91d2b7a676cc8fc",
+      "rules": [
+        "literal-private-component-array"
+      ],
+      "lines": [
+        122
+      ],
+      "classification": "invalid-scanner-regression-input",
+      "reason": "Source examples use length3 arrays, deliberately invalid key containers or public marker prose; no usable private material is stored."
+    },
+    {
+      "path": "tests/vendor-fixtures/test_scan_export.py",
+      "blob_sha": "4a788ba21aeb65b35b68f06ec91d2b7a676cc8fc",
+      "rules": [
+        "literal-private-key-or-seed"
+      ],
+      "lines": [
+        115
+      ],
+      "classification": "invalid-scanner-regression-input",
+      "reason": "Source examples use length3 arrays, deliberately invalid key containers or public marker prose; no usable private material is stored."
+    },
+    {
+      "path": "tests/vendor-fixtures/test_scan_export.py",
+      "blob_sha": "4a788ba21aeb65b35b68f06ec91d2b7a676cc8fc",
+      "rules": [
+        "literal-private-key-or-seed"
+      ],
+      "lines": [
+        116
+      ],
+      "classification": "invalid-scanner-regression-input",
+      "reason": "Source examples use length3 arrays, deliberately invalid key containers or public marker prose; no usable private material is stored."
+    },
+    {
+      "path": "tests/vendor-fixtures/test_scan_export.py",
+      "blob_sha": "4a788ba21aeb65b35b68f06ec91d2b7a676cc8fc",
+      "rules": [
+        "literal-private-key-or-seed"
+      ],
+      "lines": [
+        117
+      ],
+      "classification": "invalid-scanner-regression-input",
+      "reason": "Source examples use length3 arrays, deliberately invalid key containers or public marker prose; no usable private material is stored."
+    },
+    {
+      "path": "tests/vendor-fixtures/test_scan_export.py",
+      "blob_sha": "4a788ba21aeb65b35b68f06ec91d2b7a676cc8fc",
+      "rules": [
+        "literal-private-key-or-seed"
+      ],
+      "lines": [
+        118
+      ],
+      "classification": "invalid-scanner-regression-input",
+      "reason": "Source examples use length3 arrays, deliberately invalid key containers or public marker prose; no usable private material is stored."
+    }
+  ],
+  "policy": "Exact path/blob/rule/line pins only. Excluded objects cannot be exempted. New content requires a fresh review; no repository protection is disabled.",
+  "scope": "Historical public test fixtures and invalid markers are listed, not silently treated as absence of private material."
+}

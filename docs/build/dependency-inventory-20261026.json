@@ -1,0 +1,3172 @@
+{
+  "observed_utc": "2026-10-26",
+  "baseline": "a7a9b049e18896196fd5166832a041d7196f4c2a",
+  "sources": "Official npm/crates.io registries; versions are an observation, not a policy to accept prereleases",
+  "npm": [
+    {
+      "name": "@codemirror/autocomplete",
+      "group": "dependencies",
+      "constraint": "^6.20.3",
+      "current": "6.20.3",
+      "current_license": "MIT",
+      "latest": "6.20.4",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40codemirror%2Fautocomplete/latest"
+    },
+    {
+      "name": "@codemirror/commands",
+      "group": "dependencies",
+      "constraint": "6.10.3",
+      "current": "6.10.3",
+      "current_license": "MIT",
+      "latest": "6.11.1",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40codemirror%2Fcommands/latest"
+    },
+    {
+      "name": "@codemirror/lang-css",
+      "group": "dependencies",
+      "constraint": "^6.3.1",
+      "current": "6.3.1",
+      "current_license": "MIT",
+      "latest": "6.3.1",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40codemirror%2Flang-css/latest"
+    },
+    {
+      "name": "@codemirror/lang-html",
+      "group": "dependencies",
+      "constraint": "^6.4.11",
+      "current": "6.4.11",
+      "current_license": "MIT",
+      "latest": "6.4.12",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40codemirror%2Flang-html/latest"
+    },
+    {
+      "name": "@codemirror/lang-javascript",
+      "group": "dependencies",
+      "constraint": "^6.2.5",
+      "current": "6.2.5",
+      "current_license": "MIT",
+      "latest": "6.2.5",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40codemirror%2Flang-javascript/latest"
+    },
+    {
+      "name": "@codemirror/lang-json",
+      "group": "dependencies",
+      "constraint": "^6.0.2",
+      "current": "6.0.2",
+      "current_license": "MIT",
+      "latest": "6.0.2",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40codemirror%2Flang-json/latest"
+    },
+    {
+      "name": "@codemirror/lang-markdown",
+      "group": "dependencies",
+      "constraint": "^6.5.0",
+      "current": "6.5.0",
+      "current_license": "MIT",
+      "latest": "6.5.2",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40codemirror%2Flang-markdown/latest"
+    },
+    {
+      "name": "@codemirror/lang-python",
+      "group": "dependencies",
+      "constraint": "^6.2.1",
+      "current": "6.2.1",
+      "current_license": "MIT",
+      "latest": "6.2.1",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40codemirror%2Flang-python/latest"
+    },
+    {
+      "name": "@codemirror/lang-rust",
+      "group": "dependencies",
+      "constraint": "^6.0.2",
+      "current": "6.0.2",
+      "current_license": "MIT",
+      "latest": "6.0.2",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40codemirror%2Flang-rust/latest"
+    },
+    {
+      "name": "@codemirror/lang-sql",
+      "group": "dependencies",
+      "constraint": "^6.10.0",
+      "current": "6.10.0",
+      "current_license": "MIT",
+      "latest": "6.10.0",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40codemirror%2Flang-sql/latest"
+    },
+    {
+      "name": "@codemirror/lang-xml",
+      "group": "dependencies",
+      "constraint": "^6.1.0",
+      "current": "6.1.0",
+      "current_license": "MIT",
+      "latest": "6.1.0",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40codemirror%2Flang-xml/latest"
+    },
+    {
+      "name": "@codemirror/lang-yaml",
+      "group": "dependencies",
+      "constraint": "^6.1.3",
+      "current": "6.1.3",
+      "current_license": "MIT",
+      "latest": "6.1.3",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40codemirror%2Flang-yaml/latest"
+    },
+    {
+      "name": "@codemirror/language",
+      "group": "dependencies",
+      "constraint": "^6.12.3",
+      "current": "6.12.4",
+      "current_license": "MIT",
+      "latest": "6.13.1",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40codemirror%2Flanguage/latest"
+    },
+    {
+      "name": "@codemirror/legacy-modes",
+      "group": "dependencies",
+      "constraint": "^6.5.3",
+      "current": "6.5.3",
+      "current_license": "MIT",
+      "latest": "6.5.5",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40codemirror%2Flegacy-modes/latest"
+    },
+    {
+      "name": "@codemirror/merge",
+      "group": "dependencies",
+      "constraint": "^6.12.2",
+      "current": "6.12.2",
+      "current_license": "MIT",
+      "latest": "6.12.3",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40codemirror%2Fmerge/latest"
+    },
+    {
+      "name": "@codemirror/state",
+      "group": "dependencies",
+      "constraint": "^6.6.0",
+      "current": "6.7.4",
+      "current_license": "MIT",
+      "latest": "6.7.6",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40codemirror%2Fstate/latest"
+    },
+    {
+      "name": "@codemirror/view",
+      "group": "dependencies",
+      "constraint": "^6.43.1",
+      "current": "6.43.11",
+      "current_license": "MIT",
+      "latest": "6.43.15",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40codemirror%2Fview/latest"
+    },
+    {
+      "name": "@fontsource/jetbrains-mono",
+      "group": "dependencies",
+      "constraint": "^5.2.8",
+      "current": "5.2.8",
+      "current_license": "OFL-1.1",
+      "latest": "5.3.0",
+      "latest_license": "OFL-1.1",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40fontsource%2Fjetbrains-mono/latest"
+    },
+    {
+      "name": "@fontsource/source-code-pro",
+      "group": "dependencies",
+      "constraint": "^5.2.7",
+      "current": "5.2.7",
+      "current_license": "OFL-1.1",
+      "latest": "5.3.1",
+      "latest_license": "OFL-1.1",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40fontsource%2Fsource-code-pro/latest"
+    },
+    {
+      "name": "@iconify-json/devicon-plain",
+      "group": "dependencies",
+      "constraint": "^1.2.57",
+      "current": "1.2.57",
+      "current_license": "MIT",
+      "latest": "1.2.63",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40iconify-json%2Fdevicon-plain/latest"
+    },
+    {
+      "name": "@iconify-json/lucide",
+      "group": "dependencies",
+      "constraint": "^1.2.111",
+      "current": "1.2.114",
+      "current_license": "ISC",
+      "latest": "1.2.147",
+      "latest_license": "ISC",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40iconify-json%2Flucide/latest"
+    },
+    {
+      "name": "@iconify/react",
+      "group": "dependencies",
+      "constraint": "^6.0.2",
+      "current": "6.0.2",
+      "current_license": "MIT",
+      "latest": "6.0.3",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": {
+        "react": ">=18.0.0"
+      },
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40iconify%2Freact/latest"
+    },
+    {
+      "name": "@lezer/highlight",
+      "group": "dependencies",
+      "constraint": "^1.2.3",
+      "current": "1.2.3",
+      "current_license": "MIT",
+      "latest": "1.2.5",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40lezer%2Fhighlight/latest"
+    },
+    {
+      "name": "@noble/ciphers",
+      "group": "dependencies",
+      "constraint": "^2.2.0",
+      "current": "2.2.0",
+      "current_license": "MIT",
+      "latest": "2.4.0",
+      "latest_license": "MIT",
+      "engines": {
+        "node": ">= 20.19.0"
+      },
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40noble%2Fciphers/latest"
+    },
+    {
+      "name": "@tanstack/react-virtual",
+      "group": "dependencies",
+      "constraint": "^3.14.2",
+      "current": "3.14.4",
+      "current_license": "MIT",
+      "latest": "3.14.23",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": {
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0"
+      },
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40tanstack%2Freact-virtual/latest"
+    },
+    {
+      "name": "@tauri-apps/api",
+      "group": "dependencies",
+      "constraint": "^2.11.0",
+      "current": "2.11.1",
+      "current_license": "Apache-2.0 OR MIT",
+      "latest": "2.12.4",
+      "latest_license": "Apache-2.0 OR MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40tauri-apps%2Fapi/latest"
+    },
+    {
+      "name": "@tauri-apps/plugin-clipboard-manager",
+      "group": "dependencies",
+      "constraint": "^2.3.2",
+      "current": "2.3.2",
+      "current_license": "MIT OR Apache-2.0",
+      "latest": "2.5.0",
+      "latest_license": "MIT OR Apache-2.0",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40tauri-apps%2Fplugin-clipboard-manager/latest"
+    },
+    {
+      "name": "@tauri-apps/plugin-deep-link",
+      "group": "dependencies",
+      "constraint": "^2.4.0",
+      "current": "2.4.9",
+      "current_license": "MIT OR Apache-2.0",
+      "latest": "2.6.2",
+      "latest_license": "MIT OR Apache-2.0",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40tauri-apps%2Fplugin-deep-link/latest"
+    },
+    {
+      "name": "@tauri-apps/plugin-dialog",
+      "group": "dependencies",
+      "constraint": "^2.7.1",
+      "current": "2.7.1",
+      "current_license": "MIT OR Apache-2.0",
+      "latest": "2.8.3",
+      "latest_license": "MIT OR Apache-2.0",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40tauri-apps%2Fplugin-dialog/latest"
+    },
+    {
+      "name": "@tauri-apps/plugin-log",
+      "group": "dependencies",
+      "constraint": "^2.0.0",
+      "current": "2.8.0",
+      "current_license": "MIT OR Apache-2.0",
+      "latest": "2.10.1",
+      "latest_license": "MIT OR Apache-2.0",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40tauri-apps%2Fplugin-log/latest"
+    },
+    {
+      "name": "@tauri-apps/plugin-opener",
+      "group": "dependencies",
+      "constraint": "^2.5.4",
+      "current": "2.5.4",
+      "current_license": "MIT OR Apache-2.0",
+      "latest": "2.7.2",
+      "latest_license": "MIT OR Apache-2.0",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40tauri-apps%2Fplugin-opener/latest"
+    },
+    {
+      "name": "@tauri-apps/plugin-shell",
+      "group": "dependencies",
+      "constraint": "^2.3.5",
+      "current": "2.3.5",
+      "current_license": "MIT OR Apache-2.0",
+      "latest": "2.5.0",
+      "latest_license": "MIT OR Apache-2.0",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40tauri-apps%2Fplugin-shell/latest"
+    },
+    {
+      "name": "@uiw/react-codemirror",
+      "group": "dependencies",
+      "constraint": "^4.25.10",
+      "current": "4.25.10",
+      "current_license": "MIT",
+      "latest": "4.25.12",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": {
+        "react": ">=17.0.0",
+        "react-dom": ">=17.0.0",
+        "codemirror": ">=6.0.0",
+        "@babel/runtime": ">=7.11.0",
+        "@codemirror/view": ">=6.0.0",
+        "@codemirror/state": ">=6.0.0",
+        "@codemirror/theme-one-dark": ">=6.0.0"
+      },
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40uiw%2Freact-codemirror/latest"
+    },
+    {
+      "name": "@xterm/addon-clipboard",
+      "group": "dependencies",
+      "constraint": "^0.2.0",
+      "current": "0.2.0",
+      "current_license": "MIT",
+      "latest": "0.2.0",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40xterm%2Faddon-clipboard/latest"
+    },
+    {
+      "name": "@xterm/addon-fit",
+      "group": "dependencies",
+      "constraint": "^0.11.0",
+      "current": "0.11.0",
+      "current_license": "MIT",
+      "latest": "0.11.0",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40xterm%2Faddon-fit/latest"
+    },
+    {
+      "name": "@xterm/addon-search",
+      "group": "dependencies",
+      "constraint": "^0.16.0",
+      "current": "0.16.0",
+      "current_license": "MIT",
+      "latest": "0.16.0",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40xterm%2Faddon-search/latest"
+    },
+    {
+      "name": "@xterm/addon-web-links",
+      "group": "dependencies",
+      "constraint": "^0.12.0",
+      "current": "0.12.0",
+      "current_license": "MIT",
+      "latest": "0.12.0",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40xterm%2Faddon-web-links/latest"
+    },
+    {
+      "name": "@xterm/addon-webgl",
+      "group": "dependencies",
+      "constraint": "^0.19.0",
+      "current": "0.19.0",
+      "current_license": "MIT",
+      "latest": "0.19.0",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40xterm%2Faddon-webgl/latest"
+    },
+    {
+      "name": "@xterm/xterm",
+      "group": "dependencies",
+      "constraint": "^6.0.0",
+      "current": "6.0.0",
+      "current_license": "MIT",
+      "latest": "6.0.0",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40xterm%2Fxterm/latest"
+    },
+    {
+      "name": "country-flag-emoji-polyfill",
+      "group": "dependencies",
+      "constraint": "^0.1.8",
+      "current": "0.1.8",
+      "current_license": "MIT",
+      "latest": "0.1.10",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/country-flag-emoji-polyfill/latest"
+    },
+    {
+      "name": "es-module-lexer",
+      "group": "dependencies",
+      "constraint": "^2.3.1",
+      "current": "2.3.1",
+      "current_license": "MIT",
+      "latest": "3.0.4",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/es-module-lexer/latest"
+    },
+    {
+      "name": "i18next",
+      "group": "dependencies",
+      "constraint": "^26.3.3",
+      "current": "26.3.3",
+      "current_license": "MIT",
+      "latest": "26.5.11",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": {
+        "typescript": "^5 || ^6 || ^7"
+      },
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/i18next/latest"
+    },
+    {
+      "name": "qrcode-generator",
+      "group": "dependencies",
+      "constraint": "2.0.4",
+      "current": "2.0.4",
+      "current_license": "MIT",
+      "latest": "2.0.4",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/qrcode-generator/latest"
+    },
+    {
+      "name": "react",
+      "group": "dependencies",
+      "constraint": "^19.2.7",
+      "current": "19.2.7",
+      "current_license": "MIT",
+      "latest": "19.3.1",
+      "latest_license": "MIT",
+      "engines": {
+        "node": ">=0.10.0"
+      },
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/react/latest"
+    },
+    {
+      "name": "react-dom",
+      "group": "dependencies",
+      "constraint": "^19.2.7",
+      "current": "19.2.7",
+      "current_license": "MIT",
+      "latest": "19.3.1",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": {
+        "react": "^19.3.1"
+      },
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/react-dom/latest"
+    },
+    {
+      "name": "react-i18next",
+      "group": "dependencies",
+      "constraint": "^17.0.8",
+      "current": "17.0.8",
+      "current_license": "MIT",
+      "latest": "17.1.9",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": {
+        "react": ">= 16.8.0",
+        "i18next": ">= 26.2.0",
+        "typescript": "^5 || ^6 || ^7"
+      },
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/react-i18next/latest"
+    },
+    {
+      "name": "react-markdown",
+      "group": "dependencies",
+      "constraint": "^10.1.0",
+      "current": "10.1.0",
+      "current_license": "MIT",
+      "latest": "10.1.0",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": {
+        "react": ">=18",
+        "@types/react": ">=18"
+      },
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/react-markdown/latest"
+    },
+    {
+      "name": "remark-gfm",
+      "group": "dependencies",
+      "constraint": "^4.0.1",
+      "current": "4.0.1",
+      "current_license": "MIT",
+      "latest": "4.0.1",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/remark-gfm/latest"
+    },
+    {
+      "name": "uplot",
+      "group": "dependencies",
+      "constraint": "^1.6.32",
+      "current": "1.6.32",
+      "current_license": "MIT",
+      "latest": "1.6.32",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/uplot/latest"
+    },
+    {
+      "name": "zod",
+      "group": "dependencies",
+      "constraint": "4.4.3",
+      "current": "4.4.3",
+      "current_license": "MIT",
+      "latest": "4.6.7",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/zod/latest"
+    },
+    {
+      "name": "zustand",
+      "group": "dependencies",
+      "constraint": "^5.0.14",
+      "current": "5.0.14",
+      "current_license": "MIT",
+      "latest": "5.0.16",
+      "latest_license": "MIT",
+      "engines": {
+        "node": ">=12.20.0"
+      },
+      "peerDependencies": {
+        "immer": ">=9.0.6",
+        "react": ">=18.0.0",
+        "@types/react": ">=18.0.0",
+        "use-sync-external-store": ">=1.2.0"
+      },
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/zustand/latest"
+    },
+    {
+      "name": "@tailwindcss/postcss",
+      "group": "devDependencies",
+      "constraint": "^4.3.3",
+      "current": "4.3.3",
+      "current_license": "MIT",
+      "latest": "4.3.3",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40tailwindcss%2Fpostcss/latest"
+    },
+    {
+      "name": "@tauri-apps/cli",
+      "group": "devDependencies",
+      "constraint": "^2.11.2",
+      "current": "2.11.3",
+      "current_license": "Apache-2.0 OR MIT",
+      "latest": "2.12.4",
+      "latest_license": "Apache-2.0 OR MIT",
+      "engines": {
+        "node": ">= 10"
+      },
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40tauri-apps%2Fcli/latest"
+    },
+    {
+      "name": "@testing-library/dom",
+      "group": "devDependencies",
+      "constraint": "^10.4.1",
+      "current": "10.4.1",
+      "current_license": "MIT",
+      "latest": "10.4.2",
+      "latest_license": "MIT",
+      "engines": {
+        "node": ">=18"
+      },
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40testing-library%2Fdom/latest"
+    },
+    {
+      "name": "@testing-library/react",
+      "group": "devDependencies",
+      "constraint": "^16.3.2",
+      "current": "16.3.2",
+      "current_license": "MIT",
+      "latest": "16.3.3",
+      "latest_license": "MIT",
+      "engines": {
+        "node": ">=18"
+      },
+      "peerDependencies": {
+        "react": "^18.0.0 || ^19.0.0",
+        "react-dom": "^18.0.0 || ^19.0.0",
+        "@types/react": "^18.0.0 || ^19.0.0",
+        "@types/react-dom": "^18.0.0 || ^19.0.0",
+        "@testing-library/dom": "^10.0.0"
+      },
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40testing-library%2Freact/latest"
+    },
+    {
+      "name": "@testing-library/user-event",
+      "group": "devDependencies",
+      "constraint": "^14.6.1",
+      "current": "14.6.1",
+      "current_license": "MIT",
+      "latest": "14.6.8",
+      "latest_license": "MIT",
+      "engines": {
+        "npm": ">=6",
+        "node": ">=12"
+      },
+      "peerDependencies": {
+        "@testing-library/dom": ">=7.21.4"
+      },
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40testing-library%2Fuser-event/latest"
+    },
+    {
+      "name": "@types/react",
+      "group": "devDependencies",
+      "constraint": "^19.2.17",
+      "current": "19.2.17",
+      "current_license": "MIT",
+      "latest": "19.3.0",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": {},
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40types%2Freact/latest"
+    },
+    {
+      "name": "@types/react-dom",
+      "group": "devDependencies",
+      "constraint": "^19.2.3",
+      "current": "19.2.3",
+      "current_license": "MIT",
+      "latest": "19.3.0",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": {
+        "@types/react": "^19.3.0"
+      },
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40types%2Freact-dom/latest"
+    },
+    {
+      "name": "@vitejs/plugin-react",
+      "group": "devDependencies",
+      "constraint": "^6.0.2",
+      "current": "6.0.3",
+      "current_license": "MIT",
+      "latest": "6.1.2",
+      "latest_license": "MIT",
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      },
+      "peerDependencies": {
+        "vite": "^8.0.0",
+        "oxc-transform-react": "^0.152.0",
+        "@rolldown/plugin-babel": "^0.1.7 || ^0.2.0",
+        "babel-plugin-react-compiler": "^1.0.0"
+      },
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/%40vitejs%2Fplugin-react/latest"
+    },
+    {
+      "name": "jsdom",
+      "group": "devDependencies",
+      "constraint": "^29.1.1",
+      "current": "29.1.1",
+      "current_license": "MIT",
+      "latest": "30.1.3",
+      "latest_license": "MIT",
+      "engines": {
+        "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+      },
+      "peerDependencies": {
+        "canvas": "^3.2.3"
+      },
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/jsdom/latest"
+    },
+    {
+      "name": "postcss",
+      "group": "devDependencies",
+      "constraint": "^8.5.25",
+      "current": "8.5.25",
+      "current_license": "MIT",
+      "latest": "8.5.31",
+      "latest_license": "MIT",
+      "engines": {
+        "node": "^10 || ^12 || >=14"
+      },
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/postcss/latest"
+    },
+    {
+      "name": "tailwindcss",
+      "group": "devDependencies",
+      "constraint": "^4.3.0",
+      "current": "4.3.3",
+      "current_license": "MIT",
+      "latest": "4.3.3",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/tailwindcss/latest"
+    },
+    {
+      "name": "typescript",
+      "group": "devDependencies",
+      "constraint": "^5.9.3",
+      "current": "5.9.3",
+      "current_license": "Apache-2.0",
+      "latest": "7.0.2",
+      "latest_license": "Apache-2.0",
+      "engines": {
+        "node": ">=16.20.0"
+      },
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/typescript/latest"
+    },
+    {
+      "name": "vite",
+      "group": "devDependencies",
+      "constraint": "^8.1.6",
+      "current": "8.1.6",
+      "current_license": "MIT",
+      "latest": "8.3.5",
+      "latest_license": "MIT",
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      },
+      "peerDependencies": {
+        "tsx": "^4.8.1",
+        "jiti": ">=1.21.0",
+        "less": "^4.0.0",
+        "sass": "^1.70.0",
+        "yaml": "^2.4.2",
+        "stylus": ">=0.54.8",
+        "terser": "^5.16.0",
+        "esbuild": "^0.27.0 || ^0.28.0",
+        "sugarss": "^5.0.0",
+        "@types/node": "^20.19.0 || >=22.12.0",
+        "sass-embedded": "^1.70.0",
+        "@vitejs/devtools": "^0.7.1 || ^0.8.0"
+      },
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/vite/latest"
+    },
+    {
+      "name": "vite-plugin-svgr",
+      "group": "devDependencies",
+      "constraint": "^5.2.0",
+      "current": "5.2.0",
+      "current_license": "MIT",
+      "latest": "5.2.0",
+      "latest_license": "MIT",
+      "engines": null,
+      "peerDependencies": {
+        "vite": ">=3.0.0"
+      },
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/vite-plugin-svgr/latest"
+    },
+    {
+      "name": "vitest",
+      "group": "devDependencies",
+      "constraint": "^4.1.11",
+      "current": "4.1.11",
+      "current_license": "MIT",
+      "latest": "5.0.5",
+      "latest_license": "MIT",
+      "engines": {
+        "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
+      },
+      "peerDependencies": {
+        "vite": "^6.4.0 || ^7.0.0 || ^8.0.0",
+        "jsdom": "*",
+        "happy-dom": "*",
+        "@vitest/ui": "5.0.5",
+        "@types/node": "^22.0.0 || >=24.0.0",
+        "@edge-runtime/vm": "*",
+        "@opentelemetry/api": "^1.9.0",
+        "@vitest/coverage-v8": "5.0.5",
+        "@vitest/browser-preview": "5.0.5",
+        "@vitest/coverage-istanbul": "5.0.5",
+        "@vitest/browser-playwright": "5.0.5",
+        "@vitest/browser-webdriverio": "^5.0.0-beta.5 || >=5.0.0"
+      },
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/vitest/latest"
+    },
+    {
+      "name": "playwright",
+      "group": "desktop-ui-tools",
+      "constraint": "1.64.1",
+      "current": "1.64.1",
+      "current_license": null,
+      "latest": "1.64.1",
+      "latest_license": "Apache-2.0",
+      "engines": {
+        "node": ">=20"
+      },
+      "peerDependencies": null,
+      "deprecated": null,
+      "source": "https://registry.npmjs.org/playwright/latest"
+    }
+  ],
+  "cargo": [
+    {
+      "name": "url",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "2"
+        }
+      ],
+      "locked": [
+        "2.5.8"
+      ],
+      "locked_licenses": {
+        "2.5.8": "MIT OR Apache-2.0"
+      },
+      "latest": "2.5.8",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.63",
+      "source": "https://crates.io/api/v1/crates/url"
+    },
+    {
+      "name": "quick-xml",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.39"
+        }
+      ],
+      "locked": [
+        "0.39.4"
+      ],
+      "locked_licenses": {
+        "0.39.4": "MIT"
+      },
+      "latest": "0.42.0",
+      "latest_license": "MIT",
+      "rust_version": "1.86",
+      "source": "https://crates.io/api/v1/crates/quick-xml"
+    },
+    {
+      "name": "httpdate",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "1"
+        }
+      ],
+      "locked": [
+        "1.0.3"
+      ],
+      "locked_licenses": {
+        "1.0.3": "MIT OR Apache-2.0"
+      },
+      "latest": "1.0.3",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.56",
+      "source": "https://crates.io/api/v1/crates/httpdate"
+    },
+    {
+      "name": "percent-encoding",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "2"
+        }
+      ],
+      "locked": [
+        "2.3.2"
+      ],
+      "locked_licenses": {
+        "2.3.2": "MIT OR Apache-2.0"
+      },
+      "latest": "2.3.2",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.51",
+      "source": "https://crates.io/api/v1/crates/percent-encoding"
+    },
+    {
+      "name": "infer",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.19"
+        }
+      ],
+      "locked": [
+        "0.19.0"
+      ],
+      "locked_licenses": {
+        "0.19.0": "MIT"
+      },
+      "latest": "0.22.0",
+      "latest_license": "MIT",
+      "rust_version": "1.74",
+      "source": "https://crates.io/api/v1/crates/infer"
+    },
+    {
+      "name": "png",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.17"
+        }
+      ],
+      "locked": [
+        "0.17.16",
+        "0.18.1"
+      ],
+      "locked_licenses": {
+        "0.18.1": "MIT OR Apache-2.0",
+        "0.17.16": "MIT OR Apache-2.0"
+      },
+      "latest": "0.18.1",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.73",
+      "source": "https://crates.io/api/v1/crates/png"
+    },
+    {
+      "name": "tauri",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "2"
+        }
+      ],
+      "locked": [
+        "2.11.1"
+      ],
+      "locked_licenses": {
+        "2.11.1": "Apache-2.0 OR MIT"
+      },
+      "latest": "2.12.5",
+      "latest_license": "Apache-2.0 OR MIT",
+      "rust_version": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri"
+    },
+    {
+      "name": "tauri-plugin-shell",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "2"
+        }
+      ],
+      "locked": [
+        "2.3.5"
+      ],
+      "locked_licenses": {
+        "2.3.5": "Apache-2.0 OR MIT"
+      },
+      "latest": "2.5.0",
+      "latest_license": "Apache-2.0 OR MIT",
+      "rust_version": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-shell"
+    },
+    {
+      "name": "tauri-plugin-opener",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "2"
+        }
+      ],
+      "locked": [
+        "2.5.4"
+      ],
+      "locked_licenses": {
+        "2.5.4": "Apache-2.0 OR MIT"
+      },
+      "latest": "2.7.2",
+      "latest_license": "Apache-2.0 OR MIT",
+      "rust_version": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-opener"
+    },
+    {
+      "name": "tauri-plugin-deep-link",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "2"
+        }
+      ],
+      "locked": [
+        "2.4.9"
+      ],
+      "locked_licenses": {
+        "2.4.9": "Apache-2.0 OR MIT"
+      },
+      "latest": "2.6.2",
+      "latest_license": "Apache-2.0 OR MIT",
+      "rust_version": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-deep-link"
+    },
+    {
+      "name": "tauri-plugin-clipboard-manager",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "2"
+        }
+      ],
+      "locked": [
+        "2.3.2"
+      ],
+      "locked_licenses": {
+        "2.3.2": "Apache-2.0 OR MIT"
+      },
+      "latest": "2.5.0",
+      "latest_license": "Apache-2.0 OR MIT",
+      "rust_version": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-clipboard-manager"
+    },
+    {
+      "name": "serde",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "1"
+        },
+        {
+          "manifest": "tests/native-gates/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "=1.0.228"
+        }
+      ],
+      "locked": [
+        "1.0.228"
+      ],
+      "locked_licenses": {
+        "1.0.228": "MIT OR Apache-2.0"
+      },
+      "latest": "1.0.229",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.56",
+      "source": "https://crates.io/api/v1/crates/serde"
+    },
+    {
+      "name": "serde_json",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "1"
+        },
+        {
+          "manifest": "tests/native-gates/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "=1.0.149"
+        }
+      ],
+      "locked": [
+        "1.0.149"
+      ],
+      "locked_licenses": {
+        "1.0.149": "MIT OR Apache-2.0"
+      },
+      "latest": "1.0.154",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.71",
+      "source": "https://crates.io/api/v1/crates/serde_json"
+    },
+    {
+      "name": "tokio",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "1"
+        },
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dev-dependencies",
+          "constraint": "1"
+        },
+        {
+          "manifest": "tests/native-gates/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "=1.52.3"
+        }
+      ],
+      "locked": [
+        "1.52.3"
+      ],
+      "locked_licenses": {
+        "1.52.3": "MIT"
+      },
+      "latest": "1.54.1",
+      "latest_license": "MIT",
+      "rust_version": "1.85",
+      "source": "https://crates.io/api/v1/crates/tokio"
+    },
+    {
+      "name": "uuid",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "1"
+        }
+      ],
+      "locked": [
+        "1.23.1"
+      ],
+      "locked_licenses": {
+        "1.23.1": "Apache-2.0 OR MIT"
+      },
+      "latest": "1.29.0",
+      "latest_license": "Apache-2.0 OR MIT",
+      "rust_version": "1.89.0",
+      "source": "https://crates.io/api/v1/crates/uuid"
+    },
+    {
+      "name": "chrono",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.4"
+        }
+      ],
+      "locked": [
+        "0.4.44"
+      ],
+      "locked_licenses": {
+        "0.4.44": "MIT OR Apache-2.0"
+      },
+      "latest": "0.4.45",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.62.0",
+      "source": "https://crates.io/api/v1/crates/chrono"
+    },
+    {
+      "name": "dirs",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "6"
+        }
+      ],
+      "locked": [
+        "6.0.0"
+      ],
+      "locked_licenses": {
+        "6.0.0": "MIT OR Apache-2.0"
+      },
+      "latest": "7.0.0",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": null,
+      "source": "https://crates.io/api/v1/crates/dirs"
+    },
+    {
+      "name": "russh",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.64.1"
+        },
+        {
+          "manifest": "tests/native-gates/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "=0.64.1"
+        }
+      ],
+      "locked": [
+        "0.64.1"
+      ],
+      "locked_licenses": {
+        "0.64.1": "Apache-2.0"
+      },
+      "latest": "0.65.0",
+      "latest_license": "Apache-2.0",
+      "rust_version": "1.89",
+      "source": "https://crates.io/api/v1/crates/russh"
+    },
+    {
+      "name": "russh-sftp",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "2.3"
+        },
+        {
+          "manifest": "tests/native-gates/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "=2.3.0"
+        }
+      ],
+      "locked": [
+        "2.3.0"
+      ],
+      "locked_licenses": {
+        "2.3.0": "Apache-2.0"
+      },
+      "latest": "3.0.1",
+      "latest_license": "Apache-2.0",
+      "rust_version": null,
+      "source": "https://crates.io/api/v1/crates/russh-sftp"
+    },
+    {
+      "name": "tokio-socks",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.5"
+        }
+      ],
+      "locked": [
+        "0.5.3"
+      ],
+      "locked_licenses": {
+        "0.5.3": "MIT"
+      },
+      "latest": "0.5.3",
+      "latest_license": "MIT",
+      "rust_version": null,
+      "source": "https://crates.io/api/v1/crates/tokio-socks"
+    },
+    {
+      "name": "tokio-util",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.7"
+        },
+        {
+          "manifest": "tests/native-gates/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "=0.7.18"
+        }
+      ],
+      "locked": [
+        "0.7.18"
+      ],
+      "locked_licenses": {
+        "0.7.18": "MIT"
+      },
+      "latest": "0.7.20",
+      "latest_license": "MIT",
+      "rust_version": "1.85",
+      "source": "https://crates.io/api/v1/crates/tokio-util"
+    },
+    {
+      "name": "hyper",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "1"
+        }
+      ],
+      "locked": [
+        "1.9.0"
+      ],
+      "locked_licenses": {
+        "1.9.0": "MIT"
+      },
+      "latest": "1.12.0",
+      "latest_license": "MIT",
+      "rust_version": "1.63",
+      "source": "https://crates.io/api/v1/crates/hyper"
+    },
+    {
+      "name": "hyper-util",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.1"
+        }
+      ],
+      "locked": [
+        "0.1.20"
+      ],
+      "locked_licenses": {
+        "0.1.20": "MIT"
+      },
+      "latest": "0.1.21",
+      "latest_license": "MIT",
+      "rust_version": "1.85",
+      "source": "https://crates.io/api/v1/crates/hyper-util"
+    },
+    {
+      "name": "tower-service",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.3"
+        }
+      ],
+      "locked": [
+        "0.3.3"
+      ],
+      "locked_licenses": {
+        "0.3.3": "MIT"
+      },
+      "latest": "0.3.3",
+      "latest_license": "MIT",
+      "rust_version": null,
+      "source": "https://crates.io/api/v1/crates/tower-service"
+    },
+    {
+      "name": "http-body-util",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.1"
+        }
+      ],
+      "locked": [
+        "0.1.3"
+      ],
+      "locked_licenses": {
+        "0.1.3": "MIT"
+      },
+      "latest": "0.1.5",
+      "latest_license": "MIT",
+      "rust_version": "1.61",
+      "source": "https://crates.io/api/v1/crates/http-body-util"
+    },
+    {
+      "name": "bytes",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "1"
+        },
+        {
+          "manifest": "tests/native-gates/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "=1.11.1"
+        }
+      ],
+      "locked": [
+        "1.11.1"
+      ],
+      "locked_licenses": {
+        "1.11.1": "MIT"
+      },
+      "latest": "1.12.1",
+      "latest_license": "MIT",
+      "rust_version": "1.57",
+      "source": "https://crates.io/api/v1/crates/bytes"
+    },
+    {
+      "name": "tauri-plugin-dialog",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "2"
+        }
+      ],
+      "locked": [
+        "2.7.1"
+      ],
+      "locked_licenses": {
+        "2.7.1": "Apache-2.0 OR MIT"
+      },
+      "latest": "2.8.3",
+      "latest_license": "Apache-2.0 OR MIT",
+      "rust_version": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-dialog"
+    },
+    {
+      "name": "async-trait",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.1"
+        }
+      ],
+      "locked": [
+        "0.1.89"
+      ],
+      "locked_licenses": {
+        "0.1.89": "MIT OR Apache-2.0"
+      },
+      "latest": "0.1.92",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.71",
+      "source": "https://crates.io/api/v1/crates/async-trait"
+    },
+    {
+      "name": "thiserror",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "2"
+        }
+      ],
+      "locked": [
+        "1.0.69",
+        "2.0.18"
+      ],
+      "locked_licenses": {
+        "2.0.18": "MIT OR Apache-2.0",
+        "1.0.69": "MIT OR Apache-2.0"
+      },
+      "latest": "2.0.21",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.77",
+      "source": "https://crates.io/api/v1/crates/thiserror"
+    },
+    {
+      "name": "log",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.4"
+        }
+      ],
+      "locked": [
+        "0.4.29"
+      ],
+      "locked_licenses": {
+        "0.4.29": "MIT OR Apache-2.0"
+      },
+      "latest": "0.4.34",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.71.0",
+      "source": "https://crates.io/api/v1/crates/log"
+    },
+    {
+      "name": "tauri-plugin-log",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "2"
+        }
+      ],
+      "locked": [
+        "2.8.0"
+      ],
+      "locked_licenses": {
+        "2.8.0": "Apache-2.0 OR MIT"
+      },
+      "latest": "2.10.1",
+      "latest_license": "Apache-2.0 OR MIT",
+      "rust_version": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-log"
+    },
+    {
+      "name": "chacha20poly1305",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.10"
+        },
+        {
+          "manifest": "crates/voltius-crypto/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.10"
+        }
+      ],
+      "locked": [
+        "0.10.1"
+      ],
+      "locked_licenses": {
+        "0.10.1": "Apache-2.0 OR MIT"
+      },
+      "latest": "0.11.0",
+      "latest_license": "Apache-2.0 OR MIT",
+      "rust_version": "1.85",
+      "source": "https://crates.io/api/v1/crates/chacha20poly1305"
+    },
+    {
+      "name": "hkdf",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.12"
+        },
+        {
+          "manifest": "crates/voltius-crypto/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.12"
+        }
+      ],
+      "locked": [
+        "0.12.4",
+        "0.13.0"
+      ],
+      "locked_licenses": {
+        "0.13.0": "MIT OR Apache-2.0",
+        "0.12.4": "MIT OR Apache-2.0"
+      },
+      "latest": "0.13.0",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.85",
+      "source": "https://crates.io/api/v1/crates/hkdf"
+    },
+    {
+      "name": "sha2",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.10"
+        },
+        {
+          "manifest": "crates/voltius-crypto/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.10"
+        }
+      ],
+      "locked": [
+        "0.10.9",
+        "0.11.0"
+      ],
+      "locked_licenses": {
+        "0.11.0": "MIT OR Apache-2.0",
+        "0.10.9": "MIT OR Apache-2.0"
+      },
+      "latest": "0.11.1",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.88",
+      "source": "https://crates.io/api/v1/crates/sha2"
+    },
+    {
+      "name": "zeroize",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "1"
+        }
+      ],
+      "locked": [
+        "1.9.0"
+      ],
+      "locked_licenses": {
+        "1.9.0": "Apache-2.0 OR MIT"
+      },
+      "latest": "1.9.1",
+      "latest_license": "Apache-2.0 OR MIT",
+      "rust_version": "1.85",
+      "source": "https://crates.io/api/v1/crates/zeroize"
+    },
+    {
+      "name": "rand",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.8"
+        },
+        {
+          "manifest": "crates/voltius-crypto/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.8"
+        }
+      ],
+      "locked": [
+        "0.8.6",
+        "0.10.1"
+      ],
+      "locked_licenses": {
+        "0.8.6": "MIT OR Apache-2.0",
+        "0.10.1": "MIT OR Apache-2.0"
+      },
+      "latest": "0.10.3",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.85",
+      "source": "https://crates.io/api/v1/crates/rand"
+    },
+    {
+      "name": "x25519-dalek",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "2"
+        },
+        {
+          "manifest": "crates/voltius-crypto/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "2"
+        }
+      ],
+      "locked": [
+        "2.0.1"
+      ],
+      "locked_licenses": {
+        "2.0.1": "BSD-3-Clause"
+      },
+      "latest": "3.0.0",
+      "latest_license": "BSD-3-Clause",
+      "rust_version": "1.85",
+      "source": "https://crates.io/api/v1/crates/x25519-dalek"
+    },
+    {
+      "name": "keyring-core",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "1"
+        }
+      ],
+      "locked": [
+        "1.0.0"
+      ],
+      "locked_licenses": {
+        "1.0.0": "MIT OR Apache-2.0"
+      },
+      "latest": "1.0.1",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.85",
+      "source": "https://crates.io/api/v1/crates/keyring-core"
+    },
+    {
+      "name": "base64",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.22"
+        },
+        {
+          "manifest": "crates/voltius-crypto-wasm/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.22"
+        },
+        {
+          "manifest": "crates/voltius-crypto/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.22"
+        }
+      ],
+      "locked": [
+        "0.21.7",
+        "0.22.1"
+      ],
+      "locked_licenses": {
+        "0.22.1": "MIT OR Apache-2.0",
+        "0.21.7": "MIT OR Apache-2.0"
+      },
+      "latest": "0.23.1",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.71.0",
+      "source": "https://crates.io/api/v1/crates/base64"
+    },
+    {
+      "name": "hostname",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.4"
+        }
+      ],
+      "locked": [
+        "0.4.2"
+      ],
+      "locked_licenses": {
+        "0.4.2": "MIT"
+      },
+      "latest": "0.4.2",
+      "latest_license": "MIT",
+      "rust_version": "1.74",
+      "source": "https://crates.io/api/v1/crates/hostname"
+    },
+    {
+      "name": "crypto_secretbox",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.1"
+        }
+      ],
+      "locked": [
+        "0.1.1"
+      ],
+      "locked_licenses": {
+        "0.1.1": "Apache-2.0 OR MIT"
+      },
+      "latest": "0.1.1",
+      "latest_license": "Apache-2.0 OR MIT",
+      "rust_version": "1.60",
+      "source": "https://crates.io/api/v1/crates/crypto_secretbox"
+    },
+    {
+      "name": "rusty-leveldb",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "4"
+        }
+      ],
+      "locked": [
+        "4.0.1"
+      ],
+      "locked_licenses": {
+        "4.0.1": "MIT"
+      },
+      "latest": "4.0.2",
+      "latest_license": "MIT",
+      "rust_version": null,
+      "source": "https://crates.io/api/v1/crates/rusty-leveldb"
+    },
+    {
+      "name": "rusqlite",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.40"
+        }
+      ],
+      "locked": [
+        "0.40.2"
+      ],
+      "locked_licenses": {
+        "0.40.2": "MIT"
+      },
+      "latest": "0.41.0",
+      "latest_license": "MIT",
+      "rust_version": "1.89.0",
+      "source": "https://crates.io/api/v1/crates/rusqlite"
+    },
+    {
+      "name": "ruzstd",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.9"
+        }
+      ],
+      "locked": [
+        "0.9.0"
+      ],
+      "locked_licenses": {
+        "0.9.0": "MIT"
+      },
+      "latest": "0.9.1",
+      "latest_license": "MIT",
+      "rust_version": "1.87",
+      "source": "https://crates.io/api/v1/crates/ruzstd"
+    },
+    {
+      "name": "tar",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.4"
+        }
+      ],
+      "locked": [
+        "0.4.46"
+      ],
+      "locked_licenses": {
+        "0.4.46": "MIT OR Apache-2.0"
+      },
+      "latest": "0.4.46",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.63",
+      "source": "https://crates.io/api/v1/crates/tar"
+    },
+    {
+      "name": "flate2",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "1"
+        }
+      ],
+      "locked": [
+        "1.1.9"
+      ],
+      "locked_licenses": {
+        "1.1.9": "MIT OR Apache-2.0"
+      },
+      "latest": "1.1.10",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.67.0",
+      "source": "https://crates.io/api/v1/crates/flate2"
+    },
+    {
+      "name": "portable-pty",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.9"
+        }
+      ],
+      "locked": [
+        "0.9.0"
+      ],
+      "locked_licenses": {
+        "0.9.0": "MIT"
+      },
+      "latest": "0.9.0",
+      "latest_license": "MIT",
+      "rust_version": null,
+      "source": "https://crates.io/api/v1/crates/portable-pty"
+    },
+    {
+      "name": "ssh-key",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.6"
+        }
+      ],
+      "locked": [
+        "0.6.7",
+        "0.7.0-rc.11"
+      ],
+      "locked_licenses": {
+        "0.7.0-rc.11": "Apache-2.0 OR MIT",
+        "0.6.7": "Apache-2.0 OR MIT"
+      },
+      "latest": "0.6.7",
+      "latest_license": "Apache-2.0 OR MIT",
+      "rust_version": "1.65",
+      "source": "https://crates.io/api/v1/crates/ssh-key"
+    },
+    {
+      "name": "rsa",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.9"
+        }
+      ],
+      "locked": [
+        "0.9.10",
+        "0.10.0-rc.18"
+      ],
+      "locked_licenses": {
+        "0.10.0-rc.18": "MIT OR Apache-2.0",
+        "0.9.10": "MIT OR Apache-2.0"
+      },
+      "latest": "0.9.10",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.65",
+      "source": "https://crates.io/api/v1/crates/rsa"
+    },
+    {
+      "name": "sysinfo",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.39"
+        }
+      ],
+      "locked": [
+        "0.39.3"
+      ],
+      "locked_licenses": {
+        "0.39.3": "MIT"
+      },
+      "latest": "0.39.6",
+      "latest_license": "MIT",
+      "rust_version": "1.95",
+      "source": "https://crates.io/api/v1/crates/sysinfo"
+    },
+    {
+      "name": "fontdb",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.24"
+        }
+      ],
+      "locked": [
+        "0.24.0"
+      ],
+      "locked_licenses": {
+        "0.24.0": "MIT"
+      },
+      "latest": "0.24.0",
+      "latest_license": "MIT",
+      "rust_version": "1.71",
+      "source": "https://crates.io/api/v1/crates/fontdb"
+    },
+    {
+      "name": "bollard",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.21"
+        }
+      ],
+      "locked": [
+        "0.21.0"
+      ],
+      "locked_licenses": {
+        "0.21.0": "Apache-2.0"
+      },
+      "latest": "0.21.1",
+      "latest_license": "Apache-2.0",
+      "rust_version": null,
+      "source": "https://crates.io/api/v1/crates/bollard"
+    },
+    {
+      "name": "futures-util",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.3"
+        }
+      ],
+      "locked": [
+        "0.3.32"
+      ],
+      "locked_licenses": {
+        "0.3.32": "MIT OR Apache-2.0"
+      },
+      "latest": "0.3.34",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.71",
+      "source": "https://crates.io/api/v1/crates/futures-util"
+    },
+    {
+      "name": "reqwest",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.13"
+        }
+      ],
+      "locked": [
+        "0.13.3"
+      ],
+      "locked_licenses": {
+        "0.13.3": "MIT OR Apache-2.0"
+      },
+      "latest": "0.13.5",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.85.0",
+      "source": "https://crates.io/api/v1/crates/reqwest"
+    },
+    {
+      "name": "serialport",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "4"
+        }
+      ],
+      "locked": [
+        "4.9.0"
+      ],
+      "locked_licenses": {
+        "4.9.0": "MPL-2.0"
+      },
+      "latest": "4.10.1",
+      "latest_license": "MPL-2.0",
+      "rust_version": "1.59.0",
+      "source": "https://crates.io/api/v1/crates/serialport"
+    },
+    {
+      "name": "aes",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.9"
+        }
+      ],
+      "locked": [
+        "0.8.4",
+        "0.9.0"
+      ],
+      "locked_licenses": {
+        "0.9.0": "MIT OR Apache-2.0",
+        "0.8.4": "MIT OR Apache-2.0"
+      },
+      "latest": "0.9.3",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.89",
+      "source": "https://crates.io/api/v1/crates/aes"
+    },
+    {
+      "name": "cfb8",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.9"
+        }
+      ],
+      "locked": [
+        "0.9.1"
+      ],
+      "locked_licenses": {
+        "0.9.1": "MIT OR Apache-2.0"
+      },
+      "latest": "0.9.1",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.85",
+      "source": "https://crates.io/api/v1/crates/cfb8"
+    },
+    {
+      "name": "cbc",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.2"
+        }
+      ],
+      "locked": [
+        "0.1.2",
+        "0.2.0"
+      ],
+      "locked_licenses": {
+        "0.2.0": "MIT OR Apache-2.0",
+        "0.1.2": "MIT OR Apache-2.0"
+      },
+      "latest": "0.2.1",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.85",
+      "source": "https://crates.io/api/v1/crates/cbc"
+    },
+    {
+      "name": "blowfish",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.10"
+        }
+      ],
+      "locked": [
+        "0.9.1",
+        "0.10.0"
+      ],
+      "locked_licenses": {
+        "0.10.0": "MIT OR Apache-2.0",
+        "0.9.1": "MIT OR Apache-2.0"
+      },
+      "latest": "0.10.0",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.85",
+      "source": "https://crates.io/api/v1/crates/blowfish"
+    },
+    {
+      "name": "suppaftp",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "9"
+        }
+      ],
+      "locked": [
+        "9.0.0"
+      ],
+      "locked_licenses": {
+        "9.0.0": "MIT OR Apache-2.0"
+      },
+      "latest": "12.2.1",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.88.0",
+      "source": "https://crates.io/api/v1/crates/suppaftp"
+    },
+    {
+      "name": "tokio-rustls",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.26"
+        }
+      ],
+      "locked": [
+        "0.26.4"
+      ],
+      "locked_licenses": {
+        "0.26.4": "MIT OR Apache-2.0"
+      },
+      "latest": "0.26.6",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.71",
+      "source": "https://crates.io/api/v1/crates/tokio-rustls"
+    },
+    {
+      "name": "rustls-native-certs",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.8"
+        }
+      ],
+      "locked": [
+        "0.8.3"
+      ],
+      "locked_licenses": {
+        "0.8.3": "Apache-2.0 OR ISC OR MIT"
+      },
+      "latest": "0.8.5",
+      "latest_license": "Apache-2.0 OR ISC OR MIT",
+      "rust_version": "1.71",
+      "source": "https://crates.io/api/v1/crates/rustls-native-certs"
+    },
+    {
+      "name": "rcgen",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dev-dependencies",
+          "constraint": "0.13"
+        }
+      ],
+      "locked": [
+        "0.13.2"
+      ],
+      "locked_licenses": {
+        "0.13.2": "MIT OR Apache-2.0"
+      },
+      "latest": "0.14.10",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.88",
+      "source": "https://crates.io/api/v1/crates/rcgen"
+    },
+    {
+      "name": "tempfile",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dev-dependencies",
+          "constraint": "3"
+        },
+        {
+          "manifest": "tests/native-gates/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "=3.27.0"
+        }
+      ],
+      "locked": [
+        "3.27.0"
+      ],
+      "locked_licenses": {
+        "3.27.0": "MIT OR Apache-2.0"
+      },
+      "latest": "3.27.0",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.63",
+      "source": "https://crates.io/api/v1/crates/tempfile"
+    },
+    {
+      "name": "vt100",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "dev-dependencies",
+          "constraint": "0.16"
+        }
+      ],
+      "locked": [
+        "0.16.2"
+      ],
+      "locked_licenses": {
+        "0.16.2": "MIT"
+      },
+      "latest": "0.18.1",
+      "latest_license": "MIT",
+      "rust_version": "1.85",
+      "source": "https://crates.io/api/v1/crates/vt100"
+    },
+    {
+      "name": "tauri-build",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "build-dependencies",
+          "constraint": "2"
+        }
+      ],
+      "locked": [
+        "2.6.1"
+      ],
+      "locked_licenses": {
+        "2.6.1": "Apache-2.0 OR MIT"
+      },
+      "latest": "2.7.4",
+      "latest_license": "Apache-2.0 OR MIT",
+      "rust_version": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri-build"
+    },
+    {
+      "name": "tauri-plugin-updater",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(not(any(target_os = \"android\", target_os = \"ios\"))):dependencies",
+          "constraint": "2"
+        }
+      ],
+      "locked": [
+        "2.10.1"
+      ],
+      "locked_licenses": {
+        "2.10.1": "Apache-2.0 OR MIT"
+      },
+      "latest": "2.14.0",
+      "latest_license": "Apache-2.0 OR MIT",
+      "rust_version": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-updater"
+    },
+    {
+      "name": "minisign-verify",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(not(any(target_os = \"android\", target_os = \"ios\"))):dependencies",
+          "constraint": "0.2"
+        }
+      ],
+      "locked": [
+        "0.2.5"
+      ],
+      "locked_licenses": {
+        "0.2.5": "MIT"
+      },
+      "latest": "0.3.0",
+      "latest_license": "MIT",
+      "rust_version": null,
+      "source": "https://crates.io/api/v1/crates/minisign-verify"
+    },
+    {
+      "name": "tauri-plugin-single-instance",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(not(any(target_os = \"android\", target_os = \"ios\"))):dependencies",
+          "constraint": "2"
+        }
+      ],
+      "locked": [
+        "2.4.3"
+      ],
+      "locked_licenses": {
+        "2.4.3": "Apache-2.0 OR MIT"
+      },
+      "latest": "2.5.4",
+      "latest_license": "Apache-2.0 OR MIT",
+      "rust_version": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-single-instance"
+    },
+    {
+      "name": "machine-uid",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(not(any(target_os = \"android\", target_os = \"ios\"))):dependencies",
+          "constraint": "0.6"
+        }
+      ],
+      "locked": [
+        "0.6.0"
+      ],
+      "locked_licenses": {
+        "0.6.0": "MIT"
+      },
+      "latest": "0.6.0",
+      "latest_license": "MIT",
+      "rust_version": null,
+      "source": "https://crates.io/api/v1/crates/machine-uid"
+    },
+    {
+      "name": "libc",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(unix):dependencies",
+          "constraint": "0.2"
+        }
+      ],
+      "locked": [
+        "0.2.186"
+      ],
+      "locked_licenses": {
+        "0.2.186": "MIT OR Apache-2.0"
+      },
+      "latest": "0.2.191",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.65",
+      "source": "https://crates.io/api/v1/crates/libc"
+    },
+    {
+      "name": "webview2-com",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(target_os = \"windows\"):dependencies",
+          "constraint": "=0.38.2"
+        }
+      ],
+      "locked": [
+        "0.38.2"
+      ],
+      "locked_licenses": {
+        "0.38.2": "MIT"
+      },
+      "latest": "0.39.1",
+      "latest_license": "MIT",
+      "rust_version": "1.82",
+      "source": "https://crates.io/api/v1/crates/webview2-com"
+    },
+    {
+      "name": "windows-core",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(target_os = \"windows\"):dependencies",
+          "constraint": "=0.61.2"
+        }
+      ],
+      "locked": [
+        "0.61.2",
+        "0.62.2"
+      ],
+      "locked_licenses": {
+        "0.62.2": "MIT OR Apache-2.0",
+        "0.61.2": "MIT OR Apache-2.0"
+      },
+      "latest": "0.100.0",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.95",
+      "source": "https://crates.io/api/v1/crates/windows-core"
+    },
+    {
+      "name": "windows-sys",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(target_os = \"windows\"):dependencies",
+          "constraint": "0.59"
+        }
+      ],
+      "locked": [
+        "0.45.0",
+        "0.52.0",
+        "0.59.0",
+        "0.60.2",
+        "0.61.2"
+      ],
+      "locked_licenses": {
+        "0.61.2": "MIT OR Apache-2.0",
+        "0.60.2": "MIT OR Apache-2.0",
+        "0.59.0": "MIT OR Apache-2.0",
+        "0.52.0": "MIT OR Apache-2.0",
+        "0.45.0": "MIT OR Apache-2.0"
+      },
+      "latest": "0.61.2",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.71",
+      "source": "https://crates.io/api/v1/crates/windows-sys"
+    },
+    {
+      "name": "windows-registry",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(target_os = \"windows\"):dependencies",
+          "constraint": "0.6"
+        }
+      ],
+      "locked": [
+        "0.5.3",
+        "0.6.1"
+      ],
+      "locked_licenses": {
+        "0.6.1": "MIT OR Apache-2.0",
+        "0.5.3": "MIT OR Apache-2.0"
+      },
+      "latest": "0.100.0",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.95",
+      "source": "https://crates.io/api/v1/crates/windows-registry"
+    },
+    {
+      "name": "windows-native-keyring-store",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(target_os = \"windows\"):dependencies",
+          "constraint": "1"
+        }
+      ],
+      "locked": [
+        "1.1.0"
+      ],
+      "locked_licenses": {
+        "1.1.0": "MIT OR Apache-2.0"
+      },
+      "latest": "1.1.0",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.88",
+      "source": "https://crates.io/api/v1/crates/windows-native-keyring-store"
+    },
+    {
+      "name": "windows",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(target_os = \"windows\"):dependencies",
+          "constraint": "0.61"
+        }
+      ],
+      "locked": [
+        "0.61.3",
+        "0.62.2"
+      ],
+      "locked_licenses": {
+        "0.62.2": "MIT OR Apache-2.0",
+        "0.61.3": "MIT OR Apache-2.0"
+      },
+      "latest": "0.62.2",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.82",
+      "source": "https://crates.io/api/v1/crates/windows"
+    },
+    {
+      "name": "windows-future",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(target_os = \"windows\"):dependencies",
+          "constraint": "0.2"
+        }
+      ],
+      "locked": [
+        "0.2.1",
+        "0.3.2"
+      ],
+      "locked_licenses": {
+        "0.3.2": "MIT OR Apache-2.0",
+        "0.2.1": "MIT OR Apache-2.0"
+      },
+      "latest": "0.100.0",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.95",
+      "source": "https://crates.io/api/v1/crates/windows-future"
+    },
+    {
+      "name": "dbus-secret-service-keyring-store",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(target_os = \"linux\"):dependencies",
+          "constraint": "1"
+        }
+      ],
+      "locked": [
+        "1.0.0"
+      ],
+      "locked_licenses": {
+        "1.0.0": "MIT OR Apache-2.0"
+      },
+      "latest": "1.0.1",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.88",
+      "source": "https://crates.io/api/v1/crates/dbus-secret-service-keyring-store"
+    },
+    {
+      "name": "linux-keyutils-keyring-store",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(target_os = \"linux\"):dependencies",
+          "constraint": "1"
+        }
+      ],
+      "locked": [
+        "1.0.0"
+      ],
+      "locked_licenses": {
+        "1.0.0": "MIT OR Apache-2.0"
+      },
+      "latest": "1.0.0",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.85",
+      "source": "https://crates.io/api/v1/crates/linux-keyutils-keyring-store"
+    },
+    {
+      "name": "libsecret",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(target_os = \"linux\"):dependencies",
+          "constraint": "0.4"
+        }
+      ],
+      "locked": [
+        "0.4.0"
+      ],
+      "locked_licenses": {
+        "0.4.0": "MIT"
+      },
+      "latest": "0.9.0",
+      "latest_license": "MIT",
+      "rust_version": "1.92.0",
+      "source": "https://crates.io/api/v1/crates/libsecret"
+    },
+    {
+      "name": "gio",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(target_os = \"linux\"):dependencies",
+          "constraint": "0.18"
+        }
+      ],
+      "locked": [
+        "0.18.4"
+      ],
+      "locked_licenses": {
+        "0.18.4": "MIT"
+      },
+      "latest": "0.22.10",
+      "latest_license": "MIT",
+      "rust_version": "1.92",
+      "source": "https://crates.io/api/v1/crates/gio"
+    },
+    {
+      "name": "apple-native-keyring-store",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(target_os = \"macos\"):dependencies",
+          "constraint": "1"
+        }
+      ],
+      "locked": [
+        "1.0.0"
+      ],
+      "locked_licenses": {
+        "1.0.0": "MIT OR Apache-2.0"
+      },
+      "latest": "1.0.2",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.85",
+      "source": "https://crates.io/api/v1/crates/apple-native-keyring-store"
+    },
+    {
+      "name": "objc2",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(target_os = \"macos\"):dependencies",
+          "constraint": "0.6"
+        }
+      ],
+      "locked": [
+        "0.6.4"
+      ],
+      "locked_licenses": {
+        "0.6.4": "MIT"
+      },
+      "latest": "0.6.5",
+      "latest_license": "MIT",
+      "rust_version": "1.71",
+      "source": "https://crates.io/api/v1/crates/objc2"
+    },
+    {
+      "name": "objc2-foundation",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(target_os = \"macos\"):dependencies",
+          "constraint": "0.3"
+        }
+      ],
+      "locked": [
+        "0.3.2"
+      ],
+      "locked_licenses": {
+        "0.3.2": "MIT"
+      },
+      "latest": "0.3.2",
+      "latest_license": "MIT",
+      "rust_version": "1.71",
+      "source": "https://crates.io/api/v1/crates/objc2-foundation"
+    },
+    {
+      "name": "objc2-local-authentication",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(target_os = \"macos\"):dependencies",
+          "constraint": "0.3"
+        }
+      ],
+      "locked": [
+        "0.3.2"
+      ],
+      "locked_licenses": {
+        "0.3.2": "Zlib OR Apache-2.0 OR MIT"
+      },
+      "latest": "0.3.2",
+      "latest_license": "Zlib OR Apache-2.0 OR MIT",
+      "rust_version": "1.71",
+      "source": "https://crates.io/api/v1/crates/objc2-local-authentication"
+    },
+    {
+      "name": "block2",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(target_os = \"macos\"):dependencies",
+          "constraint": "0.6"
+        }
+      ],
+      "locked": [
+        "0.6.2"
+      ],
+      "locked_licenses": {
+        "0.6.2": "MIT"
+      },
+      "latest": "0.6.2",
+      "latest_license": "MIT",
+      "rust_version": "1.71",
+      "source": "https://crates.io/api/v1/crates/block2"
+    },
+    {
+      "name": "jni",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(target_os = \"android\"):dependencies",
+          "constraint": "0.21"
+        }
+      ],
+      "locked": [
+        "0.21.1",
+        "0.22.4"
+      ],
+      "locked_licenses": {
+        "0.22.4": "MIT OR Apache-2.0",
+        "0.21.1": "MIT/Apache-2.0"
+      },
+      "latest": "0.22.4",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.85.0",
+      "source": "https://crates.io/api/v1/crates/jni"
+    },
+    {
+      "name": "rustls",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(target_os = \"android\"):dependencies",
+          "constraint": "0.23"
+        }
+      ],
+      "locked": [
+        "0.23.45"
+      ],
+      "locked_licenses": {
+        "0.23.45": "Apache-2.0 OR ISC OR MIT"
+      },
+      "latest": "0.23.46",
+      "latest_license": "Apache-2.0 OR ISC OR MIT",
+      "rust_version": "1.71",
+      "source": "https://crates.io/api/v1/crates/rustls"
+    },
+    {
+      "name": "webpki-roots",
+      "uses": [
+        {
+          "manifest": "src-tauri/Cargo.toml",
+          "group": "cfg(target_os = \"android\"):dependencies",
+          "constraint": "1"
+        }
+      ],
+      "locked": [
+        "1.0.7"
+      ],
+      "locked_licenses": {
+        "1.0.7": "CDLA-Permissive-2.0"
+      },
+      "latest": "1.0.11",
+      "latest_license": "CDLA-Permissive-2.0",
+      "rust_version": "1.71",
+      "source": "https://crates.io/api/v1/crates/webpki-roots"
+    },
+    {
+      "name": "regex",
+      "uses": [
+        {
+          "manifest": "crates/voltius-diagnostics/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "1"
+        }
+      ],
+      "locked": [
+        "1.12.3"
+      ],
+      "locked_licenses": {
+        "1.12.3": "MIT OR Apache-2.0"
+      },
+      "latest": "1.13.1",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.65",
+      "source": "https://crates.io/api/v1/crates/regex"
+    },
+    {
+      "name": "zip",
+      "uses": [
+        {
+          "manifest": "crates/voltius-diagnostics/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "2"
+        }
+      ],
+      "locked": [
+        "2.4.2",
+        "4.6.1"
+      ],
+      "locked_licenses": {
+        "4.6.1": "MIT",
+        "2.4.2": "MIT"
+      },
+      "latest": "9.1.2",
+      "latest_license": "MIT",
+      "rust_version": "1.88",
+      "source": "https://crates.io/api/v1/crates/zip"
+    },
+    {
+      "name": "wasm-bindgen",
+      "uses": [
+        {
+          "manifest": "crates/voltius-crypto-wasm/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.2"
+        }
+      ],
+      "locked": [
+        "0.2.121"
+      ],
+      "locked_licenses": {
+        "0.2.121": "MIT OR Apache-2.0"
+      },
+      "latest": "0.2.129",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.81",
+      "source": "https://crates.io/api/v1/crates/wasm-bindgen"
+    },
+    {
+      "name": "getrandom",
+      "uses": [
+        {
+          "manifest": "crates/voltius-crypto-wasm/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.2"
+        }
+      ],
+      "locked": [
+        "0.2.17",
+        "0.3.4",
+        "0.4.2"
+      ],
+      "locked_licenses": {
+        "0.4.2": "MIT OR Apache-2.0",
+        "0.2.17": "MIT OR Apache-2.0",
+        "0.3.4": "MIT OR Apache-2.0"
+      },
+      "latest": "0.4.3",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.85",
+      "source": "https://crates.io/api/v1/crates/getrandom"
+    },
+    {
+      "name": "argon2",
+      "uses": [
+        {
+          "manifest": "crates/voltius-crypto/Cargo.toml",
+          "group": "dependencies",
+          "constraint": "0.5"
+        }
+      ],
+      "locked": [
+        "0.5.3",
+        "0.6.0-rc.8"
+      ],
+      "locked_licenses": {
+        "0.6.0-rc.8": "MIT OR Apache-2.0",
+        "0.5.3": "MIT OR Apache-2.0"
+      },
+      "latest": "0.6.0",
+      "latest_license": "MIT OR Apache-2.0",
+      "rust_version": "1.85",
+      "source": "https://crates.io/api/v1/crates/argon2"
+    }
+  ],
+  "android": [
+    {
+      "coordinate": "com/android/tools/build/gradle",
+      "latest_stable": "9.4.1",
+      "stable_versions": [
+        "9.2.0",
+        "9.2.1",
+        "9.3.0",
+        "9.3.1",
+        "9.3.2",
+        "9.3.3",
+        "9.4.0",
+        "9.4.1"
+      ],
+      "source": "https://dl.google.com/dl/android/maven2/com/android/tools/build/gradle/maven-metadata.xml"
+    },
+    {
+      "coordinate": "androidx/webkit/webkit",
+      "latest_stable": "1.18.0",
+      "stable_versions": [
+        "1.12.1",
+        "1.13.0",
+        "1.14.0",
+        "1.15.0",
+        "1.16.0",
+        "1.17.0",
+        "1.17.1",
+        "1.18.0"
+      ],
+      "source": "https://dl.google.com/dl/android/maven2/androidx/webkit/webkit/maven-metadata.xml"
+    },
+    {
+      "coordinate": "androidx/appcompat/appcompat",
+      "latest_stable": "1.8.0",
+      "stable_versions": [
+        "1.4.2",
+        "1.5.0",
+        "1.5.1",
+        "1.6.0",
+        "1.6.1",
+        "1.7.0",
+        "1.7.1",
+        "1.8.0"
+      ],
+      "source": "https://dl.google.com/dl/android/maven2/androidx/appcompat/appcompat/maven-metadata.xml"
+    },
+    {
+      "coordinate": "androidx/activity/activity-ktx",
+      "latest_stable": "1.13.0",
+      "stable_versions": [
+        "1.10.1",
+        "1.11.0",
+        "1.12.0",
+        "1.12.1",
+        "1.12.2",
+        "1.12.3",
+        "1.12.4",
+        "1.13.0"
+      ],
+      "source": "https://dl.google.com/dl/android/maven2/androidx/activity/activity-ktx/maven-metadata.xml"
+    },
+    {
+      "coordinate": "com/google/android/material/material",
+      "latest_stable": "1.14.0",
+      "stable_versions": [
+        "1.7.0",
+        "1.8.0",
+        "1.9.0",
+        "1.10.0",
+        "1.11.0",
+        "1.12.0",
+        "1.13.0",
+        "1.14.0"
+      ],
+      "source": "https://dl.google.com/dl/android/maven2/com/google/android/material/material/maven-metadata.xml"
+    },
+    {
+      "coordinate": "androidx/lifecycle/lifecycle-process",
+      "latest_stable": "2.11.0",
+      "stable_versions": [
+        "2.8.7",
+        "2.9.0",
+        "2.9.1",
+        "2.9.2",
+        "2.9.3",
+        "2.9.4",
+        "2.10.0",
+        "2.11.0"
+      ],
+      "source": "https://dl.google.com/dl/android/maven2/androidx/lifecycle/lifecycle-process/maven-metadata.xml"
+    },
+    {
+      "coordinate": "androidx/core/core-splashscreen",
+      "latest_stable": "1.2.0",
+      "stable_versions": [
+        "1.0.0",
+        "1.0.1",
+        "1.2.0"
+      ],
+      "source": "https://dl.google.com/dl/android/maven2/androidx/core/core-splashscreen/maven-metadata.xml"
+    },
+    {
+      "coordinate": "androidx/security/security-crypto",
+      "latest_stable": "1.1.0",
+      "stable_versions": [
+        "1.0.0",
+        "1.1.0"
+      ],
+      "source": "https://dl.google.com/dl/android/maven2/androidx/security/security-crypto/maven-metadata.xml"
+    },
+    {
+      "coordinate": "androidx/biometric/biometric",
+      "latest_stable": "1.1.0",
+      "stable_versions": [
+        "1.0.0",
+        "1.0.1",
+        "1.1.0"
+      ],
+      "source": "https://dl.google.com/dl/android/maven2/androidx/biometric/biometric/maven-metadata.xml"
+    },
+    {
+      "coordinate": "androidx/documentfile/documentfile",
+      "latest_stable": "1.1.0",
+      "stable_versions": [
+        "1.0.0",
+        "1.0.1",
+        "1.1.0"
+      ],
+      "source": "https://dl.google.com/dl/android/maven2/androidx/documentfile/documentfile/maven-metadata.xml"
+    },
+    {
+      "coordinate": "androidx/test/ext/junit",
+      "latest_stable": "1.3.0",
+      "stable_versions": [
+        "1.1.1",
+        "1.1.2",
+        "1.1.3",
+        "1.1.4",
+        "1.1.5",
+        "1.2.0",
+        "1.2.1",
+        "1.3.0"
+      ],
+      "source": "https://dl.google.com/dl/android/maven2/androidx/test/ext/junit/maven-metadata.xml"
+    },
+    {
+      "coordinate": "androidx/test/espresso/espresso-core",
+      "latest_stable": "3.7.0",
+      "stable_versions": [
+        "3.2.0",
+        "3.3.0",
+        "3.4.0",
+        "3.5.0",
+        "3.5.1",
+        "3.6.0",
+        "3.6.1",
+        "3.7.0"
+      ],
+      "source": "https://dl.google.com/dl/android/maven2/androidx/test/espresso/espresso-core/maven-metadata.xml"
+    }
+  ]
+}

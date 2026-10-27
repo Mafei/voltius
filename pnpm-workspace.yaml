@@ -1,2 +1,7 @@
+minimumReleaseAge: 1440
+minimumReleaseAgeStrict: true
 overrides:
+  # CodeMirror uses class identity; every extension must share the root instances.
+  "@codemirror/state": "$@codemirror/state"
+  "@codemirror/view": "$@codemirror/view"
   js-yaml@>=4.0.0 <4.3.2: ^4.3.2

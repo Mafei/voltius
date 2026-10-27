@@ -98,6 +98,9 @@ rust {
 }
 
 dependencies {
+    // Align Tauri JSON modules and the encrypted-preferences crypto runtime.
+    implementation(platform(libs.jackson.bom))
+    implementation(libs.tink.android)
     implementation(libs.androidx.webkit)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.activity)
@@ -110,6 +113,7 @@ dependencies {
     implementation(libs.androidx.biometric)
     // SAF tree writes for the SFTP download directory (see VoltiusDownloads.kt).
     implementation(libs.androidx.documentfile)
+    testImplementation(libs.jackson.databind)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     androidTestImplementation(libs.android.test.junit)

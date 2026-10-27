@@ -1311,5 +1311,17 @@
       }
     }
   ],
-  "new_prerelease_versions": []
+  "new_prerelease_versions": [],
+  "android_critical_transitive_updates": [
+    {
+      "module": "Jackson BOM/databind/json-org",
+      "old": "2.15.3",
+      "new": "2.22.4"
+    },
+    {
+      "module": "Tink Android",
+      "old": "1.8.0",
+      "new": "1.24.0"
+    }
+  ]
 }

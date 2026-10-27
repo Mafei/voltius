@@ -1,21 +1,23 @@
 import { defineConfig } from "vitest/config";
 import path from "path";
-import { iconSubsets } from "./vite-plugin-icon-subsets";
+import { iconSubsets } from "./vite-plugin-icon-subsets.ts";
 
 export default defineConfig({
   // Resolve the virtual icon subsets imported by ui.ts transitively via src/utils/icons.ts
   plugins: [iconSubsets()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
       // First-party plugin source imports this as a bare specifier (resolved to a
       // host module at runtime via hostModules.ts); map it to the real module here
       // so first-party plugin unit tests can import it directly, same shared React.
-      "@voltius/ui": path.resolve(__dirname, "./src/plugins/ui.ts"),
-      "@voltius/tools": path.resolve(__dirname, "./src/plugins/toolSurface/index.ts"),
+      "@voltius/ui": path.resolve(import.meta.dirname, "./src/plugins/ui.ts"),
+      "@voltius/tools": path.resolve(import.meta.dirname, "./src/plugins/toolSurface/index.ts"),
     },
   },
   test: {
+    // Preserve the v4 mock-history contract during the v5 migration.
+    clearMocks: false,
     // Per-file isolation (vitest default `isolate: true`) is load-bearing: several team
     // tests mock module singletons (teamVaultSync `_teamKeyCache`, zustand stores/persist,
     // `navigator.onLine`) and rely on a fresh module registry + globals per file. Do not

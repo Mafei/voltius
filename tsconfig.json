@@ -2,7 +2,11 @@
   "compilerOptions": {
     "target": "ES2021",
     "useDefineForClassFields": true,
-    "lib": ["ES2021", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2021",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "skipLibCheck": true,
     "moduleResolution": "bundler",
@@ -15,12 +19,19 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@voltius/ui": ["src/plugins/ui.ts"],
-      "@voltius/tools": ["src/plugins/toolSurface/index.ts"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@voltius/ui": [
+        "./src/plugins/ui.ts"
+      ],
+      "@voltius/tools": [
+        "./src/plugins/toolSurface/index.ts"
+      ]
     }
   },
-  "include": ["src"]
+  "include": [
+    "src"
+  ]
 }

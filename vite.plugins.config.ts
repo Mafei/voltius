@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
-import { HOST_SPECIFIERS } from "./src/plugins/hostSpecifiers";
+import { HOST_SPECIFIERS } from "./src/plugins/hostSpecifiers.ts";
 
 const id = process.env.VOLTIUS_PLUGIN_ID;
 if (!id) throw new Error("VOLTIUS_PLUGIN_ID is required");
@@ -18,7 +18,7 @@ process.env.NODE_ENV = "production";
 export default defineConfig({
   plugins: [react()],
   publicDir: false,
-  resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
+  resolve: { alias: { "@": path.resolve(import.meta.dirname, "./src") } },
   // Plugin bundles run in the webview, not Node — there is no `process` global there.
   // Dependencies (e.g. @tanstack/react-virtual) reference process.env.NODE_ENV for
   // dev-only branches; without this define the reference survives into the artifact
@@ -29,10 +29,10 @@ export default defineConfig({
     "process.env.NODE_ENV": JSON.stringify("production"),
   },
   build: {
-    outDir: path.resolve(__dirname, `src-tauri/resources/plugins/${id}`),
+    outDir: path.resolve(import.meta.dirname, `src-tauri/resources/plugins/${id}`),
     emptyOutDir: true,
     lib: {
-      entry: path.resolve(__dirname, `src/plugins/${id}/index.ts`),
+      entry: path.resolve(import.meta.dirname, `src/plugins/${id}/index.ts`),
       formats: ["es"],
       fileName: () => "index.js",
       // Pin the CSS output filename explicitly rather than relying on Vite's default
@@ -40,7 +40,7 @@ export default defineConfig({
       // (src/plugins/seeded.ts) reads this exact filename to inject a plugin's styles.
       cssFileName: "voltius",
     },
-    rollupOptions: {
+    rolldownOptions: {
       external: [...HOST_SPECIFIERS],
     },
   },

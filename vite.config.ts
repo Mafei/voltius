@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import svgr from "vite-plugin-svgr";
 import path from "path";
-import { iconSubsets } from "./vite-plugin-icon-subsets";
+import { iconSubsets } from "./vite-plugin-icon-subsets.ts";
 import { execFileSync } from "node:child_process";
 
 const host = process.env.TAURI_DEV_HOST;
@@ -17,7 +17,7 @@ export default defineConfig(async () => ({
   plugins: [react(), svgr(), iconSubsets()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
       // Not part of the host's production import graph (plugin bundles resolve this
       // specifier at runtime via hostModules.ts, and vite.plugins.config.ts's
       // `external` keeps it out of built bundles) — but the dev server transforms any
@@ -26,19 +26,20 @@ export default defineConfig(async () => ({
       // is reachable that way. Without this, such a request 500s with an unresolved
       // "@voltius/ui" specifier and the client shows a full-screen error overlay.
       // Same target as tsconfig.json's `paths` and vitest.config.ts's alias.
-      "@voltius/ui": path.resolve(__dirname, "./src/plugins/ui.ts"),
-      "@voltius/tools": path.resolve(__dirname, "./src/plugins/toolSurface/index.ts"),
+      "@voltius/ui": path.resolve(import.meta.dirname, "./src/plugins/ui.ts"),
+      "@voltius/tools": path.resolve(import.meta.dirname, "./src/plugins/toolSurface/index.ts"),
     },
   },
   build: {
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: (id) => {
+        codeSplitting: { groups: [{ name: (id) => {
           if (["@xterm/xterm", "@xterm/addon-fit", "@xterm/addon-webgl", "@xterm/addon-search", "@xterm/addon-web-links"].some((pkg) => id.includes(`/node_modules/${pkg}/`))) return "xterm";
           if (["react", "react-dom"].some((pkg) => id.includes(`/node_modules/${pkg}/`))) return "react";
           const locale = /\/src\/i18n\/locales\/([a-z]+)\//.exec(id)?.[1];
           if (locale && locale !== "en") return `locale-${locale}`;
-        },
+          return null;
+        } }] },
       },
     },
   },

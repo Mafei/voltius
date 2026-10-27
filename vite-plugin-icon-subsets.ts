@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { createRequire } from "node:module";
 import type { Plugin, ResolvedConfig } from "vite";
-import { DEVICON_PLAIN_NAMES } from "./src/utils/deviconPlainNames";
+import { DEVICON_PLAIN_NAMES } from "./src/utils/deviconPlainNames.ts";
 
 const LUCIDE_ID = "virtual:lucide-subset";
 const DEVICON_PLAIN_ID = "virtual:devicon-plain-subset";

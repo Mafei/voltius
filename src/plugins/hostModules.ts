@@ -1,7 +1,8 @@
 // The asm.js build, not the default wasm one: wasm needs 'wasm-unsafe-eval' in the
 // CSP, and an engine that doesn't know that token blocks it and silently loads no
 // plugins at all. Synchronous, so there is no init to await.
-import { parse } from "es-module-lexer/js";
+// v3 minimal retains JS offset records; plugin bundles need neither TypeScript nor SIMD.
+import { parse } from "es-module-lexer/minimal/js";
 import * as React from "react";
 import * as ReactJsxRuntime from "react/jsx-runtime";
 import * as ReactDOM from "react-dom";

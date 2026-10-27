@@ -18,6 +18,7 @@ import { sessionStatusTone } from "@/utils/statusTone";
 import "./terminalChrome.css";
 import { useMobileChromeFit } from "./useMobileChromeFit";
 import { terminalChromeFaceStyle } from "./terminalChrome";
+import { TerminalTraceButtons } from "@/components/diagnostics/TerminalTraceButtons";
 
 const iconButtonClass = "inline-flex size-(--mobile-touch-size) shrink-0 items-center justify-center";
 
@@ -127,6 +128,7 @@ export default function MobileTerminalTopBar() {
       >
         <Icon icon="lucide:plus" width={20} />
       </button>
+      <TerminalTraceButtons />
       {pickerOpen && <NewSessionSheet onClose={() => setPickerOpen(false)} />}
       <div data-mobile-terminal-notifications className="flex w-(--mobile-touch-size) shrink-0 justify-center [&>div]:px-0 [&_button]:min-h-(--mobile-touch-size) [&_button]:max-h-(--mobile-touch-size) [&_button]:min-w-(--mobile-touch-size) [&_button]:max-w-(--mobile-touch-size)">
         <NotificationBell />

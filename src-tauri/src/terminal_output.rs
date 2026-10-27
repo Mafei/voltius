@@ -228,6 +228,11 @@ impl TerminalOutputs {
 }
 
 pub fn emit_output(app: &AppHandle, session_id: &str, data: &[u8]) {
+    crate::terminal_diagnostics::note(
+        session_id,
+        crate::terminal_diagnostics::Stage::Output,
+        data.len(),
+    );
     app.state::<TerminalOutputs>().output(session_id, data);
 }
 

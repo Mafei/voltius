@@ -99,9 +99,18 @@ impl SessionManager {
             .await
     }
 
-    pub async fn set_output_paused(&self, id: &str, paused: bool) -> Result<(), String> {
-        self.send_input(id, SessionInput::PauseOutput(paused), "pause output")
-            .await
+    pub async fn set_output_paused(
+        &self,
+        id: &str,
+        paused: bool,
+        sequence: u64,
+    ) -> Result<(), String> {
+        self.send_input(
+            id,
+            SessionInput::PauseOutput(paused, sequence),
+            "pause output",
+        )
+        .await
     }
 
     pub async fn set_terminal_colors(

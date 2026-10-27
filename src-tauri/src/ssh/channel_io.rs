@@ -75,6 +75,7 @@ pub fn spawn_channel_io_split(
 
     let session_id = session_id.to_string();
     let mux_event = format!("ssh-mux-mode-{}", session_id);
+    let writer_id = session_id.clone();
 
     // Writes wait on russh's session loop, which waits on this read loop while
     // output is paused, so the read loop must never await a write.
@@ -84,11 +85,29 @@ pub fn spawn_channel_io_split(
             match write {
                 Write::Data(data) => {
                     if writer.write_all(&data).await.is_err() {
+                        crate::terminal_diagnostics::note(
+                            &writer_id,
+                            crate::terminal_diagnostics::Stage::Error,
+                            1,
+                        );
                         break;
                     }
+                    crate::terminal_diagnostics::note(
+                        &writer_id,
+                        crate::terminal_diagnostics::Stage::Written,
+                        data.len(),
+                    );
                 }
                 Write::Resize(cols, rows) => {
-                    let _ = write_half.window_change(cols, rows, 0, 0).await;
+                    if write_half.window_change(cols, rows, 0, 0).await.is_ok() {
+                        crate::terminal_diagnostics::counters().resized(&writer_id, cols, rows);
+                    } else {
+                        crate::terminal_diagnostics::note(
+                            &writer_id,
+                            crate::terminal_diagnostics::Stage::Error,
+                            1,
+                        );
+                    }
                 }
             }
         }
@@ -106,8 +125,9 @@ pub fn spawn_channel_io_split(
                         Some(SessionInput::Data(data)) => session.on_input(data),
                         Some(SessionInput::Resize(cols, rows)) => session.on_resize(cols, rows),
                         Some(SessionInput::Colors(colors)) => session.on_colors(colors),
-                        Some(SessionInput::PauseOutput(p)) => {
+                        Some(SessionInput::PauseOutput(p, sequence)) => {
                             paused = p;
+                            crate::terminal_diagnostics::counters().paused(&session_id, p, sequence);
                             Vec::new()
                         }
                     };
@@ -116,6 +136,7 @@ pub fn spawn_channel_io_split(
                 msg = read_half.wait(), if !paused => {
                     match msg {
                         Some(ChannelMsg::Data { data }) | Some(ChannelMsg::ExtendedData { data, .. }) => {
+                            crate::terminal_diagnostics::note(&session_id, crate::terminal_diagnostics::Stage::Read, data.len());
                             apply(session.on_output(&data), &writes_tx, &app, &session_id, &mux_event);
                         }
                         other => {

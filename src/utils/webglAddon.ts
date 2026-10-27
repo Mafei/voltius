@@ -2,6 +2,7 @@ import type { Terminal } from "@xterm/xterm";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { guardWebglResourceDisposal } from "./webglResources";
 import { guardNarrowSymbolBounds, type GlyphFitRenderer } from "./terminalGlyphFit";
+import { traceTerminal } from "@/services/terminalTrace";
 
 const USER_AGENT = typeof navigator !== "undefined" ? navigator.userAgent : "";
 const ANDROID = /Android/i.test(USER_AGENT);
@@ -35,6 +36,7 @@ class PooledWebglAddon extends WebglAddon {
   private renderer(): RendererInternals | undefined {
     return (this as unknown as { _renderer?: RendererInternals })._renderer;
   }
+  state(): number { return this.renderer()?._gl?.isContextLost() ? 3 : 2; }
 
   /** Mipmaps mix adjacent atlas glyphs when a wide fallback symbol is shrunk
    * into one cell. Linear base-level sampling is stable across atlas packing
@@ -96,7 +98,14 @@ export function claimWebglRenderer(term: Terminal): void {
   } catch {
     return;
   }
-  addon.onContextLoss(() => addon.dispose());
+  addon.onContextLoss(() => { traceTerminal(null, "renderer", { renderer: 3 }); addon.dispose(); });
   pool.set(term, addon);
   while (pool.size > MAX_WEBGL_TERMINALS) pool.values().next().value!.dispose();
+}
+
+/** 1 = DOM, 2 = WebGL, 3 = lost WebGL context. Read-only, no redraw. */
+export function terminalRendererState(term: Terminal): number {
+  const held = pool.get(term);
+  if (!held) return 1;
+  return held.state();
 }

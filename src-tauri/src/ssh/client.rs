@@ -322,7 +322,7 @@ pub enum SessionInput {
     Data(Vec<u8>),
     Resize(u32, u32),
     Colors(crate::ssh::control_mode::TerminalColors),
-    PauseOutput(bool),
+    PauseOutput(bool, u64),
 }
 
 fn emit_step(app: &AppHandle, session_id: &str, step: SshStep, detail: impl Into<String>) {

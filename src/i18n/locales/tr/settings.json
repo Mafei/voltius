@@ -713,6 +713,13 @@
       }
     },
     "diagnostics": {
+      "traceTitle": "Terminal diagnostics",
+      "traceInput": "Mark input failure",
+      "traceRender": "Mark garbled text",
+      "traceMarked": "Problem marked in memory",
+      "traceExport": "Export recent terminal diagnostics",
+      "traceFailed": "Could not export terminal diagnostics",
+      "tracePrivacy": "Recent 15 minutes, up to 2048 aggregated state records in memory. No terminal text, raw keys, content hashes or connection details; no automatic upload. Marking preserves sessions. Export before restarting the app.",
       "intro": "Voltius ile sorun mu yaşıyorsunuz? Bir rapor oluşturup geliştiriciye gönderin — yeniden üretilmesi zor hataların bulunmasına yardımcı olur.",
       "troubleshootingTitle": "Sorun Giderme",
       "verboseLabel": "Ayrıntılı günlük kaydı (bu oturum)",

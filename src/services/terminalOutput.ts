@@ -1,6 +1,7 @@
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { Channel, invoke } from "@/lib/invoke";
 import { logFailure } from "@/lib/logger";
+import { traceTerminal } from "./terminalTrace";
 
 type OutputHandler = (data: Uint8Array) => void;
 type ClosedHandler = (cleanExit: boolean) => void;
@@ -36,7 +37,13 @@ function open(sessionId: string, gated: boolean): Stream {
   if (existing) return existing;
   const channel = new Channel<unknown>();
   const stream: Stream = { channel, output: new Set(), closed: new Set(), attached: Promise.resolve() };
-  channel.onmessage = (message) => dispatch(stream, message);
+  let seq = 0;
+  channel.onmessage = (message) => {
+    if (message instanceof ArrayBuffer || Array.isArray(message)) traceTerminal(sessionId, "output_channel", { seq: ++seq, bytes: message instanceof ArrayBuffer ? message.byteLength : message.length });
+    if (typeof message === "boolean") traceTerminal(sessionId, "close", { result: message });
+    dispatch(stream, message);
+  };
+  traceTerminal(sessionId, "attach");
   stream.attached = invoke("terminal_output_attach", { sessionId, gated, channel });
   streams.set(sessionId, stream);
   return stream;

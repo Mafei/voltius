@@ -4,13 +4,14 @@ import MobileTerminalGestures from "./MobileTerminalGestures";
 import type { TerminalSession } from "@/types";
 
 /** Mobile-only wrapper: renders the shared terminal compact inside a hard-clipped box. */
-export default function MobileSessionView({ session, active }: { session: TerminalSession; active: boolean }) {
+export default function MobileSessionView({ session, active, visible }: { session: TerminalSession; active: boolean; visible?: boolean }) {
   return (
     <div className="absolute inset-0 bg-(--t-bg-terminal)" style={{ overflow: "clip", overscrollBehavior: "contain" }}>
       <SessionConnectionOverlay session={session} />
       <HostAwareTerminalView
         session={session}
         active={active}
+        visible={visible ?? active}
         compact
         onClosed={(remoteExit) => sessionClosed(session.type, session.id, remoteExit)}
       />

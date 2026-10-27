@@ -3,10 +3,17 @@ import react from "@vitejs/plugin-react";
 import svgr from "vite-plugin-svgr";
 import path from "path";
 import { iconSubsets } from "./vite-plugin-icon-subsets";
+import { execFileSync } from "node:child_process";
 
 const host = process.env.TAURI_DEV_HOST;
+let buildSha = "unversioned";
+try {
+  const candidate = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  if (/^[0-9a-f]{40}$/.test(candidate)) buildSha = candidate;
+} catch { /* Source archives have no Git identity; never invent one. */ }
 
 export default defineConfig(async () => ({
+  define: { "import.meta.env.VITE_BUILD_SHA": JSON.stringify(buildSha) },
   plugins: [react(), svgr(), iconSubsets()],
   resolve: {
     alias: {

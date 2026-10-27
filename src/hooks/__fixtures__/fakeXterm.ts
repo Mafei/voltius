@@ -22,6 +22,7 @@
  * id. Calling one is how a test delivers a key to the terminal that owns it.
  */
 export const keyHandlers = new Map<string, (e: KeyboardEvent) => boolean>();
+export const dataHandlers = new Map<string, (data: string) => void>();
 
 let seq = 0;
 
@@ -49,7 +50,7 @@ export class FakeTerminal {
   dispose() {}
   attachCustomKeyEventHandler(fn: (e: KeyboardEvent) => boolean) { keyHandlers.set(this.id, fn); }
   attachCustomWheelEventHandler() {}
-  onData() { return { dispose() {} }; }
+  onData(handler: (data: string) => void) { dataHandlers.set(this.id, handler); return { dispose: () => dataHandlers.delete(this.id) }; }
   onBinary() { return { dispose() {} }; }
   onResize() { return { dispose() {} }; }
   onScroll() { return { dispose() {} }; }
@@ -104,5 +105,6 @@ export function lastKeyHandler(): (e: KeyboardEvent) => boolean {
 export function resetFakeXterm(): void {
   seq = 0;
   keyHandlers.clear();
+  dataHandlers.clear();
   FakeSearchAddon.instances = [];
 }

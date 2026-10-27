@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/react";
-import { useTerminal } from "@/hooks/useTerminal";
-import { localReady, onLocalClosed, onLocalOutput } from "@/services/local";
+import { useTerminal, sessionAcceptsInput } from "@/hooks/useTerminal";
+import { useSessionStore } from "@/stores/sessionStore";
+import { localReady, localSendInput, onLocalClosed, onLocalOutput } from "@/services/local";
+import { dataHandlers } from "./__fixtures__/fakeXterm";
 
 vi.mock("@xterm/xterm", async () => ({ Terminal: (await import("@/hooks/__fixtures__/fakeXterm")).FakeTerminal }));
 vi.mock("@xterm/addon-fit", async () => ({ FitAddon: (await import("@/hooks/__fixtures__/fakeXterm")).FakeFitAddon }));
@@ -31,12 +33,26 @@ globalThis.ResizeObserver ??= class {
   disconnect() {}
 } as unknown as typeof ResizeObserver;
 
-function Harness({ sessionId }: { sessionId: string }) {
-  const { attach } = useTerminal({ sessionId, sessionType: "local" });
+function Harness({ sessionId, inputGate }: { sessionId: string; inputGate?: { current: () => boolean } }) {
+  const { attach } = useTerminal({ sessionId, sessionType: "local", inputGate });
   return <div data-testid="host" ref={attach} />;
 }
 
 describe("useTerminal re-attach on session change", () => {
+  it("uses the new view's input gate after reattaching a cached terminal", async () => {
+    const id = "new-input-gate";
+    useSessionStore.setState({ sessions: [{ id, type: "local", status: "connected" } as never] });
+    const first = render(<Harness sessionId={id} inputGate={{ current: () => false }} />);
+    first.unmount();
+    render(<Harness sessionId={id} inputGate={{ current: () => true }} />);
+    [...dataHandlers.values()].slice(-1)[0]("synthetic");
+    await vi.waitFor(() => expect(localSendInput).toHaveBeenCalledWith(id, new TextEncoder().encode("synthetic")));
+  });
+  it("accepts input immediately when a connected session mounts after navigation", () => {
+    useSessionStore.setState({ sessions: [{ id: "already-live", type: "local", status: "connected" } as never] });
+    render(<Harness sessionId="already-live" />);
+    expect(sessionAcceptsInput("already-live")).toBe(true);
+  });
   it("swaps the terminal element when the same mount switches sessions", () => {
     const { container, rerender } = render(<Harness sessionId="session-a" />);
     const host = container.querySelector("[data-testid=host]")!;

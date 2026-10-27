@@ -529,6 +529,13 @@
       }
     },
     "diagnostics": {
+      "traceTitle": "Terminal diagnostics",
+      "traceInput": "Mark input failure",
+      "traceRender": "Mark garbled text",
+      "traceMarked": "Problem marked in memory",
+      "traceExport": "Export recent terminal diagnostics",
+      "traceFailed": "Could not export terminal diagnostics",
+      "tracePrivacy": "Recent 15 minutes, up to 2048 aggregated state records in memory. No terminal text, raw keys, content hashes or connection details; no automatic upload. Marking preserves sessions. Export before restarting the app.",
       "intro": "Máte s Voltiusem potíže? Vytvořte hlášení a pošlete ho vývojáři — pomůže to dohledat chyby, které se těžko reprodukují.",
       "troubleshootingTitle": "Řešení potíží",
       "verboseLabel": "Podrobné logování (tato relace)",

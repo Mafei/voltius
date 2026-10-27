@@ -2,7 +2,7 @@ import { activateTerminal, disposeClosedTerminals, reattachTerminal, setTerminal
 import { useEffect, useCallback } from "react";
 import { Terminal, type IBufferCell, type IBufferLine, type IDisposable } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
-import { claimWebglRenderer } from "@/utils/webglAddon";
+import { claimWebglRenderer, terminalRendererState } from "@/utils/webglAddon";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { SearchAddon, type ISearchOptions } from "@xterm/addon-search";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -45,6 +45,7 @@ import { synchronizeAndroidCursorFocus } from "@/utils/androidCursorFocus";
 import { createOutputDecoder, encodeTerminalInput, type OutputDecoder } from "@/utils/terminalEncoding";
 import i18n from "@/i18n";
 import { pasteClipboardImage } from "@/services/terminalImagePaste";
+import { traceTerminal } from "@/services/terminalTrace";
 
 interface UseTerminalOptions {
   sessionId: string;
@@ -189,6 +190,7 @@ type CacheEntry = CachedTerminal & {
   inputGateRef: { current: (() => boolean) | undefined };
   onClosedRef: { current: ((remoteExit: boolean) => void) | undefined };
   onResizeRef: { current: ((cols: number, rows: number) => void) | undefined };
+  io: { seq: number; pending: number };
   dispose: () => void; // full teardown, called only when the session is deleted
 };
 
@@ -544,9 +546,27 @@ export function sessionAcceptsInput(sessionId: string): boolean {
   return entry.connectedRef.current;
 }
 
+export function terminalDiagnosticState(sessionId: string): Record<string, number | boolean> {
+  const e = terminalCache.get(sessionId);
+  if (!e) return { connected: false, open: false };
+  const screen = e.terminal.element?.querySelector<HTMLElement>(".xterm-screen");
+  return { connected: e.connectedRef.current, open: !!e.terminal.element?.isConnected,
+    transport: e.sessionType === "ssh" ? 1 : e.sessionType === "local" ? 2 : 3,
+    visible: !e.hidden, cols: e.terminal.cols, rows: e.terminal.rows,
+    width: e.terminal.element?.clientWidth ?? 0, height: e.terminal.element?.clientHeight ?? 0,
+    cellWidth: (screen?.clientWidth ?? 0) / e.terminal.cols, cellHeight: (screen?.clientHeight ?? 0) / e.terminal.rows,
+    fontSize: e.terminal.options.fontSize ?? 0, lineHeight: e.terminal.options.lineHeight ?? 0,
+    fontReady: document.fonts?.status === "loaded", pending: e.io.pending, seq: e.io.seq,
+    readOnly: !!e.terminal.element?.querySelector<HTMLTextAreaElement>("textarea")?.readOnly,
+    renderer: terminalRendererState(e.terminal), dpr: window.devicePixelRatio,
+    focused: !!e.terminal.element?.contains(document.activeElement) };
+}
+
 export function writeToSession(sessionId: string, data: string): void {
   const entry = terminalCache.get(sessionId);
-  if (!entry || !sessionAcceptsInput(sessionId)) return;
+  if (!entry || !sessionAcceptsInput(sessionId)) {
+    traceTerminal(sessionId, "input_rejected", { connected: entry?.connectedRef.current ?? false }); return;
+  }
   const sess = useSessionStore.getState().sessions.find((s) => s.id === sessionId);
   if (sess) {
     useCommandHistoryStore.getState().addInput(sessionId, sess.connectionName, sess.connectionId, data);
@@ -775,6 +795,7 @@ useSessionStore.subscribe((state, prev) => {
   for (const [id, entry] of terminalCache) {
     const session = state.sessions.find((s) => s.id === id);
     const nowConnected = session?.status === "connected";
+    if (nowConnected !== entry.connectedRef.current) traceTerminal(id, "connection", { connected: nowConnected });
     // A character cut off by the drop must not prefix the reconnect's output.
     if (!nowConnected && prev.sessions.find((s) => s.id === id)?.status === "connected") entry.outputDecoder.reset();
     if (entry.sessionType === "serial") continue;
@@ -929,16 +950,18 @@ export function useTerminal({ sessionId, sessionType, onClosed, inputGate, encod
         // Serial is live the moment its port opens (the store marks it
         // connected before the terminal mounts); ssh and local flip in the
         // store subscription above, once the backend owns the session.
-        connectedRef: { current: sessionType === "serial" },
+        connectedRef: { current: sessionType === "serial" || useSessionStore.getState().sessions.some((s) => s.id === sessionId && s.status === "connected") },
         encoding,
         outputDecoder: createOutputDecoder(encoding),
         clip: null,
         inputGateRef: { current: inputGate?.current },
         onClosedRef: { current: onClosed },
         onResizeRef: { current: onResize },
+        io: { seq: 0, pending: 0 },
         dispose: () => {}, // filled in below
       };
       terminalCache.set(sessionId, entry);
+      traceTerminal(sessionId, "mount", { connected: entry.connectedRef.current, cols: term.cols, rows: term.rows });
       notifyMinimap(entry);
 
       const searchResultsDispose = searchAddon.onDidChangeResults(({ resultIndex, resultCount }) => {
@@ -979,7 +1002,7 @@ export function useTerminal({ sessionId, sessionType, onClosed, inputGate, encod
         // We own this event now: stop the page/ancestor from also scrolling, and
         // return false so xterm skips its own (sub-pixel-dampened) translation.
         e.preventDefault();
-        if (inputGate && !inputGate.current?.()) return false;
+        if (entry.inputGateRef.current && !entry.inputGateRef.current()) return false;
         if (!entry.connectedRef.current) return false;
 
         const screen = term.element?.querySelector<HTMLElement>(".xterm-screen");
@@ -1098,7 +1121,8 @@ export function useTerminal({ sessionId, sessionType, onClosed, inputGate, encod
       });
 
       const onDataDispose = term.onData((data) => {
-        if (inputGate && !inputGate.current?.()) return;
+        traceTerminal(sessionId, "input_received", { bytes: data.length, connected: entry.connectedRef.current });
+        if (entry.inputGateRef.current && !entry.inputGateRef.current()) return;
         if (!entry.connectedRef.current) return;
 
         // Mobile extra-keys row: apply a latched virtual Ctrl/Alt to this typed char
@@ -1119,9 +1143,14 @@ export function useTerminal({ sessionId, sessionType, onClosed, inputGate, encod
       let queryGuard: IDisposable | null = null;
       const unlistenPromises: Promise<UnlistenFn>[] = [];
       const writeOutput = (data: Uint8Array, flow?: OutputFlow) => {
+        const seq = ++entry.io.seq, start = performance.now();
+        entry.io.pending += data.length;
+        traceTerminal(sessionId, "output_write", { seq, bytes: data.length, pending: entry.io.pending });
         const text = entry.outputDecoder.decode(data);
         flow?.written(text.length);
         term.write(text, () => {
+          entry.io.pending -= data.length;
+          traceTerminal(sessionId, "output_processed", { seq, bytes: data.length, pending: entry.io.pending, processingMs: performance.now() - start });
           flow?.processed(text.length);
           scheduleMinimapNotify(entry);
         });
@@ -1190,6 +1219,7 @@ export function useTerminal({ sessionId, sessionType, onClosed, inputGate, encod
 
       // Full teardown — only called when the session is deleted from the store
       entry.dispose = () => {
+        traceTerminal(sessionId, "dispose");
         onDataDispose.dispose();
         onResizeDispose.dispose();
         oscCwdDispose.dispose();
@@ -1288,6 +1318,7 @@ export function useTerminal({ sessionId, sessionType, onClosed, inputGate, encod
     const entry = terminalCache.get(sessionId);
     if (!entry) return;
     setTerminalVisible(entry, visible);
+    traceTerminal(sessionId, "visible", { visible, cols: entry.terminal.cols, rows: entry.terminal.rows });
     if (visible) entry.highlighter?.refresh();
   }, [sessionId]);
 

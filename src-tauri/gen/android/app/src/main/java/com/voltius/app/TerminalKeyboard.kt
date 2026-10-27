@@ -17,6 +17,11 @@ import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
 import android.webkit.WebView
 import org.json.JSONObject
+import android.os.Looper
+import java.util.concurrent.FutureTask
+import java.util.concurrent.TimeUnit
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 
 /**
  * Native soft-keyboard bridge for the xterm.js terminal.
@@ -34,22 +39,60 @@ import org.json.JSONObject
  */
 object TerminalKeyboard {
   private const val TAG = "TerminalKeyboard"
-  private var inputView: TerminalInputView? = null
-  internal var webView: WebView? = null
+  @Volatile private var inputView: TerminalInputView? = null
+  @Volatile internal var webView: WebView? = null
     private set
   @Volatile private var volumeCtrl = false
   private var volumeCtrlHeld = false
+  private var imeBytes = 0L
+  private var imeKeys = 0L
+  private var imeRejected = 0L
+  @JvmStatic fun snapshot(): String {
+    val view = inputView ?: return "{\"open\":false}"
+    val read = {
+      val imm = view.context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+      view.diagnosticState().put("epoch", generation).put("focused", view.hasFocus())
+        .put("nativeImeBytes", imeBytes).put("nativeImeKeys", imeKeys).put("nativeImeRejected", imeRejected)
+        .put("nativeDpr", view.resources.displayMetrics.density).put("nativeTextZoom", webView?.settings?.textZoom ?: 100)
+        .put("active", imm?.isActive(view) == true).put("accepting", imm?.isAcceptingText == true)
+        .put("imeVisible", ViewCompat.getRootWindowInsets(view)?.isVisible(WindowInsetsCompat.Type.ime()) == true)
+        .toString()
+    }
+    if (Looper.myLooper() == Looper.getMainLooper()) return read()
+    val task = FutureTask<String> { read() }
+    view.post(task)
+    return try { task.get(1, TimeUnit.SECONDS) } catch (_: Exception) { "{\"errors\":1}" }
+  }
+  @Volatile internal var generation = 0L
+    private set
+  @Volatile private var requested = false
+
+  @JvmStatic fun setGeneration(value: Long) {
+    if (generation == value) return
+    generation = value
+    imeBytes = 0; imeKeys = 0; imeRejected = 0
+    val view = inputView ?: return
+    view.post {
+      if (inputView !== view || generation != value) return@post
+      volumeCtrlHeld = false
+      view.resetInput()
+      if (requested && view.hasFocus()) view.ensureInputConnection()
+    }
+  }
 
   /** Called from MainActivity.onWebViewCreate once Wry has built the RustWebView. */
   fun install(activity: MainActivity, wv: WebView) {
+    inputView?.resetInput()
     webView = wv
     wv.post {
+      if (webView !== wv) return@post
       val parent = wv.parent as? ViewGroup
       if (parent == null) { Log.w(TAG, "install: webView has no ViewGroup parent"); return@post }
       // A 1x1 view: focusable enough to own the IME, but too small to intercept terminal touches.
       val view = TerminalInputView(activity)
       parent.addView(view, ViewGroup.LayoutParams(1, 1))
       inputView = view
+      if (requested) show(volumeCtrl)
     }
   }
 
@@ -63,13 +106,22 @@ object TerminalKeyboard {
   @JvmStatic
   fun show(volumeCtrl: Boolean) {
     this.volumeCtrl = volumeCtrl
+    requested = true
     val view = inputView
     if (view == null) { Log.w(TAG, "show: no input view yet"); return }
     view.post {
+      if (inputView !== view) return@post
+      requested = true
       webView?.let { it.clearFocus(); it.isFocusable = false; it.isFocusableInTouchMode = false }
-      view.requestFocus()
+      view.isFocusable = true
+      view.isFocusableInTouchMode = true
+      val focused = view.requestFocus()
+      view.ensureInputConnection()
       val imm = view.context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-      imm?.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT)
+      val shown = imm?.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT) == true
+      diagnostic(0, JSONObject().put("focused", focused).put("result", shown)
+        .put("active", imm?.isActive(view) == true).put("accepting", imm?.isAcceptingText == true))
+      if (!focused) webView?.let { it.isFocusable = true; it.isFocusableInTouchMode = true }
     }
   }
 
@@ -77,15 +129,21 @@ object TerminalKeyboard {
    * [focusWebView] is an explicit focus handoff, not a selection lifecycle action. */
   @JvmStatic
   fun hide(focusWebView: Boolean) {
+    requested = false
     // Android may return focus to the only focusable input after clearFocus().
     // A hidden editor must not keep consuming Volume Down as Ctrl. show() restores the preference.
     volumeCtrl = false
     val view = inputView ?: return
     view.post {
+      if (inputView !== view) return@post
+      requested = false
       volumeCtrlHeld = false
       view.resetInput()
       val imm = view.context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
       imm?.hideSoftInputFromWindow(view.windowToken, 0)
+      // Disable before clearFocus: Android otherwise immediately reselects the only editor.
+      view.isFocusable = false
+      view.isFocusableInTouchMode = false
       view.clearFocus()
       webView?.let {
         it.isFocusable = true
@@ -114,16 +172,31 @@ object TerminalKeyboard {
 
   /** Forward a run of typed text to the active terminal. */
   fun feedText(text: String) {
+    feedText(text, generation)
+  }
+  internal fun feedText(text: String, epoch: Long) {
     if (text.isEmpty()) return
-    eval("window.__voltiusTermInput", JSONObject.quote(text), volumeCtrlHeld.toString())
+    imeBytes += text.toByteArray(Charsets.UTF_8).size
+    diagnostic(1, JSONObject().put("bytes", text.toByteArray(Charsets.UTF_8).size), epoch)
+    eval("window.__voltiusTermInput", JSONObject.quote(text), volumeCtrlHeld.toString(), epoch.toString())
   }
 
   /** Forward a semantic key (Enter, Backspace, Delete, arrows, Home/End, Tab, Esc, PgUp/PgDn). */
   fun feedKey(name: String) {
-    eval("window.__voltiusTermKey", JSONObject.quote(name))
+    feedKey(name, generation)
   }
+  internal fun feedKey(name: String, epoch: Long) {
+    imeKeys++
+    eval("window.__voltiusTermKey", JSONObject.quote(name), epoch.toString())
+  }
+  internal fun rejectedInput() { imeRejected++ }
 
-  fun reportFocus(focused: Boolean) = eval("window.__voltiusTermFocus", focused.toString())
+  fun reportFocus(focused: Boolean) = eval("window.__voltiusTermFocus", focused.toString(), generation.toString())
+  internal fun diagnostic(code: Int, fields: JSONObject, epoch: Long = generation) =
+    eval("window.__voltiusTermDiagnostic", code.toString(), fields.toString(), epoch.toString())
+  internal fun recoverFocusedInput(view: TerminalInputView) {
+    if (requested && view.hasFocus() && view.hasWindowFocus()) view.ensureInputConnection()
+  }
 
   @JvmStatic
   fun setSelectionTouchFeed(on: Boolean) = SelectionTouchFeed.setEnabled(on)
@@ -143,6 +216,15 @@ object TerminalKeyboard {
 @SuppressLint("ViewConstructor", "ClickableViewAccessibility")
 class TerminalInputView(context: Context, private val emitFocus: (Boolean) -> Unit = TerminalKeyboard::reportFocus) : View(context) {
   private var connection: TerminalInputConnection? = null
+  internal fun diagnosticState(): JSONObject = JSONObject()
+    .put("open", connection?.isOpen == true).put("connection", connection?.connectionId ?: 0)
+    .put("composing", connection?.let { BaseInputConnection.getComposingSpanStart(it.getEditable()) >= 0 } == true)
+  /** Only a closed/missing connection needs rebinding; preserve live Chinese preedit. */
+  internal fun ensureInputConnection(restart: () -> Unit = {
+    (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.restartInput(this)
+  }) {
+    if (connection?.isOpen != true) restart()
+  }
 
   init {
     isFocusable = true
@@ -168,7 +250,10 @@ class TerminalInputView(context: Context, private val emitFocus: (Boolean) -> Un
       EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
     outAttrs.initialSelStart = 0
     outAttrs.initialSelEnd = 0
-    return TerminalInputConnection(this).also { connection = it }
+    val epoch = TerminalKeyboard.generation
+    return TerminalInputConnection(this,
+      { TerminalKeyboard.feedText(it, epoch) }, { TerminalKeyboard.feedKey(it, epoch) }
+    ).also { connection = it }
   }
 
   /** Focus/connection loss cancels unconfirmed text rather than sending it to another session. */
@@ -186,6 +271,7 @@ class TerminalInputView(context: Context, private val emitFocus: (Boolean) -> Un
   override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
     super.onWindowFocusChanged(hasWindowFocus)
     emitFocus(hasFocus() && hasWindowFocus)
+    if (hasWindowFocus) TerminalKeyboard.recoverFocusedInput(this)
   }
 }
 
@@ -199,15 +285,27 @@ internal class TerminalInputConnection(
   private val view: View,
   private val emitText: (String) -> Unit = TerminalKeyboard::feedText,
   private val emitKey: (String) -> Unit = TerminalKeyboard::feedKey,
+  private val epoch: Long = TerminalKeyboard.generation,
 ) : BaseInputConnection(view, true) {
+  companion object { private var nextId = 0 }
+  internal val connectionId = ++nextId
   private val pending = SpannableStringBuilder().also { Selection.setSelection(it, 0) }
   private var batchDepth = 0
   private var closed = false
+  internal val isOpen: Boolean get() = !closed
+  private fun reportState() = TerminalKeyboard.diagnostic(0, JSONObject()
+    .put("connection", connectionId).put("open", !closed)
+    .put("composing", getComposingSpanStart(pending) >= 0), epoch)
+  init { reportState() }
 
   override fun getEditable(): Editable = pending
 
   override fun beginBatchEdit(): Boolean {
-    if (closed) return false
+    if (closed) {
+      TerminalKeyboard.rejectedInput()
+      reportState()
+      return false
+    }
     batchDepth++
     return true
   }
@@ -225,7 +323,7 @@ internal class TerminalInputConnection(
 
   private inline fun edit(operation: () -> Boolean): Boolean {
     if (!beginBatchEdit()) return false
-    return try { operation() } finally { endBatchEdit() }
+    return try { operation() } finally { endBatchEdit(); reportState() }
   }
 
   private fun clearPending() {
@@ -286,6 +384,7 @@ internal class TerminalInputConnection(
     clearPending()
     // Base calls finishComposingText; closed prevents it from emitting cancelled input.
     super.closeConnection()
+    reportState()
   }
 
   override fun sendKeyEvent(event: KeyEvent): Boolean {

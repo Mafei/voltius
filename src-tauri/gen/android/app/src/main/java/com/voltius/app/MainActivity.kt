@@ -18,6 +18,7 @@ class MainActivity : TauriActivity() {
   override val handleBackNavigation: Boolean = false
 
   private lateinit var dirPicker: ActivityResultLauncher<Uri?>
+  private lateinit var diagnosticPicker: ActivityResultLauncher<String>
 
   override fun onCreate(savedInstanceState: Bundle?) {
     intent?.let { withLinkType(LauncherShortcuts.gate(it)) }
@@ -25,6 +26,9 @@ class MainActivity : TauriActivity() {
     SplashGate.install(this)
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
+    diagnosticPicker = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+      TerminalDiagnostics.finish(applicationContext, uri)
+    }
     // super.onCreate loaded the Rust lib; hand the keychain store the app Context + VM.
     VoltiusKeychain.nativeInit(applicationContext)
 
@@ -103,6 +107,7 @@ class MainActivity : TauriActivity() {
   }
 
   override fun onDestroy() {
+    TerminalDiagnostics.cancel()
     if (instance === this) instance = null
     super.onDestroy()
   }
@@ -118,6 +123,9 @@ class MainActivity : TauriActivity() {
 
   fun launchDirPicker() {
     runOnUiThread { dirPicker.launch(null) }
+  }
+  fun launchDiagnosticExport() {
+    runOnUiThread { diagnosticPicker.launch("voltius-terminal-trace.json") }
   }
 
   fun requestNotificationPermission() {

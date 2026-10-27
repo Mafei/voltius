@@ -3,6 +3,8 @@
 pub mod exec;
 #[path = "../../../src-tauri/src/ssh/private_key.rs"]
 pub mod private_key;
+#[path = "../../../src-tauri/src/terminal_diagnostics.rs"]
+pub mod terminal_diagnostics;
 #[path = "../../../src-tauri/src/ssh/test_proc_server.rs"]
 pub mod test_proc_server;
 #[path = "../../../src-tauri/src/port_forward/test_ssh.rs"]

@@ -39,6 +39,7 @@ mod storage;
 mod system_auth;
 mod system_bars;
 mod terminal_browser_keys;
+mod terminal_diagnostics;
 mod terminal_kbd;
 mod terminal_output;
 mod tls;
@@ -293,10 +294,14 @@ pub fn run() {
             system_auth::system_auth_verify,
             system_bars::set_system_bars,
             terminal_kbd::terminal_show_keyboard,
+            terminal_kbd::terminal_keyboard_target,
+            terminal_kbd::terminal_keyboard_snapshot,
             terminal_kbd::terminal_hide_keyboard,
             terminal_kbd::terminal_selection_touch_feed,
             commands::diagnostics::set_verbose_logging,
             commands::diagnostics::create_bug_report,
+            commands::diagnostics::terminal_diagnostic_snapshot,
+            commands::diagnostics::terminal_diagnostic_export_android,
             commands::ping::ping_host,
             commands::ping::ping_host_via_jumps,
             commands::ping::ping_session,

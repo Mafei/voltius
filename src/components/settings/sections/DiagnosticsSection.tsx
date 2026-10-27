@@ -5,6 +5,8 @@ import { Toggle } from "@/components/shared/Toggle";
 import { APP_SOURCE, useNotificationStore } from "@/stores/notificationStore";
 import { setVerboseLogging, createBugReport } from "@/services/diagnostics";
 import { getLoggerVerbose } from "@/lib/logger";
+import { exportTerminalTrace } from "@/services/terminalDiagnosticReport";
+import { TerminalTraceButtons } from "@/components/diagnostics/TerminalTraceButtons";
 
 type ReportState = "idle" | "working" | "done";
 
@@ -13,6 +15,7 @@ export default function DiagnosticsSection() {
   const [verbose, setVerbose] = useState(() => getLoggerVerbose());
   const [reportState, setReportState] = useState<ReportState>("idle");
   const [showIncluded, setShowIncluded] = useState(false);
+  const [exportingTrace, setExportingTrace] = useState(false);
   const addToast = useNotificationStore((s) => s.addToast);
 
   const toggleVerbose = async (v: boolean) => {
@@ -54,6 +57,18 @@ export default function DiagnosticsSection() {
   return (
     <div className="p-6 space-y-6">
       <p className="text-sm text-(--t-text-dim)">{t("settings.diagnostics.intro")}</p>
+      <div className="rounded-lg px-4 py-3 space-y-3 bg-(--t-bg-elevated) border border-(--t-border)">
+        <h3>{t("settings.diagnostics.traceTitle", { defaultValue: "Terminal diagnostics" })}</h3>
+        <p className="text-xs text-(--t-text-dim)">{t("settings.diagnostics.tracePrivacy", { defaultValue: "Recent 15 minutes, up to 2048 aggregated state records in memory. No text, keys, content hashes or connection details; no automatic upload. Marking does not reset or reconnect sessions." })}</p>
+        <TerminalTraceButtons />
+        <button type="button" disabled={exportingTrace} onClick={() => {
+          setExportingTrace(true);
+          void exportTerminalTrace().catch(() => addToast({ source: APP_SOURCE, type: "toast", severity: "error", duration: 5000, message: t("settings.diagnostics.traceFailed", { defaultValue: "Could not export terminal diagnostics" }) }))
+            .finally(() => setExportingTrace(false));
+        }} className="px-4 py-2 rounded-md bg-(--t-accent) text-white disabled:opacity-60">
+          {t("settings.diagnostics.traceExport", { defaultValue: "Export recent terminal diagnostics" })}
+        </button>
+      </div>
 
       {/* Troubleshooting */}
       <div>

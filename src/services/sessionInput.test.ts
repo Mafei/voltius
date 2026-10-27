@@ -106,6 +106,19 @@ describe("onSessionOutput", () => {
 describe("sendSessionResize", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it("prevents a delayed old size from overwriting the latest remote PTY size", async () => {
+    let finish!: () => void;
+    let remote = 0;
+    vi.mocked(sshResize).mockImplementationOnce(async (_id, cols) => {
+      await new Promise<void>((r) => { finish = r; }); remote = cols;
+    }).mockImplementationOnce(async (_id, cols) => { remote = cols; });
+    const old = sendSessionResize("resize-race", "ssh", 80, 24);
+    const latest = sendSessionResize("resize-race", "ssh", 120, 40);
+    await Promise.resolve(); await Promise.resolve();
+    finish(); await Promise.all([old, latest]);
+    expect(remote).toBe(120);
+  });
+
   it("routes a local session to local_resize", async () => {
     await sendSessionResize("s1", "local", 120, 40);
     expect(localResize).toHaveBeenCalledWith("s1", 120, 40);

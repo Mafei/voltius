@@ -230,7 +230,20 @@ pub async fn ssh_send_input(
     session_id: String,
     data: Vec<u8>,
 ) -> Result<(), String> {
-    state.send_data(&session_id, &data).await
+    crate::terminal_diagnostics::note(
+        &session_id,
+        crate::terminal_diagnostics::Stage::Received,
+        data.len(),
+    );
+    let result = state.send_data(&session_id, &data).await;
+    if result.is_err() {
+        crate::terminal_diagnostics::note(
+            &session_id,
+            crate::terminal_diagnostics::Stage::Error,
+            1,
+        );
+    }
+    result
 }
 
 #[tauri::command]
@@ -264,8 +277,11 @@ pub async fn ssh_set_output_paused(
     state: tauri::State<'_, SessionManager>,
     session_id: String,
     paused: bool,
+    sequence: Option<u64>,
 ) -> Result<(), String> {
-    state.set_output_paused(&session_id, paused).await
+    state
+        .set_output_paused(&session_id, paused, sequence.unwrap_or(0))
+        .await
 }
 
 #[tauri::command]

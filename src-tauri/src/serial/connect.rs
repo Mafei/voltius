@@ -265,7 +265,14 @@ pub fn serial_connect(
         loop {
             match port.read(&mut buf) {
                 Ok(0) => break,
-                Ok(n) => emit_output(&app_clone, &sid, &buf[..n]),
+                Ok(n) => {
+                    crate::terminal_diagnostics::note(
+                        &sid,
+                        crate::terminal_diagnostics::Stage::Read,
+                        n,
+                    );
+                    emit_output(&app_clone, &sid, &buf[..n]);
+                }
                 Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {
                     // Bail once this open is no longer the session's: it was
                     // disconnected, or reopened by a newer generation.
@@ -296,9 +303,24 @@ pub fn serial_write(
     session_id: String,
     data: Vec<u8>,
 ) -> Result<(), String> {
-    with_session(&state.sessions, &session_id, |session| {
+    crate::terminal_diagnostics::note(
+        &session_id,
+        crate::terminal_diagnostics::Stage::Received,
+        data.len(),
+    );
+    let result = with_session(&state.sessions, &session_id, |session| {
         session.port.write_all(&data).map_err(|e| e.to_string())
-    })
+    });
+    crate::terminal_diagnostics::note(
+        &session_id,
+        if result.is_ok() {
+            crate::terminal_diagnostics::Stage::Written
+        } else {
+            crate::terminal_diagnostics::Stage::Error
+        },
+        if result.is_ok() { data.len() } else { 1 },
+    );
+    result
 }
 
 #[tauri::command]

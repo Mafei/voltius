@@ -7,6 +7,7 @@ import { i18nReady } from "@/i18n";
 import { preloadIcons } from "@/utils/icons";
 import { installGlobalErrorLogging } from "@/lib/logger";
 import { registerMcpConsumer } from "@/mcp/register";
+import { installTerminalTraceObservers } from "@/services/terminalDiagnosticReport";
 
 // Chromium/WebView2 on Windows can't render country flag emoji natively
 // (regional indicator pairs show as letter codes, e.g. "DE"); this loads a
@@ -16,6 +17,7 @@ polyfillCountryFlagEmojis(undefined, "/fonts/TwemojiCountryFlags.woff2");
 preloadIcons();
 
 installGlobalErrorLogging();
+installTerminalTraceObservers();
 
 registerMcpConsumer();
 

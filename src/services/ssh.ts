@@ -3,6 +3,8 @@ import { invoke } from "@/lib/invoke";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import type { ProxySpec } from "@/services/proxy";
 import { onTerminalClosed, onTerminalOutput } from "@/services/terminalOutput";
+import { orderedOperation } from "./orderedOperations";
+import { traceTerminal } from "./terminalTrace";
 import type { KnockSpec } from "@/services/portKnock";
 import { currentTerminalColors, type TerminalColors } from "@/utils/terminalColors";
 import type { SystemSshAuth } from "./systemSshAuth";
@@ -215,8 +217,14 @@ export async function onSshClosed(
   return onTerminalClosed(sessionId, false, callback);
 }
 
+let pauseSequence = 0;
 export async function sshSetOutputPaused(sessionId: string, paused: boolean): Promise<void> {
-  return invoke("ssh_set_output_paused", { sessionId, paused });
+  const seq = ++pauseSequence;
+  traceTerminal(sessionId, "pause_request", { active: paused, seq });
+  try {
+    await orderedOperation(`flow:${sessionId}`, () => invoke<void>("ssh_set_output_paused", { sessionId, paused, sequence: seq }));
+    traceTerminal(sessionId, "pause_ack", { active: paused, seq });
+  } catch (error) { traceTerminal(sessionId, "pause_error", { active: paused, seq }); throw error; }
 }
 
 export async function sshSetTerminalColors(sessionId: string, colors: TerminalColors): Promise<void> {

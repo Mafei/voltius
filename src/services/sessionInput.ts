@@ -3,9 +3,17 @@ import { localResize, localSendInput, onLocalOutput } from "@/services/local";
 import { onSerialOutput, serialWrite } from "@/services/serial";
 import { onSshOutput, sshResize, sshSendInput } from "@/services/ssh";
 import type { TerminalSession } from "@/types";
+import { orderedOperation } from "./orderedOperations";
+import { traceTerminal } from "./terminalTrace";
 
 // Concurrent invokes run as separate backend tasks and land in any order under load.
-const inputTails = new Map<string, Promise<void>>();
+let inputSequence = 0;
+const pendingInputs = new Map<string, number>();
+const pendingSince = new Map<string, number>();
+export function terminalInputQueueState(sessionId: string) {
+  const since = pendingSince.get(sessionId);
+  return { queued: pendingInputs.get(sessionId) ?? 0, latency: since === undefined ? 0 : performance.now() - since };
+}
 
 /**
  * Write raw bytes to a session's transport. The single fan-out: the terminal's
@@ -30,12 +38,22 @@ export function sendSessionInput(
     if (sessionType === "serial") return serialWrite(sessionId, data);
     return sshSendInput(sessionId, data);
   };
-  const next = (inputTails.get(sessionId) ?? Promise.resolve()).then(write, write);
-  inputTails.set(sessionId, next);
-  const settle = () => {
-    if (inputTails.get(sessionId) === next) inputTails.delete(sessionId);
+  const seq = ++inputSequence, start = performance.now();
+  const tracked = sessionId.length <= 128 && (pendingInputs.has(sessionId) || pendingInputs.size < 128);
+  if (tracked) {
+    pendingInputs.set(sessionId, (pendingInputs.get(sessionId) ?? 0) + data.length);
+    if (!pendingSince.has(sessionId)) pendingSince.set(sessionId, start);
+  }
+  traceTerminal(sessionId, "input_enqueue", { seq, bytes: data.length, queued: pendingInputs.get(sessionId) ?? 0, result: tracked });
+  const next = orderedOperation(`pty:${sessionId}`, write);
+  const settle = (ok: boolean) => {
+    const queued = tracked ? Math.max(0, (pendingInputs.get(sessionId) ?? 0) - data.length) : 0;
+    if (tracked) {
+      if (queued) pendingInputs.set(sessionId, queued); else { pendingInputs.delete(sessionId); pendingSince.delete(sessionId); }
+    }
+    traceTerminal(sessionId, ok ? "input_ack" : "input_error", { seq, bytes: data.length, queued, latency: performance.now() - start });
   };
-  next.then(settle, settle);
+  void next.then(() => settle(true), () => settle(false));
   return next;
 }
 
@@ -75,6 +93,14 @@ export async function sendSessionResize(
   cols: number,
   rows: number,
 ): Promise<void> {
-  if (sessionType === "local") return localResize(sessionId, cols, rows);
-  if (sessionType === "ssh") return sshResize(sessionId, cols, rows);
+  if (sessionType !== "local" && sessionType !== "ssh") return;
+  const seq = ++inputSequence;
+  traceTerminal(sessionId, "resize_request", { seq, cols, rows });
+  try {
+    await orderedOperation(`pty:${sessionId}`, () => sessionType === "local"
+      ? localResize(sessionId, cols, rows) : sshResize(sessionId, cols, rows));
+    traceTerminal(sessionId, "resize_ack", { seq, cols, rows });
+  } catch (error) {
+    traceTerminal(sessionId, "resize_error", { seq, cols, rows }); throw error;
+  }
 }

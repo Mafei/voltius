@@ -409,6 +409,13 @@
     },
     "diagnostics": {
       "intro": "Voltius 遇到问题？创建报告并发送给开发者——它有助于追踪难以复现的问题。",
+      "traceTitle": "终端诊断",
+      "traceInput": "标记输入失效",
+      "traceRender": "标记文字错乱",
+      "traceMarked": "已在内存中标记问题",
+      "traceExport": "导出最近的终端诊断",
+      "traceFailed": "终端诊断导出失败",
+      "tracePrivacy": "仅在内存保留最近15分钟、最多2048条聚合状态记录。不记录终端正文、原始按键、内容哈希或连接信息，不自动上传。标记保持会话原状。请在重启应用前导出。",
       "troubleshootingTitle": "故障排除",
       "verboseLabel": "详细日志（本次会话）",
       "verboseSub": "记录额外的细节以帮助诊断问题。重启 Voltius 后重置为正常。",

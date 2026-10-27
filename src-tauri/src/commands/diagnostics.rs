@@ -5,6 +5,85 @@ use tauri::Manager;
 use tauri_plugin_opener::OpenerExt;
 use voltius_diagnostics::{write_report_zip, ReportEntry};
 
+#[tauri::command]
+pub fn terminal_diagnostic_snapshot(
+    ids: Vec<String>,
+) -> Result<Vec<crate::terminal_diagnostics::Counts>, String> {
+    if ids.len() > 128 || ids.iter().any(|s| s.len() > 128) {
+        return Err("invalid diagnostic snapshot request".into());
+    }
+    Ok(crate::terminal_diagnostics::counters().snapshot(&ids))
+}
+
+#[cfg(target_os = "android")]
+mod terminal_export {
+    use jni::objects::{JClass, JObject, JValue};
+    use std::sync::Mutex;
+    use tokio::sync::oneshot;
+    static PENDING: Mutex<Option<oneshot::Sender<i32>>> = Mutex::new(None);
+    pub async fn save(json: String) -> Result<bool, String> {
+        if json.len() > 1024 * 1024 {
+            return Err("diagnostic report too large".into());
+        }
+        let (tx, rx) = oneshot::channel();
+        {
+            let mut pending = PENDING
+                .lock()
+                .map_err(|_| "diagnostic export unavailable")?;
+            if pending.is_some() {
+                return Err("diagnostic export already open".into());
+            }
+            *pending = Some(tx);
+        }
+        let started = crate::android_ctx::with_env("terminal diagnostic export", |env, _| {
+            let cls = crate::android_ctx::load_class(env, "com.voltius.app.TerminalDiagnostics")?;
+            let content = JObject::from(env.new_string(json)?);
+            env.call_static_method(
+                &cls,
+                "exportReport",
+                "(Ljava/lang/String;)Z",
+                &[JValue::Object(&content)],
+            )?
+            .z()
+        });
+        if !matches!(started, Ok(true)) {
+            PENDING
+                .lock()
+                .map_err(|_| "diagnostic export unavailable")?
+                .take();
+            return Err("diagnostic export could not open".into());
+        }
+        match rx.await.map_err(|_| "diagnostic export interrupted")? {
+            1 => Ok(true),
+            0 => Ok(false),
+            _ => Err("diagnostic file write failed".into()),
+        }
+    }
+    #[no_mangle]
+    pub extern "system" fn Java_com_voltius_app_TerminalDiagnostics_nativeExported(
+        _env: jni::JNIEnv,
+        _class: JClass,
+        result: jni::sys::jint,
+    ) {
+        if let Ok(mut pending) = PENDING.lock() {
+            if let Some(tx) = pending.take() {
+                let _ = tx.send(result);
+            }
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn terminal_diagnostic_export_android(json: String) -> Result<bool, String> {
+    #[cfg(target_os = "android")]
+    return terminal_export::save(json).await;
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = json;
+        Err("Android export is unavailable on this platform".into())
+    }
+}
+
 /// Raise/lower the process log level for the current session. Verbose is never
 /// persisted — startup always re-establishes `Info` (see lib.rs setup).
 #[tauri::command]

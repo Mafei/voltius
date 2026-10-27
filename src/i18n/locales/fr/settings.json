@@ -527,6 +527,13 @@
       }
     },
     "diagnostics": {
+      "traceTitle": "Terminal diagnostics",
+      "traceInput": "Mark input failure",
+      "traceRender": "Mark garbled text",
+      "traceMarked": "Problem marked in memory",
+      "traceExport": "Export recent terminal diagnostics",
+      "traceFailed": "Could not export terminal diagnostics",
+      "tracePrivacy": "Recent 15 minutes, up to 2048 aggregated state records in memory. No terminal text, raw keys, content hashes or connection details; no automatic upload. Marking preserves sessions. Export before restarting the app.",
       "intro": "Un problème avec Voltius ? Créez un rapport et envoyez-le au développeur — cela aide à traquer les bugs difficiles à reproduire.",
       "troubleshootingTitle": "Dépannage",
       "verboseLabel": "Journalisation détaillée (cette session)",

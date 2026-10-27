@@ -31,6 +31,52 @@ class TerminalKeyboardTest {
 
   private fun idle() = org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
 
+  @Test fun closedConnectionNeedsRebindWhileLiveChineseCompositionSurvives() {
+    val view = TerminalInputView(RuntimeEnvironment.getApplication())
+    val first = view.onCreateInputConnection(EditorInfo()) as TerminalInputConnection
+    first.setComposingText("nihao", 1)
+    var restarts = 0
+    view.ensureInputConnection { restarts++ }
+    assertEquals(0, restarts)
+    assertEquals("nihao", first.getTextBeforeCursor(100, 0).toString())
+    first.closeConnection()
+    view.ensureInputConnection { restarts++ }
+    assertEquals(1, restarts)
+    val next = view.onCreateInputConnection(EditorInfo()) as TerminalInputConnection
+    assertFalse(first.commitText("stale", 1))
+    assertTrue(next.isOpen)
+    assertTrue(next.commitText("你好", 1))
+    assertFalse(view.diagnosticState().toString().contains("你好"))
+  }
+
+  @Test fun hideDisablesEditorAndShowReenablesItWithoutLeavingAnOldConnection() = withKeyboardBridge { view, _ ->
+    TerminalKeyboard.show(false); idle()
+    val old = view.onCreateInputConnection(EditorInfo())
+    old.setComposingText("secret-synthetic", 1)
+    assertFalse(TerminalKeyboard.snapshot().contains("secret-synthetic"))
+    TerminalKeyboard.hide(false); idle()
+    assertFalse(view.isFocusable)
+    assertFalse(view.hasFocus())
+    assertFalse(old.commitText("stale", 1))
+    TerminalKeyboard.show(false); idle()
+    assertTrue(view.isFocusable)
+    assertTrue(view.hasFocus())
+    assertTrue(view.onCreateInputConnection(EditorInfo()).commitText("new", 1))
+  }
+
+  @Test fun changingSessionGenerationCancelsOldPreeditButSameGenerationPreservesIt() = withKeyboardBridge { view, _ ->
+    TerminalKeyboard.show(false); idle()
+    val old = view.onCreateInputConnection(EditorInfo())
+    old.setComposingText("nihao", 1)
+    val epoch = TerminalKeyboard.generation + 1
+    TerminalKeyboard.setGeneration(epoch); idle()
+    assertFalse(old.commitText("stale", 1))
+    val next = view.onCreateInputConnection(EditorInfo())
+    next.setComposingText("nihao", 1)
+    TerminalKeyboard.setGeneration(epoch); idle()
+    assertEquals("nihao", next.getTextBeforeCursor(100, 0).toString())
+  }
+
   private fun withKeyboardBridge(check: (TerminalInputView, android.webkit.WebView) -> Unit) {
     val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
     val view = TerminalInputView(activity)
@@ -39,7 +85,7 @@ class TerminalKeyboardTest {
     activity.setContentView(parent)
     parent.addView(webView)
     parent.addView(view)
-    val fields = listOf("inputView", "webView", "volumeCtrl", "volumeCtrlHeld").map {
+    val fields = listOf("inputView", "webView", "volumeCtrl", "volumeCtrlHeld", "requested", "generation", "imeBytes", "imeKeys", "imeRejected").map {
       TerminalKeyboard::class.java.getDeclaredField(it).apply { isAccessible = true }
     }
     val previous = fields.map { it.get(TerminalKeyboard) }

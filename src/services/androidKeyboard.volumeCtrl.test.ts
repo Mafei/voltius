@@ -15,11 +15,12 @@ import { initialLatch } from "@/stores/modifierLatchCore";
 
 const w = window as unknown as { __voltiusTermInput: (t: string, ctrl?: boolean) => void };
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
   useModifierLatchStore.setState(initialLatch);
   useToggleSettingsStore.setState({ values: {} });
   showAndroidKeyboard("s1");
+  await vi.waitFor(() => expect(h.invoke).toHaveBeenCalledWith("terminal_show_keyboard", { volumeCtrl: false }));
 });
 
 test("a char typed while Volume Down is held is sent with Ctrl", () => {
@@ -44,9 +45,9 @@ test("multi-char IME commits are never modified", () => {
   expect(h.write).toHaveBeenCalledWith("s1", "ls");
 });
 
-test("showing the keyboard tells native whether Volume Down acts as Ctrl", () => {
+test("showing the keyboard tells native whether Volume Down acts as Ctrl", async () => {
   expect(h.invoke).toHaveBeenCalledWith("terminal_show_keyboard", { volumeCtrl: false });
   useToggleSettingsStore.getState().set("volume-down-ctrl", true);
   showAndroidKeyboard("s1");
-  expect(h.invoke).toHaveBeenLastCalledWith("terminal_show_keyboard", { volumeCtrl: true });
+  await vi.waitFor(() => expect(h.invoke).toHaveBeenLastCalledWith("terminal_show_keyboard", { volumeCtrl: true }));
 });

@@ -18,10 +18,24 @@ import type { SpecialKey } from "@/services/terminalKeyCore";
 import { useAppLockStore } from "@/stores/appLockStore";
 import { setAndroidTerminalTarget, setAndroidTerminalProxyFocus } from "./androidTerminalFocus";
 import { getToggle } from "@/stores/toggleSettingsStore";
+import { orderedOperation } from "./orderedOperations";
+import { traceTerminal, type TraceFields } from "./terminalTrace";
 
 /** Session whose terminal currently owns the native keyboard. */
 let activeSession: string | null = null;
 let installed = false;
+// A fresh WebView must not reuse the previous document's queued IME epoch.
+let generation = crypto.getRandomValues(new Uint32Array(1))[0] & 0x7fffffff;
+export const androidKeyboardGeneration = () => generation;
+function keyboardCommand(command: string, args: Record<string, unknown>) {
+  void orderedOperation("android-keyboard", () => invoke(command, args)).catch(() => {
+    traceTerminal(activeSession, "native_state", { errors: 1, epoch: generation });
+  });
+}
+function acceptsGeneration(epoch?: number): boolean {
+  if (epoch === undefined || epoch === generation) return true;
+  traceTerminal(activeSession, "native_stale", { epoch: epoch, result: false }); return false;
+}
 
 /** Named keys the native side forwards that map onto xterm SpecialKeys (cursor-mode aware). */
 const SPECIAL: Partial<Record<string, SpecialKey>> = {
@@ -32,9 +46,11 @@ const SPECIAL: Partial<Record<string, SpecialKey>> = {
 
 /** Committed text from the IME. Mirrors the onData path: single chars pass through the
  *  extra-keys Ctrl/Alt latch (latch Ctrl, type "c" → Ctrl-C). */
-function feedText(text: string, heldCtrl = false): void {
+function feedText(text: string, heldCtrl = false, epoch?: number): void {
+  if (!acceptsGeneration(epoch)) return;
   const id = activeSession;
   if (!id || !text || isLocked()) return;
+  traceTerminal(id, "input_received", { bytes: new TextEncoder().encode(text).length, epoch: generation });
   let data = text;
   if (text.length === 1) {
     const latched = consumeLatchForChar(text, heldCtrl);
@@ -45,7 +61,8 @@ function feedText(text: string, heldCtrl = false): void {
 
 /** Semantic key from the IME. Enter/Backspace/Delete are cursor-mode-independent raw bytes;
  *  the rest defer to sendSpecialKey (which honors application-cursor mode). */
-function feedKey(name: string): void {
+function feedKey(name: string, epoch?: number): void {
+  if (!acceptsGeneration(epoch)) return;
   const id = activeSession;
   if (!id || isLocked()) return;
   if (name === "Enter") { writeToSession(id, "\r"); return; }
@@ -67,21 +84,30 @@ function ensureInstalled(): void {
   const w = window as unknown as Record<string, unknown>;
   w.__voltiusTermInput = feedText;
   w.__voltiusTermKey = feedKey;
-  w.__voltiusTermFocus = (focused: boolean) => setAndroidTerminalProxyFocus(focused === true && !isLocked());
+  w.__voltiusTermFocus = (focused: boolean, epoch?: number) => {
+    if (!acceptsGeneration(epoch)) return;
+    traceTerminal(activeSession, "focus", { focused, epoch: generation });
+    setAndroidTerminalProxyFocus(focused === true && !isLocked());
+  };
+  w.__voltiusTermDiagnostic = (code: number, fields: TraceFields, epoch: number) => {
+    if (!acceptsGeneration(epoch)) return;
+    traceTerminal(activeSession, code === 1 ? "input_native" : "native_state", { ...fields, epoch });
+  };
 }
 
 /** Raise the native keyboard for `sessionId` and route subsequent IME input to it. */
 export function showAndroidKeyboard(sessionId: string): void {
   ensureInstalled();
   setAndroidKeyboardTarget(sessionId);
-  void invoke("terminal_show_keyboard", { volumeCtrl: getToggle("volume-down-ctrl") }).catch(() => {});
+  keyboardCommand("terminal_show_keyboard", { volumeCtrl: getToggle("volume-down-ctrl") });
 }
 
 /** Explicit dismissal only. Terminal selection must not call this: it keeps IME ownership. */
 export function hideAndroidKeyboard(sessionId?: string, focusWebView = false): void {
   if (sessionId && activeSession !== sessionId) return;
   setAndroidTerminalProxyFocus(false);
-  void invoke("terminal_hide_keyboard", { focusWebView }).catch(() => {});
+  setAndroidKeyboardTarget(null);
+  keyboardCommand("terminal_hide_keyboard", { focusWebView });
 }
 
 /** Native finger reports for selection autoscroll. */
@@ -91,6 +117,10 @@ export function setSelectionTouchFeed(on: boolean): void {
 
 /** Point native input at a session without toggling keyboard visibility (e.g. tab switch). */
 export function setAndroidKeyboardTarget(sessionId: string | null): void {
+  ensureInstalled();
+  if (activeSession === sessionId) return;
   activeSession = sessionId;
+  generation++;
   setAndroidTerminalTarget(sessionId);
+  keyboardCommand("terminal_keyboard_target", { generation });
 }

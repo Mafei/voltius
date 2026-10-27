@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { invoke } from "@/lib/invoke";
 import { Icon } from "@iconify/react";
+import { TerminalTraceButtons } from "@/components/diagnostics/TerminalTraceButtons";
 import { useHostPingStore } from "@/stores/hostPingStore";
 import { usePluginStore, findRightPanelSectionWithFlag } from "@/stores/pluginStore";
 import { useUIStore } from "@/stores/uiStore";
@@ -564,6 +565,7 @@ export function TerminalStatusBar({ sessionId, sessionType, connectionId, connec
       >
         {/* Left: connection info */}
         <div className={`flex items-center gap-2 h-full${sessionStatus === "connecting" ? " statusbar-connecting-pulse" : ""}`}>
+          <TerminalTraceButtons compact />
           <span className="px-1.5 text-[10px] font-semibold text-(--t-text-dim)">
             {sessionBadge(sessionType, t)}
           </span>

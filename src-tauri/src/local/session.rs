@@ -199,17 +199,35 @@ impl LocalSessionManager {
                         emit_closed(&app_r, &id_r, exited_cleanly(&child_r, EXIT_REAP_WAIT));
                         break;
                     }
-                    Ok(n) => emit_output(&app_r, &id_r, &buf[..n]),
+                    Ok(n) => {
+                        crate::terminal_diagnostics::note(
+                            &id_r,
+                            crate::terminal_diagnostics::Stage::Read,
+                            n,
+                        );
+                        emit_output(&app_r, &id_r, &buf[..n]);
+                    }
                 }
             }
         });
 
         // Writer thread — channel input → PTY
+        let writer_id = session_id.clone();
         std::thread::spawn(move || {
             while let Ok(data) = input_rx.recv() {
                 if writer.write_all(&data).is_err() {
+                    crate::terminal_diagnostics::note(
+                        &writer_id,
+                        crate::terminal_diagnostics::Stage::Error,
+                        1,
+                    );
                     break;
                 }
+                crate::terminal_diagnostics::note(
+                    &writer_id,
+                    crate::terminal_diagnostics::Stage::Written,
+                    data.len(),
+                );
             }
         });
 

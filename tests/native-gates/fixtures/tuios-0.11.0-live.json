@@ -1,0 +1,22 @@
+[
+  {
+    "name": "synthetic 工作 ' $(touch BAD)",
+    "id": "946734bc-2c6c-4a85-a659-bba07af496e2",
+    "created": 1793001852,
+    "last_active": 1793001852,
+    "window_count": 1,
+    "attached": false,
+    "width": 80,
+    "height": 24,
+    "windows": [
+      {
+        "id": "e8079d77-a0d3-441f-9927-95275732a8d1",
+        "title": "Terminal e8079d77",
+        "workspace": 1
+      }
+    ],
+    "current_workspace": 1,
+    "dir": "vrec-q_87w0le",
+    "server": "vrec-q_87w0le"
+  }
+]

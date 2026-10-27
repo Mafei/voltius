@@ -48,3 +48,14 @@ test("TUIOS shares the device-local session preference and safe name rules", () 
   for (const bad of ["", ".", "..", "a/b", "a\\b", " spaced", "trailing ", "-option", "bad\nname", "con", "LPT1.txt", "x".repeat(129)]) expect(validTuiosName(bad)).toBe(false);
   expect(validTuiosName(remote.session.name)).toBe(true);
 });
+
+test("saved disk rows without live IDs only reuse one scoped tab during explicit restoration", () => {
+  const saved = { ...remote, session: { ...remote.session, id: "", created: 0, saved: true } };
+  const tab = tmuxTab({ customTitle: "my label", sshMode: modeForSession(remote, "alice", "example.test:22") });
+  expect(findSessionTab([tab], "host-a", "alice", saved, "example.test:22")).toBeUndefined();
+  expect(findSessionTab([tab], "host-a", "alice", saved, "example.test:22", true)?.id).toBe(tab.id);
+  expect(findSessionTab([tab], "host-a", "bob", saved, "example.test:22", true)).toBeUndefined();
+  const recycled = tmuxTab({ id: "old-tab", sshMode: modeForSession({ ...remote, session: { ...remote.session, id: "different-old-id" } }, "alice", "example.test:22") });
+  expect(() => findSessionTab([tab, recycled], "host-a", "alice", saved, "example.test:22", true)).toThrow("SESSION_CHANGED");
+  expect(sameRemoteSession(saved, { ...saved, session: { ...saved.session, name: "different saved name" } })).toBe(false);
+});

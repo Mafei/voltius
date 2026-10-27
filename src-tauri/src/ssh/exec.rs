@@ -128,6 +128,16 @@ pub async fn run_captured<H: russh::client::Handler>(
     run_captured_with_stdin(handle, cmd, None).await
 }
 
+/// Bounded command execution shared by explicit user-owned session backends.
+pub async fn run_session_command<H: russh::client::Handler>(
+    handle: &Handle<H>,
+    command: &str,
+) -> Result<Captured, String> {
+    tokio::time::timeout(Duration::from_secs(15), run_captured(handle, command))
+        .await
+        .map_err(|_| "SESSION_COMMAND_TIMEOUT".to_string())?
+}
+
 pub async fn run_captured_with_stdin<H: russh::client::Handler>(
     handle: &Handle<H>,
     cmd: &str,

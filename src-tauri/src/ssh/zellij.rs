@@ -294,6 +294,7 @@ pub async fn resolve(
             Ok(Launch {
                 command: attach_command(&actual)?,
                 session: Some(RemoteSession::Zellij(actual)),
+                pending_tuios: None,
                 pending_zellij: None,
             })
         }
@@ -305,6 +306,7 @@ pub async fn resolve(
             Ok(Launch {
                 command: create_command(&name)?,
                 session: None,
+                pending_tuios: None,
                 pending_zellij: Some(PendingCreation {
                     name,
                     socket_dir: listing.socket_dir,

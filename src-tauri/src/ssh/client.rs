@@ -1394,6 +1394,12 @@ pub async fn connect(
                 return Err("ZELLIJ_START_FAILED_REFRESH_LIST".into());
             }
             Some(session)
+        } else if let Some(pending) = launch.pending_tuios {
+            let session = crate::ssh::tuios::wait_restored(&handle, &pending).await?;
+            if io.input_tx.is_closed() {
+                return Err("TUIOS_START_FAILED_REFRESH_LIST".into());
+            }
+            Some(crate::ssh::multiplexer::RemoteSession::Tuios(session))
         } else {
             launch.session
         }

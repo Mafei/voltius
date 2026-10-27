@@ -1,11 +1,12 @@
 //! Shared authenticated picker lifetime and typed user-owned session launches.
 use super::client::{AuthenticatedConnection, SshClient};
-use super::exec::{run_captured, sh_c, Captured};
+pub use super::exec::run_session_command as run;
+use super::exec::sh_c;
 use super::{tmux, tuios, zellij};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
-use tokio::time::{timeout, Duration};
+use tokio::time::Duration;
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -51,15 +52,6 @@ pub struct SessionListing {
     pub reserved_names: Vec<String>,
 }
 
-pub async fn run(
-    handle: &russh::client::Handle<SshClient>,
-    command: &str,
-) -> Result<Captured, String> {
-    timeout(Duration::from_secs(15), run_captured(handle, command))
-        .await
-        .map_err(|_| "SESSION_COMMAND_TIMEOUT".to_string())?
-}
-
 pub async fn version(
     handle: &russh::client::Handle<SshClient>,
     backend: Backend,
@@ -74,9 +66,7 @@ pub async fn version(
     ), &[])).await?;
     match result.code {
         Some(127) => Ok(None),
-        Some(0) => {
-            Ok(Some(version_text(backend, binary, &result.stdout_text())?))
-        }
+        Some(0) => Ok(Some(version_text(backend, binary, &result.stdout_text())?)),
         _ => Err(format!("SESSION_VERSION_FAILED: {}", result.stderr.trim())),
     }
 }
@@ -86,9 +76,13 @@ fn version_text(backend: Backend, binary: &str, raw: &str) -> Result<String, Str
     // come from this installed binary's help, not a guessed semantic-version range.
     let value = if backend == Backend::Tuios {
         raw.lines().map(str::trim).collect::<Vec<_>>().join(" ")
-    } else { raw.trim().to_string() };
+    } else {
+        raw.trim().to_string()
+    };
     let max = if backend == Backend::Tuios { 512 } else { 160 };
-    if value.is_empty() || value.len() > max || value.chars().any(char::is_control)
+    if value.is_empty()
+        || value.len() > max
+        || value.chars().any(char::is_control)
         || (backend != Backend::Tuios && !value.starts_with(binary))
     {
         return Err("SESSION_INVALID_VERSION_RESPONSE".into());
@@ -147,6 +141,18 @@ pub struct Launch {
     pub command: String,
     pub session: Option<RemoteSession>,
     pub pending_zellij: Option<zellij::PendingCreation>,
+    pub pending_tuios: Option<tuios::PendingRestore>,
+}
+
+impl Launch {
+    fn ready(command: String, session: RemoteSession) -> Self {
+        Self {
+            command,
+            session: Some(session),
+            pending_zellij: None,
+            pending_tuios: None,
+        }
+    }
 }
 
 pub async fn resolve(
@@ -156,14 +162,21 @@ pub async fn resolve(
     match choice {
         SessionChoice::Tmux(choice) => {
             let session = tmux::resolve_choice(handle, choice).await?;
-            Ok(Launch {
-                command: tmux::attach_command(&session.id)?,
-                session: Some(RemoteSession::Tmux(session)),
-                pending_zellij: None,
-            })
+            Ok(Launch::ready(
+                tmux::attach_command(&session.id)?,
+                RemoteSession::Tmux(session),
+            ))
         }
         SessionChoice::Zellij(choice) => zellij::resolve(handle, choice).await,
-        SessionChoice::Tuios(choice) => tuios::resolve(handle, choice).await,
+        SessionChoice::Tuios(choice) => {
+            let launch = tuios::resolve(handle, choice).await?;
+            Ok(Launch {
+                command: launch.command,
+                session: launch.session.map(RemoteSession::Tuios),
+                pending_zellij: None,
+                pending_tuios: launch.pending,
+            })
+        }
     }
 }
 
@@ -265,7 +278,15 @@ mod tests {
 
     #[test]
     fn tuios_build_metadata_is_displayed_without_assuming_a_version_range() {
-        assert_eq!(version_text(Backend::Tuios, "tuios", "tuios v0.11.0\nVT backend: pure-Go\n").unwrap(), "tuios v0.11.0 VT backend: pure-Go");
+        assert_eq!(
+            version_text(
+                Backend::Tuios,
+                "tuios",
+                "tuios v0.11.0\nVT backend: pure-Go\n"
+            )
+            .unwrap(),
+            "tuios v0.11.0 VT backend: pure-Go"
+        );
         assert!(version_text(Backend::Tuios, "tuios", "").is_err());
         assert!(version_text(Backend::Tuios, "tuios", "tuios\x1b[31m").is_err());
         assert!(version_text(Backend::Tmux, "tmux", "unexpected").is_err());

@@ -149,13 +149,16 @@ test("TUIOS duplicate clicks share one launch and retain the typed target", asyn
 });
 
 test("saved TUIOS restore reuses an offline tab without duplicating it", async () => {
-  const selected = tuiosRemote(true);
+  const selected = tuiosRemote(true); selected.session.id = ""; selected.session.created = 0;
   h.prepare.mockResolvedValue(tuiosListing(true));
-  h.sessions = [tmuxTab({ status: "disconnected", sshMode: { kind: "tuios", session: selected.session, username: "alice", endpoint: "example.test:22" } })];
-  h.reconnect.mockImplementation(async () => { h.sessions[0].status = "connected"; });
+  h.sessions = [tmuxTab({ status: "disconnected", sshMode: { kind: "tuios", session: tuiosRemote().session, username: "alice", endpoint: "example.test:22" } })];
+  h.reconnect.mockImplementation(async () => {
+    h.sessions[0].status = "connected";
+    if (h.sessions[0].sshMode?.kind === "tuios") h.sessions[0].sshMode.session.saved = false;
+  });
   const picker = createSessionPicker(connection, "tuios"); await picker.ready;
   expect(await picker.restore(selected)).toBe("tab-1");
-  expect(h.reconnect).toHaveBeenCalledWith("tab-1", expect.objectContaining({ sshLaunch: expect.objectContaining({ choice: { backend: "tuios", choice: { kind: "restore", session: selected.session } } }) }));
+  expect(h.reconnect).toHaveBeenCalledWith("tab-1", expect.objectContaining({ sshLaunch: expect.objectContaining({ choice: { backend: "tuios", choice: { kind: "restore", session: selected.session, expected: { id: "synthetic-id" } } } }) }));
   expect(h.connect).not.toHaveBeenCalled(); expect(h.remove).not.toHaveBeenCalled();
   expect(h.sessions[0].sshMode).toMatchObject({ kind: "tuios", session: { saved: false } });
 });

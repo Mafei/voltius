@@ -39,11 +39,22 @@ export function sessionAttachChoice(remote: RemoteSession): SessionChoice {
 export function sameRemoteSession(a: RemoteSession, b: RemoteSession): boolean {
   if (a.backend === "tmux" && b.backend === "tmux") return sameTmux(a.session, b.session);
   if (a.backend === "zellij" && b.backend === "zellij") return a.session.socket_dir === b.session.socket_dir && a.session.socket_id === b.session.socket_id;
-  if (a.backend === "tuios" && b.backend === "tuios") return a.session.id === b.session.id && a.session.created === b.session.created;
+  if (a.backend === "tuios" && b.backend === "tuios") {
+    if (a.session.saved && b.session.saved && !a.session.id && !b.session.id) return a.session.name === b.session.name;
+    return !!a.session.id && a.session.id === b.session.id && a.session.created === b.session.created;
+  }
   return false;
 }
 
-export function findSessionTab(sessions: TerminalSession[], connectionId: string, username: string, target: RemoteSession, endpoint: string): TerminalSession | undefined {
-  return sessions.find((s) => s.type === "ssh" && s.connectionId === connectionId &&
-    isUserSession(s.sshMode) && s.sshMode.username === username && s.sshMode.endpoint === endpoint && sameRemoteSession(remoteFromMode(s.sshMode), target));
+export function findSessionTab(sessions: TerminalSession[], connectionId: string, username: string, target: RemoteSession, endpoint: string, restoreSaved = false): TerminalSession | undefined {
+  const scoped = sessions.filter((s) => s.type === "ssh" && s.connectionId === connectionId &&
+    isUserSession(s.sshMode) && s.sshMode.username === username && s.sshMode.endpoint === endpoint);
+  const exact = scoped.find(s => isUserSession(s.sshMode) && sameRemoteSession(remoteFromMode(s.sshMode), target));
+  if (exact) return exact;
+  if (restoreSaved && target.backend === "tuios" && target.session.saved && !target.session.id) {
+    const named = scoped.filter(s => s.sshMode?.kind === "tuios" && s.sshMode.session.name === target.session.name);
+    if (named.length > 1) throw new Error("SESSION_CHANGED");
+    return named[0]; // The native restore must confirm this tab's old live identity.
+  }
+  return undefined;
 }

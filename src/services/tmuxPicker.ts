@@ -54,22 +54,27 @@ export function createSessionPicker(connection: Connection, backend: SessionBack
       try { await ready; } catch (error) { if (choice) throw error; prepared = false; }
       if (closed) throw new Error("SESSION_PICKER_CLOSED");
       if (selected) {
-        const existing = findSessionTab(useSessionStore.getState().sessions, connection.id, username, selected, tmuxEndpoint(connection));
+        const restoring = choice?.backend === "tuios" && choice.choice.kind === "restore";
+        const existing = findSessionTab(useSessionStore.getState().sessions, connection.id, username, selected, tmuxEndpoint(connection), restoring);
         if (existing) {
           if (choice?.backend === "tuios" && choice.choice.kind === "restore") {
             if (existing.status === "connecting" || existing.status === "connected") throw new Error("SESSION_CHANGED");
             await useSessionStore.getState().reconnect(existing.id, {
-              sshLaunch: { preparedId, choice, session: selected, username },
+              sshLaunch: { preparedId, choice: { ...choice, choice: { ...choice.choice,
+                expected: existing.sshMode?.kind === "tuios" && existing.sshMode.session.id
+                  ? { id: existing.sshMode.session.id } : undefined,
+              } }, session: selected, username },
             });
             await release();
             if (useSessionStore.getState().sessions.find(s => s.id === existing.id)?.status !== "connected") throw new Error("TUIOS_RESTORE_FAILED");
           } else await release();
           if (closed) throw new Error("SESSION_PICKER_CLOSED");
           // Refresh the displayed name, but identity is the stable remote tuple, never its label.
-          const target = selected.backend === "tuios" && choice?.backend === "tuios" && choice.choice.kind === "restore"
-            ? { ...selected, session: { ...selected.session, saved: false } } : selected;
+          const restoredMode = restoring ? useSessionStore.getState().sessions.find(s => s.id === existing.id)?.sshMode : undefined;
+          if (restoring && (restoredMode?.kind !== "tuios" || !restoredMode.session.id || restoredMode.session.saved)) throw new Error("TUIOS_RESTORE_FAILED");
+          const mode = restoredMode ?? modeForSession(selected, username, tmuxEndpoint(connection));
           useSessionStore.setState((s) => ({ sessions: s.sessions.map((tab) => tab.id === existing.id
-            ? { ...tab, sshMode: modeForSession(target, username, tmuxEndpoint(connection)) } : tab) }));
+            ? { ...tab, sshMode: mode } : tab) }));
           if (isMobileShell()) useSessionStore.getState().setActive(existing.id);
           else activateOwnedSession(existing.id);
           // An offline tab is reused. Its existing error/reconnect UI stays available.

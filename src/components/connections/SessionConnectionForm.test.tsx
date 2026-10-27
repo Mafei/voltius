@@ -257,7 +257,7 @@ for (const presentation of ["sheet", "dialog"] as const) {
   test(`${presentation}: saved TUIOS sessions require the explicit Restore action`, async () => {
     const saved = remote("tuios");
     if (saved.backend !== "tuios") throw new Error("fixture backend");
-    saved.session.saved = true;
+    saved.session.saved = true; saved.session.id = ""; saved.session.created = 0;
     const picker = fake(listing("tuios", [saved]));
     h.create.mockImplementation((_connection, selected) => selected ? picker : fake(null));
     render(<SessionConnectionForm connection={host} onClose={vi.fn()} onOpened={vi.fn()} presentation={presentation} />);

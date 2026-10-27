@@ -25,7 +25,7 @@ export interface TuiosSession { name: string; id: string; created: number; saved
 export type SessionType = "none" | SessionBackend;
 export interface ZellijSession { name: string; socket_dir: string; socket_id: string }
 export type RemoteSession = { backend: "tmux"; session: TmuxSession } | { backend: "zellij"; session: ZellijSession } | { backend: "tuios"; session: TuiosSession };
-export type TuiosChoice = { kind: "attach" | "restore"; session: TuiosSession } | { kind: "create"; name: string };
+export type TuiosChoice = { kind: "attach"; session: TuiosSession } | { kind: "restore"; session: TuiosSession; expected?: { id: string } } | { kind: "create"; name: string };
 export type SessionChoice = { backend: "tmux"; choice: TmuxChoice } | { backend: "zellij"; choice: { kind: "attach"; session: ZellijSession } | { kind: "create"; name: string } } | { backend: "tuios"; choice: TuiosChoice };
 export type SshMode = { kind: "plain" } | { kind: "tmux"; session: TmuxSession; username: string; endpoint: string } | { kind: "zellij"; session: ZellijSession; username: string; endpoint: string } | { kind: "tuios"; session: TuiosSession; username: string; endpoint: string };
 export interface SessionListing { backend: SessionBackend; installed: boolean; version: string | null; sessions: RemoteSession[]; reserved_names: string[] }

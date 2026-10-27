@@ -53,10 +53,12 @@ ditto -c -k --sequesterRsrc --keepParent "$app" "$out/$name"
 git archive --format=tar.gz --prefix=voltius-source/ HEAD -- . ':!keystore' > "$out/voltius-source-$sha.tar.gz"
 shasum -a 256 "$out/$name" "$out/voltius-source-$sha.tar.gz" | tee "$out/SHA256SUMS"
 python3 - "$out" "$sha" "$name" <<'PY'
-import hashlib, json, pathlib, sys
+import hashlib, json, pathlib, subprocess, sys
 out, sha, name = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
 manifest = {
-    'application_baseline': '89211d216bec165e2f07db568bcd454a06ca1a50',
+    'application_baseline_original': '89211d216bec165e2f07db568bcd454a06ca1a50',
+    'application_baseline_imported': subprocess.check_output(['git', 'log', '--format=%H', '--fixed-strings', '--grep=Imported-from-commit: 89211d216bec165e2f07db568bcd454a06ca1a50', '-1'], text=True).strip(),
+    'original_ci_candidate': '137571012dc7a80c85a25cc4c45f83f05d0c32a9',
     'source_sha': sha, 'repository': 'https://github.com/Mafei/voltius',
     'arch': 'arm64', 'package': name,
     'package_sha256': hashlib.sha256((out/name).read_bytes()).hexdigest(),

@@ -25,7 +25,14 @@ jobs:
           persist-credentials: false
       - name: Require the reviewed rendering and dependency baseline
         shell: bash
-        run: git merge-base --is-ancestor 89211d216bec165e2f07db568bcd454a06ca1a50 HEAD
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          baseline=$(git log --format=%H --fixed-strings --grep='Imported-from-commit: 89211d216bec165e2f07db568bcd454a06ca1a50' -1)
+          test -n "$baseline"
+          test "$(git rev-parse "$baseline^{tree}")" = 87bdc39306f9096d8801ef483a086f92376ea2f8
+          git merge-base --is-ancestor "$baseline" HEAD
+          printf 'Checkout SHA: %s\nImported application baseline: %s\n' "$GITHUB_SHA" "$baseline"
       - uses: ./.github/actions/build-desktop-platform
         with:
           target: aarch64-apple-darwin

@@ -22,7 +22,10 @@ mod baseline;
 #[cfg(test)]
 mod live;
 
-#[path = "../../../src-tauri/src/webdav/multistatus.rs"]
-pub mod webdav_multistatus;
 #[cfg(test)]
 mod ftp_security;
+#[path = "../../../src-tauri/src/webdav/multistatus.rs"]
+pub mod webdav_multistatus;
+
+#[path = "../../../src-tauri/src/tls.rs"]
+pub mod tls;

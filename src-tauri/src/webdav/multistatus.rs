@@ -71,12 +71,8 @@ pub fn parse(xml: &str) -> Result<Vec<DavEntry>, String> {
                     mark_dir(&mut current);
                 }
             }
-            (_, Event::Text(t)) if field.is_some() => {
-                text.push_str(t.as_ref())
-            }
-            (_, Event::CData(t)) if field.is_some() => {
-                text.push_str(t.as_ref())
-            }
+            (_, Event::Text(t)) if field.is_some() => text.push_str(t.as_ref()),
+            (_, Event::CData(t)) if field.is_some() => text.push_str(t.as_ref()),
             (_, Event::GeneralRef(r)) if field.is_some() => {
                 if let Some(ch) = r.resolve_char_ref().map_err(|e| bad(&e))? {
                     text.push(ch);

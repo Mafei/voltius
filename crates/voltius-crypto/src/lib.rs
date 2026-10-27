@@ -1,10 +1,9 @@
 use argon2::{Algorithm, Argon2, Params, Version};
 use chacha20poly1305::{
-    aead::{Aead, AeadCore, KeyInit, OsRng as AeadOsRng},
+    aead::{Aead, Generate, KeyInit},
     Key, XChaCha20Poly1305, XNonce,
 };
 use hkdf::Hkdf;
-use rand::RngCore;
 use sha2::Sha256;
 
 /// Bumping this requires a vault migration — existing blobs will fail to decrypt.
@@ -53,7 +52,7 @@ pub struct DerivedKeys {
 
 pub fn random_bytes(n: usize) -> Vec<u8> {
     let mut buf = vec![0u8; n];
-    rand::rngs::OsRng.fill_bytes(&mut buf);
+    getrandom::fill(&mut buf).expect("system cryptographic RNG failed");
     buf
 }
 
@@ -61,8 +60,8 @@ const XCHACHA20POLY1305_NONCE_LEN: usize = 24;
 
 // Wire format: version(1) || nonce(24) || XChaCha20-Poly1305 ciphertext+tag
 pub fn xchacha20poly1305_encrypt(key: &[u8; 32], plaintext: &[u8]) -> Result<Vec<u8>, String> {
-    let cipher = XChaCha20Poly1305::new(Key::from_slice(key));
-    let nonce = XChaCha20Poly1305::generate_nonce(&mut AeadOsRng);
+    let cipher = XChaCha20Poly1305::new(&Key::try_from(key.as_slice()).map_err(|e| e.to_string())?);
+    let nonce = XNonce::generate();
     let ciphertext = cipher
         .encrypt(&nonce, plaintext)
         .map_err(|e| format!("XChaCha20-Poly1305 encrypt failed: {e}"))?;
@@ -81,10 +80,11 @@ pub fn xchacha20poly1305_decrypt(key: &[u8; 32], data: &[u8]) -> Result<Vec<u8>,
     if version != CIPHERTEXT_VERSION {
         return Err(format!("Unsupported ciphertext version: {version}"));
     }
-    let nonce = XNonce::from_slice(&data[1..1 + XCHACHA20POLY1305_NONCE_LEN]);
-    let cipher = XChaCha20Poly1305::new(Key::from_slice(key));
+    let nonce =
+        XNonce::try_from(&data[1..1 + XCHACHA20POLY1305_NONCE_LEN]).map_err(|e| e.to_string())?;
+    let cipher = XChaCha20Poly1305::new(&Key::try_from(key.as_slice()).map_err(|e| e.to_string())?);
     cipher
-        .decrypt(nonce, &data[1 + XCHACHA20POLY1305_NONCE_LEN..])
+        .decrypt(&nonce, &data[1 + XCHACHA20POLY1305_NONCE_LEN..])
         .map_err(|_| "XChaCha20-Poly1305 decrypt failed — wrong key or corrupted data".to_string())
 }
 
@@ -118,10 +118,11 @@ pub fn unwrap_user_secrets(kek: &[u8; 32], wrapped: &[u8]) -> Result<([u8; 32], 
 }
 
 pub fn generate_keypair() -> Keypair {
-    use rand::rngs::OsRng;
     use x25519_dalek::{PublicKey, StaticSecret};
 
-    let secret = StaticSecret::random_from_rng(OsRng);
+    let mut secret_bytes = [0u8; 32];
+    getrandom::fill(&mut secret_bytes).expect("system cryptographic RNG failed");
+    let secret = StaticSecret::from(secret_bytes);
     let public = PublicKey::from(&secret);
 
     Keypair {
@@ -142,6 +143,48 @@ pub struct Keypair {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Fixed synthetic vectors captured from the pre-migration implementation.
+    // This guards compatibility with existing encrypted data, beyond self round trips.
+    fn hex(bytes: &[u8]) -> String {
+        bytes.iter().map(|b| format!("{b:02x}")).collect()
+    }
+
+    #[test]
+    fn key_derivation_preserves_legacy_argon2_hkdf_vectors() {
+        let keys =
+            derive_keys("synthetic compatibility password", "synthetic-account-0001").unwrap();
+        assert_eq!(
+            hex(&keys.auth_key),
+            "6afed1561d8d7210d7cd0e780d6ba344f98c5680d60acde1f2d042b27460de26"
+        );
+        assert_eq!(
+            hex(&keys.enc_key),
+            "d712c321965efe1965afed67dfd9b6cee7e5152886a34b540312d1c85adbc679"
+        );
+    }
+
+    #[test]
+    fn fixed_nonce_ciphertext_and_x25519_match_legacy_vectors() {
+        let cipher = XChaCha20Poly1305::new(&Key::from([7u8; 32]));
+        let plaintext = b"synthetic compatibility payload";
+        let ciphertext = cipher
+            .encrypt(&XNonce::from([3u8; 24]), plaintext.as_slice())
+            .unwrap();
+        assert_eq!(hex(&ciphertext), "f77f256f1d44b299143020942aa1af3d43f8190b6a614f35da3e45614f45451c655ece410e948a3dad551cc3c696f9");
+        let mut legacy_blob = vec![CIPHERTEXT_VERSION];
+        legacy_blob.extend_from_slice(&[3u8; 24]);
+        legacy_blob.extend_from_slice(&ciphertext);
+        assert_eq!(
+            xchacha20poly1305_decrypt(&[7u8; 32], &legacy_blob).unwrap(),
+            plaintext
+        );
+        let secret = x25519_dalek::StaticSecret::from([9u8; 32]);
+        assert_eq!(
+            hex(x25519_dalek::PublicKey::from(&secret).as_bytes()),
+            "57db4b359f23ae5e146e4e2512056704722506348c150c14753d0c933d04d421"
+        );
+    }
 
     #[test]
     fn xchacha20poly1305_encrypt_uses_24_byte_nonce_and_round_trips() {

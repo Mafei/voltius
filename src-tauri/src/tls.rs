@@ -189,7 +189,7 @@ pub(crate) mod pin_tests {
         let ck = rcgen::generate_simple_self_signed(vec!["127.0.0.1".to_string()]).unwrap();
         Leaf {
             cert: ck.cert.der().clone(),
-            key: ck.key_pair.serialize_der(),
+            key: ck.signing_key.serialize_der(),
         }
     }
 
@@ -201,7 +201,7 @@ pub(crate) mod pin_tests {
         let key = rcgen::KeyPair::generate().unwrap();
         let cert = rcgen::CertificateParams::new(vec!["127.0.0.1".to_string()])
             .unwrap()
-            .signed_by(&key, &ca, &ca_key)
+            .signed_by(&key, &rcgen::Issuer::from_params(&ca_params, &ca_key))
             .unwrap();
         (
             Leaf {

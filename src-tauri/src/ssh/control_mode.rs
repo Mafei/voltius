@@ -1336,7 +1336,8 @@ mod docker_harness {
             }
         });
         let mut session = ControlSession::new("s".into(), 80, 24, colors);
-        let mut parser = vt100::Parser::new(24, 80, 100_000);
+        let mut parser =
+            vt100::Parser::new(24.try_into().unwrap(), 80.try_into().unwrap(), 100_000);
         let mut started = Vec::new();
         let mut feed = |bytes: &[u8], parser: &mut vt100::Parser, started: &mut Vec<String>| {
             for action in session.on_output(bytes) {

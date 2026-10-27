@@ -1,6 +1,6 @@
 use base64::{engine::general_purpose::STANDARD, Engine};
 use chacha20poly1305::{
-    aead::{Aead, AeadCore, KeyInit, OsRng as AeadOsRng},
+    aead::{Aead, Generate, KeyInit},
     Key, XChaCha20Poly1305, XNonce,
 };
 use hkdf::Hkdf;
@@ -87,9 +87,9 @@ pub fn x25519_wrap_key(
     let recipient_public = PublicKey::from(recipient_public_bytes);
     let shared = my_secret.diffie_hellman(&recipient_public);
 
-    let key = Key::from_slice(shared.as_bytes());
-    let cipher = XChaCha20Poly1305::new(key);
-    let nonce = XChaCha20Poly1305::generate_nonce(&mut AeadOsRng);
+    let key = Key::from(*shared.as_bytes());
+    let cipher = XChaCha20Poly1305::new(&key);
+    let nonce = XNonce::generate();
 
     let ciphertext = cipher
         .encrypt(&nonce, plaintext.as_ref())
@@ -133,13 +133,15 @@ pub fn x25519_unwrap_key(
         return Err("Wrapped key too short".to_string());
     }
 
-    let nonce = XNonce::from_slice(&wrapped[..NONCE_LEN]);
+    let nonce = XNonce::try_from(&wrapped[..NONCE_LEN]).map_err(|e| e.to_string())?;
     let ciphertext = &wrapped[NONCE_LEN..];
 
-    let key = Key::from_slice(shared.as_bytes());
-    let cipher = XChaCha20Poly1305::new(key);
+    let key = Key::from(*shared.as_bytes());
+    let cipher = XChaCha20Poly1305::new(&key);
 
-    cipher.decrypt(nonce, ciphertext).map_err(|e| e.to_string())
+    cipher
+        .decrypt(&nonce, ciphertext)
+        .map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

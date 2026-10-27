@@ -1,5 +1,5 @@
 use chacha20poly1305::{
-    aead::{Aead, AeadCore, KeyInit, OsRng},
+    aead::{Aead, Generate, KeyInit},
     Key, XChaCha20Poly1305, XNonce,
 };
 use serde::{Deserialize, Serialize};
@@ -41,9 +41,9 @@ pub fn encrypt_payload(
     };
     let payload_json = serde_json::to_vec(&payload).map_err(|e| e.to_string())?;
 
-    let key = Key::from_slice(&enc_key);
-    let cipher = XChaCha20Poly1305::new(key);
-    let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
+    let key = Key::try_from(enc_key.as_slice()).map_err(|e| e.to_string())?;
+    let cipher = XChaCha20Poly1305::new(&key);
+    let nonce = XNonce::generate();
     let ciphertext = cipher
         .encrypt(&nonce, payload_json.as_slice())
         .map_err(|e| format!("Encryption failed: {e}"))?;
@@ -97,12 +97,13 @@ fn decrypt_blob(enc_key: &[u8], blob: &[u8]) -> Result<BlobPayload, String> {
         return Err("Blob malformed".to_string());
     }
     let nonce_start = 4 + header_len;
-    let nonce = XNonce::from_slice(&blob[nonce_start..nonce_start + NONCE_LEN]);
+    let nonce =
+        XNonce::try_from(&blob[nonce_start..nonce_start + NONCE_LEN]).map_err(|e| e.to_string())?;
     let ciphertext = &blob[nonce_start + NONCE_LEN..];
-    let key = Key::from_slice(enc_key);
-    let cipher = XChaCha20Poly1305::new(key);
+    let key = Key::try_from(enc_key).map_err(|e| e.to_string())?;
+    let cipher = XChaCha20Poly1305::new(&key);
     let plaintext = cipher
-        .decrypt(nonce, ciphertext)
+        .decrypt(&nonce, ciphertext)
         .map_err(|_| "Decryption failed — wrong key or corrupted blob".to_string())?;
     serde_json::from_slice(&plaintext).map_err(|e| e.to_string())
 }
@@ -260,9 +261,9 @@ pub fn backup_export(
     };
     let payload_json = serde_json::to_vec(&payload).map_err(|e| e.to_string())?;
 
-    let key = Key::from_slice(&enc_key);
-    let cipher = XChaCha20Poly1305::new(key);
-    let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
+    let key = Key::try_from(enc_key.as_slice()).map_err(|e| e.to_string())?;
+    let cipher = XChaCha20Poly1305::new(&key);
+    let nonce = XNonce::generate();
     let ciphertext = cipher
         .encrypt(&nonce, payload_json.as_slice())
         .map_err(|e| format!("Encryption failed: {e}"))?;

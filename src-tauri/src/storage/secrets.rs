@@ -1,6 +1,6 @@
 use crate::error::{AppError, ErrorCode};
 use chacha20poly1305::{
-    aead::{Aead, AeadCore, KeyInit, OsRng},
+    aead::{Aead, Generate, KeyInit},
     Key, XChaCha20Poly1305, XNonce,
 };
 use std::collections::HashMap;
@@ -280,8 +280,8 @@ fn open_staged(tmp: &std::path::Path, _like: &std::path::Path) -> std::io::Resul
 }
 
 fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Result<Vec<u8>, AppError> {
-    let cipher = XChaCha20Poly1305::new(Key::from_slice(key));
-    let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
+    let cipher = XChaCha20Poly1305::new(&Key::try_from(key.as_slice()).map_err(|e| e.to_string())?);
+    let nonce = XNonce::generate();
     let ciphertext = cipher
         .encrypt(&nonce, plaintext)
         .map_err(|e| format!("Encryption failed: {e}"))?;
@@ -295,10 +295,10 @@ fn decrypt(key: &[u8; 32], data: &[u8]) -> Result<SecretsData, AppError> {
     if data.len() < NONCE_LEN {
         return Err("Secrets file too short".into());
     }
-    let nonce = XNonce::from_slice(&data[..NONCE_LEN]);
-    let cipher = XChaCha20Poly1305::new(Key::from_slice(key));
+    let nonce = XNonce::try_from(&data[..NONCE_LEN]).map_err(|e| e.to_string())?;
+    let cipher = XChaCha20Poly1305::new(&Key::try_from(key.as_slice()).map_err(|e| e.to_string())?);
     let plaintext = cipher
-        .decrypt(nonce, &data[NONCE_LEN..])
+        .decrypt(&nonce, &data[NONCE_LEN..])
         // Possibly readable with another key: the frontend must not discard it on this.
         .map_err(|_| {
             AppError::coded(

@@ -162,14 +162,18 @@ impl russh::server::Handler for KeyServer {
     async fn auth_publickey_offered(
         &mut self,
         _: &str,
-        key: &PublicKey,
+        key: russh::server::PublicKeyOffer<'_>,
     ) -> Result<Auth, Self::Error> {
         self.offered.fetch_add(1, Ordering::SeqCst);
-        Ok(self.decide(key))
+        Ok(self.decide(key.public_key))
     }
-    async fn auth_publickey(&mut self, _: &str, key: &PublicKey) -> Result<Auth, Self::Error> {
+    async fn auth_publickey(
+        &mut self,
+        _: &str,
+        key: russh::server::VerifiedPublicKey<'_>,
+    ) -> Result<Auth, Self::Error> {
         self.signed.fetch_add(1, Ordering::SeqCst);
-        Ok(self.decide(key))
+        Ok(self.decide(key.public_key))
     }
 }
 impl KeyServer {

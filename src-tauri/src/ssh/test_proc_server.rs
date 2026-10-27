@@ -102,17 +102,17 @@ impl russh::server::Handler for ProcServer {
     async fn auth_publickey_offered(
         &mut self,
         _: &str,
-        key: &russh::keys::ssh_key::PublicKey,
+        key: russh::server::PublicKeyOffer<'_>,
     ) -> Result<Auth, Self::Error> {
-        Ok(self.decide_key(Some(key)))
+        Ok(self.decide_key(Some(key.public_key)))
     }
 
     async fn auth_publickey(
         &mut self,
         _: &str,
-        key: &russh::keys::ssh_key::PublicKey,
+        key: russh::server::VerifiedPublicKey<'_>,
     ) -> Result<Auth, Self::Error> {
-        Ok(self.decide_key(Some(key)))
+        Ok(self.decide_key(Some(key.public_key)))
     }
 
     async fn channel_open_session(

@@ -86,7 +86,7 @@ static TEST_PKI: LazyLock<TestPki> = LazyLock::new(|| {
     let proxy_key = rcgen::KeyPair::generate().unwrap();
     let proxy_cert = rcgen::CertificateParams::new(vec!["127.0.0.1".to_string()])
         .unwrap()
-        .signed_by(&proxy_key, &ca, &ca_key)
+        .signed_by(&proxy_key, &rcgen::Issuer::from_params(&ca_params, &ca_key))
         .unwrap();
     TestPki {
         ca: ca.der().clone(),

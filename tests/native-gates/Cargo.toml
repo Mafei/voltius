@@ -12,4 +12,8 @@ tokio-util = { version = "=0.7.20", features = ["io", "io-util", "rt"] }
 bytes = { version = "=1.12.1" }
 russh-sftp = "=2.3.0"
 
+quick-xml = "=0.42.0"
+httpdate = "1"
+suppaftp = { version = "=12.2.1", default-features = false, features = ["tokio-rustls-ring"] }
+
 [workspace]

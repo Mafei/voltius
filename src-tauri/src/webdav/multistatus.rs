@@ -4,7 +4,7 @@ use quick_xml::name::ResolveResult;
 use quick_xml::NsReader;
 use std::time::UNIX_EPOCH;
 
-const DAV: &[u8] = b"DAV:";
+const DAV: &str = "DAV:";
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct DavEntry {
@@ -36,24 +36,24 @@ pub fn parse(xml: &str) -> Result<Vec<DavEntry>, String> {
             (ns, Event::Start(e)) => {
                 let dav = matches!(ns, ResolveResult::Bound(n) if n.as_ref() == DAV);
                 let name = e.local_name();
-                if depth == 0 && !(dav && name.as_ref() == b"multistatus") {
+                if depth == 0 && !(dav && name.as_ref() == "multistatus") {
                     return Err(bad(&"not a multistatus document"));
                 }
                 depth += 1;
                 if dav {
                     match name.as_ref() {
-                        b"response" => {
+                        "response" => {
                             current = Some(DavEntry::default());
                             response_depth = Some(depth);
                         }
-                        b"collection" => mark_dir(&mut current),
-                        b"href" if response_depth == Some(depth - 1) => {
+                        "collection" => mark_dir(&mut current),
+                        "href" if response_depth == Some(depth - 1) => {
                             if current.as_ref().is_some_and(|c| c.href.is_empty()) {
                                 field = Some(Field::Href);
                             }
                         }
-                        b"getcontentlength" => field = Some(Field::Length),
-                        b"getlastmodified" => field = Some(Field::Modified),
+                        "getcontentlength" => field = Some(Field::Length),
+                        "getlastmodified" => field = Some(Field::Modified),
                         _ => {}
                     }
                 }
@@ -63,25 +63,25 @@ pub fn parse(xml: &str) -> Result<Vec<DavEntry>, String> {
                 let dav = matches!(ns, ResolveResult::Bound(n) if n.as_ref() == DAV);
                 let name = e.local_name();
                 if depth == 0 {
-                    if !(dav && name.as_ref() == b"multistatus") {
+                    if !(dav && name.as_ref() == "multistatus") {
                         return Err(bad(&"not a multistatus document"));
                     }
                     closed = true;
-                } else if dav && name.as_ref() == b"collection" {
+                } else if dav && name.as_ref() == "collection" {
                     mark_dir(&mut current);
                 }
             }
             (_, Event::Text(t)) if field.is_some() => {
-                text.push_str(&t.decode().map_err(|e| bad(&e))?)
+                text.push_str(t.as_ref())
             }
             (_, Event::CData(t)) if field.is_some() => {
-                text.push_str(&t.decode().map_err(|e| bad(&e))?)
+                text.push_str(t.as_ref())
             }
             (_, Event::GeneralRef(r)) if field.is_some() => {
                 if let Some(ch) = r.resolve_char_ref().map_err(|e| bad(&e))? {
                     text.push(ch);
                 } else {
-                    let name = r.decode().map_err(|e| bad(&e))?;
+                    let name = r.as_ref();
                     let v = resolve_predefined_entity(&name)
                         .ok_or_else(|| bad(&format!("unknown entity &{name};")))?;
                     text.push_str(v);
@@ -91,14 +91,14 @@ pub fn parse(xml: &str) -> Result<Vec<DavEntry>, String> {
                 depth = depth.saturating_sub(1);
                 if matches!(ns, ResolveResult::Bound(n) if n.as_ref() == DAV) {
                     match e.local_name().as_ref() {
-                        b"multistatus" if depth == 0 => closed = true,
-                        b"response" => {
+                        "multistatus" if depth == 0 => closed = true,
+                        "response" => {
                             response_depth = None;
                             if let Some(entry) = current.take().filter(|c| !c.href.is_empty()) {
                                 entries.push(entry);
                             }
                         }
-                        b"href" | b"getcontentlength" | b"getlastmodified" => {
+                        "href" | "getcontentlength" | "getlastmodified" => {
                             if let (Some(f), Some(entry)) = (field.take(), current.as_mut()) {
                                 apply(f, text.trim(), entry);
                             }

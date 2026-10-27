@@ -167,8 +167,7 @@ impl Endpoint for FtpBackend {
                 _ = cancel.cancelled() => Err(cancelled()),
             };
             match copied {
-                Ok(()) => call!(*s, |ftp| ftp.finalize_retr_stream(data))
-                    .map_err(|e| failed("download", e)),
+                Ok(()) => call!(*s, |_ftp| data.finish()).map_err(|e| failed("download", e)),
                 Err(e) => {
                     abandon(&mut s, data);
                     Err(e)
@@ -191,9 +190,7 @@ impl Endpoint for FtpBackend {
                 _ = cancel.cancelled() => Err(cancelled()),
             };
             match copied {
-                Ok(()) => {
-                    call!(*s, |ftp| ftp.finalize_put_stream(data)).map_err(|e| failed("upload", e))
-                }
+                Ok(()) => call!(*s, |_ftp| data.finish()).map_err(|e| failed("upload", e)),
                 Err(e) => {
                     abandon(&mut s, data);
                     Err(e)
@@ -211,7 +208,7 @@ impl Endpoint for FtpBackend {
             return false;
         };
         let answer = match call!(*s, |ftp| ftp.append_with_stream(path)) {
-            Ok(data) => call!(*s, |ftp| ftp.finalize_put_stream(data)).map(|()| true),
+            Ok(data) => call!(*s, |_ftp| data.finish()).map(|()| true),
             Err(e) if refused(&e) => Ok(false),
             Err(e) => Err(e),
         };

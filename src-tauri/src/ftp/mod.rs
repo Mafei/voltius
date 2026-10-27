@@ -400,8 +400,7 @@ impl FileBackend for FtpBackend {
             abandon(&mut s, stream);
             return Ok(buf);
         }
-        call!(*s, |ftp| ftp.finalize_retr_stream(stream))
-            .map_err(|e| failed("read finalize", e))?;
+        call!(*s, |_ftp| stream.finish()).map_err(|e| failed("read finalize", e))?;
         Ok(buf)
     }
 

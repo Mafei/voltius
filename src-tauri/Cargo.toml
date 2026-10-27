@@ -17,7 +17,7 @@ tauri-build = { version = "2.7.4", features = [] }
 
 [dependencies]
 url = "2"
-quick-xml = "0.39"
+quick-xml = "0.42.0"
 httpdate = "1"
 percent-encoding = "2"
 infer = "0.19"
@@ -82,7 +82,7 @@ cfb8 = "0.9"
 cbc = { version = "0.2.1", features = ["block-padding"] }
 blowfish = { version = "0.10", features = ["bcrypt"] }
 # `ring` to match russh's existing TLS backend (avoid pulling in aws-lc-rs too).
-suppaftp = { version = "9", default-features = false, features = ["tokio-rustls-ring"] }
+suppaftp = { version = "12.2.1", default-features = false, features = ["tokio-rustls-ring"] }
 tokio-rustls = { version = "0.26.6", default-features = false, features = ["ring", "tls12", "logging"] }
 rustls-native-certs = "0.8.5"
 

@@ -1,7 +1,7 @@
 use argon2::{Algorithm, Argon2, Params, Version};
 use chacha20poly1305::{
     aead::{Aead, Generate, KeyInit},
-    Key, XChaCha20Poly1305, XNonce,
+    XChaCha20Poly1305, XNonce,
 };
 use hkdf::Hkdf;
 use sha2::Sha256;
@@ -58,9 +58,15 @@ pub fn random_bytes(n: usize) -> Vec<u8> {
 
 const XCHACHA20POLY1305_NONCE_LEN: usize = 24;
 
+/// Shared checked construction for the vault, sync and team wire formats.
+pub fn xchacha20poly1305_cipher(key: &[u8]) -> Result<XChaCha20Poly1305, String> {
+    XChaCha20Poly1305::new_from_slice(key)
+        .map_err(|_| "Encryption key must be 32 bytes".to_string())
+}
+
 // Wire format: version(1) || nonce(24) || XChaCha20-Poly1305 ciphertext+tag
 pub fn xchacha20poly1305_encrypt(key: &[u8; 32], plaintext: &[u8]) -> Result<Vec<u8>, String> {
-    let cipher = XChaCha20Poly1305::new(&Key::try_from(key.as_slice()).map_err(|e| e.to_string())?);
+    let cipher = xchacha20poly1305_cipher(key)?;
     let nonce = XNonce::generate();
     let ciphertext = cipher
         .encrypt(&nonce, plaintext)
@@ -82,7 +88,7 @@ pub fn xchacha20poly1305_decrypt(key: &[u8; 32], data: &[u8]) -> Result<Vec<u8>,
     }
     let nonce =
         XNonce::try_from(&data[1..1 + XCHACHA20POLY1305_NONCE_LEN]).map_err(|e| e.to_string())?;
-    let cipher = XChaCha20Poly1305::new(&Key::try_from(key.as_slice()).map_err(|e| e.to_string())?);
+    let cipher = xchacha20poly1305_cipher(key)?;
     cipher
         .decrypt(&nonce, &data[1 + XCHACHA20POLY1305_NONCE_LEN..])
         .map_err(|_| "XChaCha20-Poly1305 decrypt failed — wrong key or corrupted data".to_string())
@@ -143,6 +149,7 @@ pub struct Keypair {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chacha20poly1305::Key;
 
     // Fixed synthetic vectors captured from the pre-migration implementation.
     // This guards compatibility with existing encrypted data, beyond self round trips.

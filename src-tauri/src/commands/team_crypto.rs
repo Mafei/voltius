@@ -1,12 +1,13 @@
 use base64::{engine::general_purpose::STANDARD, Engine};
 use chacha20poly1305::{
-    aead::{Aead, Generate, KeyInit},
-    Key, XChaCha20Poly1305, XNonce,
+    aead::{Aead, Generate},
+    XNonce,
 };
 use hkdf::Hkdf;
 use rand::RngCore;
 use serde::Serialize;
 use sha2::Sha256;
+use voltius_crypto::xchacha20poly1305_cipher;
 use x25519_dalek::{PublicKey, StaticSecret};
 
 // ─── Keypair derivation ───────────────────────────────────────────────────────
@@ -87,8 +88,7 @@ pub fn x25519_wrap_key(
     let recipient_public = PublicKey::from(recipient_public_bytes);
     let shared = my_secret.diffie_hellman(&recipient_public);
 
-    let key = Key::from(*shared.as_bytes());
-    let cipher = XChaCha20Poly1305::new(&key);
+    let cipher = xchacha20poly1305_cipher(shared.as_bytes())?;
     let nonce = XNonce::generate();
 
     let ciphertext = cipher
@@ -136,8 +136,7 @@ pub fn x25519_unwrap_key(
     let nonce = XNonce::try_from(&wrapped[..NONCE_LEN]).map_err(|e| e.to_string())?;
     let ciphertext = &wrapped[NONCE_LEN..];
 
-    let key = Key::from(*shared.as_bytes());
-    let cipher = XChaCha20Poly1305::new(&key);
+    let cipher = xchacha20poly1305_cipher(shared.as_bytes())?;
 
     cipher
         .decrypt(&nonce, ciphertext)

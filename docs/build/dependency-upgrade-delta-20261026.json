@@ -1,0 +1,1315 @@
+{
+  "baseline": "a7a9b049e18896196fd5166832a041d7196f4c2a",
+  "changes": [
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@codemirror/autocomplete",
+      "old": "^6.20.3",
+      "new": "^6.20.4"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@codemirror/commands",
+      "old": "6.10.3",
+      "new": "6.11.1"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@codemirror/lang-html",
+      "old": "^6.4.11",
+      "new": "^6.4.12"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@codemirror/lang-markdown",
+      "old": "^6.5.0",
+      "new": "^6.5.2"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@codemirror/language",
+      "old": "^6.12.3",
+      "new": "^6.13.1"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@codemirror/legacy-modes",
+      "old": "^6.5.3",
+      "new": "^6.5.5"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@codemirror/merge",
+      "old": "^6.12.2",
+      "new": "^6.12.3"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@codemirror/state",
+      "old": "^6.6.0",
+      "new": "^6.7.6"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@codemirror/view",
+      "old": "^6.43.1",
+      "new": "^6.43.15"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@fontsource/jetbrains-mono",
+      "old": "^5.2.8",
+      "new": "^5.3.0"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@fontsource/source-code-pro",
+      "old": "^5.2.7",
+      "new": "^5.3.1"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@iconify-json/devicon-plain",
+      "old": "^1.2.57",
+      "new": "1.2.62"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@iconify-json/lucide",
+      "old": "^1.2.111",
+      "new": "^1.2.147"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@iconify/react",
+      "old": "^6.0.2",
+      "new": "^6.0.3"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@lezer/highlight",
+      "old": "^1.2.3",
+      "new": "^1.2.5"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@noble/ciphers",
+      "old": "^2.2.0",
+      "new": "^2.4.0"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@tanstack/react-virtual",
+      "old": "^3.14.2",
+      "new": "3.14.22"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@tauri-apps/api",
+      "old": "^2.11.0",
+      "new": "^2.12.4"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@tauri-apps/plugin-clipboard-manager",
+      "old": "^2.3.2",
+      "new": "^2.5.0"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@tauri-apps/plugin-deep-link",
+      "old": "^2.4.0",
+      "new": "^2.6.2"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@tauri-apps/plugin-dialog",
+      "old": "^2.7.1",
+      "new": "^2.8.3"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@tauri-apps/plugin-log",
+      "old": "^2.0.0",
+      "new": "^2.10.1"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@tauri-apps/plugin-opener",
+      "old": "^2.5.4",
+      "new": "^2.7.2"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@tauri-apps/plugin-shell",
+      "old": "^2.3.5",
+      "new": "^2.5.0"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.@uiw/react-codemirror",
+      "old": "^4.25.10",
+      "new": "^4.25.12"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.country-flag-emoji-polyfill",
+      "old": "^0.1.8",
+      "new": "^0.1.10"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.es-module-lexer",
+      "old": "^2.3.1",
+      "new": "^3.0.4"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.i18next",
+      "old": "^26.3.3",
+      "new": "26.5.10"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.react",
+      "old": "^19.2.7",
+      "new": "^19.3.1"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.react-dom",
+      "old": "^19.2.7",
+      "new": "^19.3.1"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.react-i18next",
+      "old": "^17.0.8",
+      "new": "17.1.8"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.zod",
+      "old": "4.4.3",
+      "new": "4.6.7"
+    },
+    {
+      "manifest": "package.json",
+      "path": "dependencies.zustand",
+      "old": "^5.0.14",
+      "new": "^5.0.16"
+    },
+    {
+      "manifest": "package.json",
+      "path": "devDependencies.@tauri-apps/cli",
+      "old": "^2.11.2",
+      "new": "^2.12.4"
+    },
+    {
+      "manifest": "package.json",
+      "path": "devDependencies.@testing-library/dom",
+      "old": "^10.4.1",
+      "new": "^10.4.2"
+    },
+    {
+      "manifest": "package.json",
+      "path": "devDependencies.@testing-library/react",
+      "old": "^16.3.2",
+      "new": "^16.3.3"
+    },
+    {
+      "manifest": "package.json",
+      "path": "devDependencies.@testing-library/user-event",
+      "old": "^14.6.1",
+      "new": "^14.6.8"
+    },
+    {
+      "manifest": "package.json",
+      "path": "devDependencies.@types/react",
+      "old": "^19.2.17",
+      "new": "^19.3.0"
+    },
+    {
+      "manifest": "package.json",
+      "path": "devDependencies.@types/react-dom",
+      "old": "^19.2.3",
+      "new": "^19.3.0"
+    },
+    {
+      "manifest": "package.json",
+      "path": "devDependencies.@vitejs/plugin-react",
+      "old": "^6.0.2",
+      "new": "^6.1.2"
+    },
+    {
+      "manifest": "package.json",
+      "path": "devDependencies.jsdom",
+      "old": "^29.1.1",
+      "new": "^30.1.3"
+    },
+    {
+      "manifest": "package.json",
+      "path": "devDependencies.postcss",
+      "old": "^8.5.25",
+      "new": "^8.5.31"
+    },
+    {
+      "manifest": "package.json",
+      "path": "devDependencies.typescript",
+      "old": "^5.9.3",
+      "new": "^7.0.2"
+    },
+    {
+      "manifest": "package.json",
+      "path": "devDependencies.vite",
+      "old": "^8.1.6",
+      "new": "^8.3.5"
+    },
+    {
+      "manifest": "package.json",
+      "path": "devDependencies.vitest",
+      "old": "^4.1.11",
+      "new": "^5.0.5"
+    },
+    {
+      "manifest": "package.json",
+      "path": "engines",
+      "old": null,
+      "new": {
+        "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+      }
+    },
+    {
+      "manifest": "package.json",
+      "path": "packageManager",
+      "old": "pnpm@11.5.2",
+      "new": "pnpm@12.15.0"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "build-dependencies.tauri-build",
+      "old": {
+        "version": "2",
+        "features": []
+      },
+      "new": {
+        "version": "2.7.4",
+        "features": []
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.aes",
+      "old": "0.9",
+      "new": "0.9.3"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.async-trait",
+      "old": "0.1",
+      "new": "0.1.92"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.base64",
+      "old": "0.22",
+      "new": "0.23.1"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.bollard",
+      "old": "0.21",
+      "new": "0.21.1"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.bytes",
+      "old": "1",
+      "new": "1.12.1"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.cbc",
+      "old": {
+        "version": "0.2",
+        "features": [
+          "block-padding"
+        ]
+      },
+      "new": {
+        "version": "0.2.1",
+        "features": [
+          "block-padding"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.chacha20poly1305",
+      "old": {
+        "version": "0.10",
+        "features": [
+          "rand_core"
+        ]
+      },
+      "new": {
+        "version": "0.11.0",
+        "features": [
+          "getrandom"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.chrono",
+      "old": {
+        "version": "0.4",
+        "features": [
+          "serde"
+        ]
+      },
+      "new": {
+        "version": "0.4.45",
+        "features": [
+          "serde"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.dirs",
+      "old": "6",
+      "new": "7.0.0"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.flate2",
+      "old": "1",
+      "new": "1.1.10"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.futures-util",
+      "old": {
+        "version": "0.3",
+        "default-features": false,
+        "features": [
+          "std"
+        ]
+      },
+      "new": {
+        "version": "0.3.34",
+        "default-features": false,
+        "features": [
+          "std"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.hkdf",
+      "old": "0.12",
+      "new": "0.13.0"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.http-body-util",
+      "old": "0.1",
+      "new": "0.1.5"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.hyper",
+      "old": {
+        "version": "1",
+        "features": [
+          "client",
+          "http1"
+        ]
+      },
+      "new": {
+        "version": "1.12.0",
+        "features": [
+          "client",
+          "http1"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.hyper-util",
+      "old": {
+        "version": "0.1",
+        "features": [
+          "client-legacy",
+          "http1",
+          "tokio"
+        ]
+      },
+      "new": {
+        "version": "0.1.21",
+        "features": [
+          "client-legacy",
+          "http1",
+          "tokio"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.infer",
+      "old": "0.19",
+      "new": "0.22.0"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.keyring-core",
+      "old": "1",
+      "new": "1.0.1"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.log",
+      "old": "0.4",
+      "new": "0.4.34"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.png",
+      "old": "0.17",
+      "new": "0.18.1"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.quick-xml",
+      "old": "0.39",
+      "new": "0.42.0"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.reqwest",
+      "old": {
+        "version": "0.13",
+        "default-features": false,
+        "features": [
+          "rustls-no-provider"
+        ]
+      },
+      "new": {
+        "version": "0.13.5",
+        "default-features": false,
+        "features": [
+          "rustls-no-provider"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.rusqlite",
+      "old": {
+        "version": "0.40",
+        "features": [
+          "bundled"
+        ]
+      },
+      "new": {
+        "version": "0.41.0",
+        "features": [
+          "bundled"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.russh",
+      "old": {
+        "version": "0.64.1",
+        "default-features": false,
+        "features": [
+          "flate2",
+          "rsa",
+          "ring",
+          "des"
+        ]
+      },
+      "new": {
+        "version": "0.65.0",
+        "default-features": false,
+        "features": [
+          "flate2",
+          "rsa",
+          "ring",
+          "des"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.russh-sftp",
+      "old": "2.3",
+      "new": "3.0.1"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.rustls-native-certs",
+      "old": "0.8",
+      "new": "0.8.5"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.rusty-leveldb",
+      "old": "4",
+      "new": "4.0.2"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.ruzstd",
+      "old": "0.9",
+      "new": "0.9.1"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.serde",
+      "old": {
+        "version": "1",
+        "features": [
+          "derive"
+        ]
+      },
+      "new": {
+        "version": "1.0.229",
+        "features": [
+          "derive"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.serde_json",
+      "old": "1",
+      "new": "1.0.154"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.serialport",
+      "old": {
+        "version": "4",
+        "default-features": false
+      },
+      "new": {
+        "version": "4.10.1",
+        "default-features": false
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.sha2",
+      "old": "0.10",
+      "new": "0.11.1"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.suppaftp",
+      "old": {
+        "version": "9",
+        "default-features": false,
+        "features": [
+          "tokio-rustls-ring"
+        ]
+      },
+      "new": {
+        "version": "12.2.1",
+        "default-features": false,
+        "features": [
+          "tokio-rustls-ring"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.sysinfo",
+      "old": "0.39",
+      "new": "0.39.6"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.tauri",
+      "old": {
+        "version": "2",
+        "features": [
+          "protocol-asset"
+        ]
+      },
+      "new": {
+        "version": "2.12.5",
+        "features": [
+          "protocol-asset"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.tauri-plugin-clipboard-manager",
+      "old": "2",
+      "new": "2.5.0"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.tauri-plugin-deep-link",
+      "old": "2",
+      "new": "2.6.2"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.tauri-plugin-dialog",
+      "old": "2",
+      "new": "2.8.3"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.tauri-plugin-log",
+      "old": "2",
+      "new": "2.10.1"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.tauri-plugin-opener",
+      "old": "2",
+      "new": "2.7.2"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.tauri-plugin-shell",
+      "old": "2",
+      "new": "2.5.0"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.thiserror",
+      "old": "2",
+      "new": "2.0.21"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.tokio",
+      "old": {
+        "version": "1",
+        "features": [
+          "rt-multi-thread",
+          "macros",
+          "net",
+          "fs",
+          "io-util",
+          "process",
+          "time",
+          "sync"
+        ]
+      },
+      "new": {
+        "version": "1.54.1",
+        "features": [
+          "rt-multi-thread",
+          "macros",
+          "net",
+          "fs",
+          "io-util",
+          "process",
+          "time",
+          "sync"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.tokio-rustls",
+      "old": {
+        "version": "0.26",
+        "default-features": false,
+        "features": [
+          "ring",
+          "tls12",
+          "logging"
+        ]
+      },
+      "new": {
+        "version": "0.26.6",
+        "default-features": false,
+        "features": [
+          "ring",
+          "tls12",
+          "logging"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.tokio-util",
+      "old": {
+        "version": "0.7",
+        "default-features": false,
+        "features": [
+          "io",
+          "io-util",
+          "rt"
+        ]
+      },
+      "new": {
+        "version": "0.7.20",
+        "default-features": false,
+        "features": [
+          "io",
+          "io-util",
+          "rt"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.uuid",
+      "old": {
+        "version": "1",
+        "features": [
+          "v4"
+        ]
+      },
+      "new": {
+        "version": "1.29.0",
+        "features": [
+          "v4"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.x25519-dalek",
+      "old": {
+        "version": "2",
+        "features": [
+          "static_secrets"
+        ]
+      },
+      "new": {
+        "version": "3.0.0",
+        "features": [
+          "static_secrets"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dependencies.zeroize",
+      "old": "1",
+      "new": "1.9.1"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dev-dependencies.rcgen",
+      "old": {
+        "version": "0.13",
+        "default-features": false,
+        "features": [
+          "crypto",
+          "ring"
+        ]
+      },
+      "new": {
+        "version": "0.14.10",
+        "default-features": false,
+        "features": [
+          "crypto",
+          "ring"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dev-dependencies.tokio",
+      "old": {
+        "version": "1",
+        "features": [
+          "test-util"
+        ]
+      },
+      "new": {
+        "version": "1.54.1",
+        "features": [
+          "test-util"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "dev-dependencies.vt100",
+      "old": "0.16",
+      "new": "0.18.1"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "target.cfg(not(any(target_os = \"android\", target_os = \"ios\"))).dependencies.minisign-verify",
+      "old": "0.2",
+      "new": "0.3.0"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "target.cfg(not(any(target_os = \"android\", target_os = \"ios\"))).dependencies.tauri-plugin-single-instance",
+      "old": "2",
+      "new": "2.5.4"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "target.cfg(not(any(target_os = \"android\", target_os = \"ios\"))).dependencies.tauri-plugin-updater",
+      "old": "2",
+      "new": "2.14.0"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "target.cfg(target_os = \"android\").dependencies.rustls",
+      "old": {
+        "version": "0.23",
+        "default-features": false,
+        "features": [
+          "ring",
+          "std",
+          "tls12",
+          "logging"
+        ]
+      },
+      "new": {
+        "version": "0.23.46",
+        "default-features": false,
+        "features": [
+          "ring",
+          "std",
+          "tls12",
+          "logging"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "target.cfg(target_os = \"android\").dependencies.webpki-roots",
+      "old": "1",
+      "new": "1.0.11"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "target.cfg(target_os = \"linux\").dependencies.dbus-secret-service-keyring-store",
+      "old": {
+        "version": "1",
+        "features": [
+          "crypto-rust"
+        ]
+      },
+      "new": {
+        "version": "1.0.1",
+        "features": [
+          "crypto-rust"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "target.cfg(target_os = \"macos\").dependencies.apple-native-keyring-store",
+      "old": {
+        "version": "1",
+        "features": [
+          "keychain"
+        ]
+      },
+      "new": {
+        "version": "1.0.2",
+        "features": [
+          "keychain"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "target.cfg(target_os = \"macos\").dependencies.objc2",
+      "old": "0.6",
+      "new": "0.6.5"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "target.cfg(target_os = \"windows\").dependencies.webview2-com",
+      "old": "=0.38.2",
+      "new": "=0.39.1"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "target.cfg(target_os = \"windows\").dependencies.windows",
+      "old": {
+        "version": "0.61",
+        "features": [
+          "Security_Credentials_UI",
+          "Win32_System_WinRT"
+        ]
+      },
+      "new": {
+        "version": "0.62.2",
+        "features": [
+          "Security_Credentials_UI",
+          "Win32_System_WinRT"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "target.cfg(target_os = \"windows\").dependencies.windows-core",
+      "old": "=0.61.2",
+      "new": "=0.62.2"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "target.cfg(target_os = \"windows\").dependencies.windows-future",
+      "old": "0.2",
+      "new": "0.3.2"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "target.cfg(target_os = \"windows\").dependencies.windows-registry",
+      "old": "0.6",
+      "new": "0.100.0"
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "target.cfg(target_os = \"windows\").dependencies.windows-sys",
+      "old": {
+        "version": "0.59",
+        "features": [
+          "Win32_Foundation",
+          "Win32_NetworkManagement_IpHelper",
+          "Win32_NetworkManagement_Ndis",
+          "Win32_Networking_WinSock",
+          "Win32_Security",
+          "Win32_Security_Authorization",
+          "Win32_Security_Credentials",
+          "Win32_Security_Cryptography",
+          "Win32_Storage_FileSystem",
+          "Win32_System_Threading"
+        ]
+      },
+      "new": {
+        "version": "0.61.2",
+        "features": [
+          "Win32_Foundation",
+          "Win32_NetworkManagement_IpHelper",
+          "Win32_NetworkManagement_Ndis",
+          "Win32_Networking_WinSock",
+          "Win32_Security",
+          "Win32_Security_Authorization",
+          "Win32_Security_Credentials",
+          "Win32_Security_Cryptography",
+          "Win32_Storage_FileSystem",
+          "Win32_System_Threading"
+        ]
+      }
+    },
+    {
+      "manifest": "src-tauri/Cargo.toml",
+      "path": "target.cfg(unix).dependencies.libc",
+      "old": "0.2",
+      "new": "0.2.191"
+    },
+    {
+      "manifest": "crates/voltius-crypto/Cargo.toml",
+      "path": "dependencies.argon2",
+      "old": "0.5",
+      "new": "0.6.0"
+    },
+    {
+      "manifest": "crates/voltius-crypto/Cargo.toml",
+      "path": "dependencies.base64",
+      "old": "0.22",
+      "new": "0.23.1"
+    },
+    {
+      "manifest": "crates/voltius-crypto/Cargo.toml",
+      "path": "dependencies.chacha20poly1305",
+      "old": {
+        "version": "0.10",
+        "features": [
+          "rand_core"
+        ]
+      },
+      "new": {
+        "version": "0.11.0",
+        "features": [
+          "getrandom"
+        ]
+      }
+    },
+    {
+      "manifest": "crates/voltius-crypto/Cargo.toml",
+      "path": "dependencies.getrandom",
+      "old": null,
+      "new": "0.4.2"
+    },
+    {
+      "manifest": "crates/voltius-crypto/Cargo.toml",
+      "path": "dependencies.hkdf",
+      "old": "0.12",
+      "new": "0.13.0"
+    },
+    {
+      "manifest": "crates/voltius-crypto/Cargo.toml",
+      "path": "dependencies.rand",
+      "old": "0.8",
+      "new": null
+    },
+    {
+      "manifest": "crates/voltius-crypto/Cargo.toml",
+      "path": "dependencies.sha2",
+      "old": "0.10",
+      "new": "0.11.1"
+    },
+    {
+      "manifest": "crates/voltius-crypto/Cargo.toml",
+      "path": "dependencies.x25519-dalek",
+      "old": {
+        "version": "2",
+        "features": [
+          "static_secrets"
+        ]
+      },
+      "new": {
+        "version": "3.0.0",
+        "features": [
+          "static_secrets"
+        ]
+      }
+    },
+    {
+      "manifest": "crates/voltius-crypto-wasm/Cargo.toml",
+      "path": "dependencies.base64",
+      "old": "0.22",
+      "new": "0.23.1"
+    },
+    {
+      "manifest": "crates/voltius-crypto-wasm/Cargo.toml",
+      "path": "dependencies.getrandom",
+      "old": {
+        "version": "0.2",
+        "features": [
+          "js"
+        ]
+      },
+      "new": {
+        "version": "0.4.2",
+        "features": [
+          "wasm_js"
+        ]
+      }
+    },
+    {
+      "manifest": "crates/voltius-crypto-wasm/Cargo.toml",
+      "path": "dependencies.wasm-bindgen",
+      "old": "0.2",
+      "new": "0.2.129"
+    },
+    {
+      "manifest": "crates/voltius-diagnostics/Cargo.toml",
+      "path": "dependencies.regex",
+      "old": "1",
+      "new": "1.13.1"
+    },
+    {
+      "manifest": "crates/voltius-diagnostics/Cargo.toml",
+      "path": "dependencies.zip",
+      "old": {
+        "version": "2",
+        "default-features": false,
+        "features": [
+          "deflate"
+        ]
+      },
+      "new": {
+        "version": "9.1.2",
+        "default-features": false,
+        "features": [
+          "deflate"
+        ]
+      }
+    },
+    {
+      "manifest": "tests/native-gates/Cargo.toml",
+      "path": "dependencies.bytes",
+      "old": {
+        "version": "=1.11.1"
+      },
+      "new": {
+        "version": "=1.12.1"
+      }
+    },
+    {
+      "manifest": "tests/native-gates/Cargo.toml",
+      "path": "dependencies.httpdate",
+      "old": null,
+      "new": "1"
+    },
+    {
+      "manifest": "tests/native-gates/Cargo.toml",
+      "path": "dependencies.quick-xml",
+      "old": null,
+      "new": "=0.42.0"
+    },
+    {
+      "manifest": "tests/native-gates/Cargo.toml",
+      "path": "dependencies.rcgen",
+      "old": null,
+      "new": {
+        "version": "=0.14.10",
+        "default-features": false,
+        "features": [
+          "crypto",
+          "ring"
+        ]
+      }
+    },
+    {
+      "manifest": "tests/native-gates/Cargo.toml",
+      "path": "dependencies.russh",
+      "old": {
+        "version": "=0.64.1",
+        "default-features": false,
+        "features": [
+          "flate2",
+          "rsa",
+          "ring",
+          "des"
+        ]
+      },
+      "new": {
+        "version": "=0.65.0",
+        "default-features": false,
+        "features": [
+          "flate2",
+          "rsa",
+          "ring",
+          "des"
+        ]
+      }
+    },
+    {
+      "manifest": "tests/native-gates/Cargo.toml",
+      "path": "dependencies.russh-sftp",
+      "old": "=2.3.0",
+      "new": "=3.0.1"
+    },
+    {
+      "manifest": "tests/native-gates/Cargo.toml",
+      "path": "dependencies.rustls-native-certs",
+      "old": null,
+      "new": "=0.8.5"
+    },
+    {
+      "manifest": "tests/native-gates/Cargo.toml",
+      "path": "dependencies.serde",
+      "old": {
+        "version": "=1.0.228",
+        "features": [
+          "derive"
+        ]
+      },
+      "new": {
+        "version": "=1.0.229",
+        "features": [
+          "derive"
+        ]
+      }
+    },
+    {
+      "manifest": "tests/native-gates/Cargo.toml",
+      "path": "dependencies.serde_json",
+      "old": {
+        "version": "=1.0.149"
+      },
+      "new": {
+        "version": "=1.0.154"
+      }
+    },
+    {
+      "manifest": "tests/native-gates/Cargo.toml",
+      "path": "dependencies.sha2",
+      "old": null,
+      "new": "0.11.1"
+    },
+    {
+      "manifest": "tests/native-gates/Cargo.toml",
+      "path": "dependencies.suppaftp",
+      "old": null,
+      "new": {
+        "version": "=12.2.1",
+        "default-features": false,
+        "features": [
+          "tokio-rustls-ring"
+        ]
+      }
+    },
+    {
+      "manifest": "tests/native-gates/Cargo.toml",
+      "path": "dependencies.tokio",
+      "old": {
+        "version": "=1.52.3",
+        "features": [
+          "rt-multi-thread",
+          "macros",
+          "net",
+          "fs",
+          "io-util",
+          "process",
+          "time",
+          "sync"
+        ]
+      },
+      "new": {
+        "version": "=1.54.1",
+        "features": [
+          "rt-multi-thread",
+          "macros",
+          "net",
+          "fs",
+          "io-util",
+          "process",
+          "time",
+          "sync"
+        ]
+      }
+    },
+    {
+      "manifest": "tests/native-gates/Cargo.toml",
+      "path": "dependencies.tokio-rustls",
+      "old": null,
+      "new": {
+        "version": "=0.26.6",
+        "default-features": false,
+        "features": [
+          "ring",
+          "tls12",
+          "logging"
+        ]
+      }
+    },
+    {
+      "manifest": "tests/native-gates/Cargo.toml",
+      "path": "dependencies.tokio-util",
+      "old": {
+        "version": "=0.7.18",
+        "features": [
+          "io",
+          "io-util",
+          "rt"
+        ]
+      },
+      "new": {
+        "version": "=0.7.20",
+        "features": [
+          "io",
+          "io-util",
+          "rt"
+        ]
+      }
+    }
+  ],
+  "new_prerelease_versions": []
+}

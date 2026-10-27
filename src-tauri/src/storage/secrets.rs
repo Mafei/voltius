@@ -1,13 +1,14 @@
 use crate::error::{AppError, ErrorCode};
 use chacha20poly1305::{
-    aead::{Aead, Generate, KeyInit},
-    Key, XChaCha20Poly1305, XNonce,
+    aead::{Aead, Generate},
+    XNonce,
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::AppHandle;
 use tauri::Manager;
+use voltius_crypto::xchacha20poly1305_cipher;
 
 pub struct SecretsStore {
     inner: Mutex<Option<StoreInner>>,
@@ -280,7 +281,7 @@ fn open_staged(tmp: &std::path::Path, _like: &std::path::Path) -> std::io::Resul
 }
 
 fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Result<Vec<u8>, AppError> {
-    let cipher = XChaCha20Poly1305::new(&Key::try_from(key.as_slice()).map_err(|e| e.to_string())?);
+    let cipher = xchacha20poly1305_cipher(key)?;
     let nonce = XNonce::generate();
     let ciphertext = cipher
         .encrypt(&nonce, plaintext)
@@ -296,7 +297,7 @@ fn decrypt(key: &[u8; 32], data: &[u8]) -> Result<SecretsData, AppError> {
         return Err("Secrets file too short".into());
     }
     let nonce = XNonce::try_from(&data[..NONCE_LEN]).map_err(|e| e.to_string())?;
-    let cipher = XChaCha20Poly1305::new(&Key::try_from(key.as_slice()).map_err(|e| e.to_string())?);
+    let cipher = xchacha20poly1305_cipher(key)?;
     let plaintext = cipher
         .decrypt(&nonce, &data[NONCE_LEN..])
         // Possibly readable with another key: the frontend must not discard it on this.

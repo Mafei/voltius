@@ -1,11 +1,12 @@
 use chacha20poly1305::{
-    aead::{Aead, Generate, KeyInit},
-    Key, XChaCha20Poly1305, XNonce,
+    aead::{Aead, Generate},
+    XNonce,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
+use voltius_crypto::xchacha20poly1305_cipher;
 
 use crate::storage::config::{config_dir, plain_leaf};
 use crate::storage::secrets::{write_atomic, SecretsStore};
@@ -41,8 +42,7 @@ pub fn encrypt_payload(
     };
     let payload_json = serde_json::to_vec(&payload).map_err(|e| e.to_string())?;
 
-    let key = Key::try_from(enc_key.as_slice()).map_err(|e| e.to_string())?;
-    let cipher = XChaCha20Poly1305::new(&key);
+    let cipher = xchacha20poly1305_cipher(&enc_key)?;
     let nonce = XNonce::generate();
     let ciphertext = cipher
         .encrypt(&nonce, payload_json.as_slice())
@@ -100,8 +100,7 @@ fn decrypt_blob(enc_key: &[u8], blob: &[u8]) -> Result<BlobPayload, String> {
     let nonce =
         XNonce::try_from(&blob[nonce_start..nonce_start + NONCE_LEN]).map_err(|e| e.to_string())?;
     let ciphertext = &blob[nonce_start + NONCE_LEN..];
-    let key = Key::try_from(enc_key).map_err(|e| e.to_string())?;
-    let cipher = XChaCha20Poly1305::new(&key);
+    let cipher = xchacha20poly1305_cipher(enc_key)?;
     let plaintext = cipher
         .decrypt(&nonce, ciphertext)
         .map_err(|_| "Decryption failed — wrong key or corrupted blob".to_string())?;
@@ -261,8 +260,7 @@ pub fn backup_export(
     };
     let payload_json = serde_json::to_vec(&payload).map_err(|e| e.to_string())?;
 
-    let key = Key::try_from(enc_key.as_slice()).map_err(|e| e.to_string())?;
-    let cipher = XChaCha20Poly1305::new(&key);
+    let cipher = xchacha20poly1305_cipher(&enc_key)?;
     let nonce = XNonce::generate();
     let ciphertext = cipher
         .encrypt(&nonce, payload_json.as_slice())

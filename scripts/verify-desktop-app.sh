@@ -56,7 +56,7 @@ python3 - "$out" "$sha" "$name" <<'PY'
 import hashlib, json, pathlib, sys
 out, sha, name = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
 manifest = {
-    'application_baseline': '830ee0ce308560de1651755d46e53f88866659ee',
+    'application_baseline': '89211d216bec165e2f07db568bcd454a06ca1a50',
     'source_sha': sha, 'repository': 'https://github.com/Mafei/voltius',
     'arch': 'arm64', 'package': name,
     'package_sha256': hashlib.sha256((out/name).read_bytes()).hexdigest(),

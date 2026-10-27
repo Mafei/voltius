@@ -11,6 +11,9 @@ name: verify-packaging
 
 on:
   push:
+    # This isolated candidate runs its own artifact-only macOS workflow.
+    # Keep the signing/notarization and unrelated installer probes out of it.
+    branches-ignore: ['candidate/desktop-render-macos-atlas-20261027-89211d21']
     paths:
       - 'packaging/**'
       - 'scripts/gen-*.sh'

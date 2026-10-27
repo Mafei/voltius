@@ -62,7 +62,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: '24.19.0'
+          node-version: '24.22.1'
 
       - name: Setup Java
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
@@ -77,10 +77,10 @@ jobs:
 
       - name: Install the pinned build tools
         run: |
-          sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006'
-          echo "NDK_HOME=$ANDROID_HOME/ndk/27.1.12297006" >> "$GITHUB_ENV"
-          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/27.1.12297006" >> "$GITHUB_ENV"
-          npm install --global pnpm@11.5.2
+          sdkmanager 'platforms;android-37.0' 'build-tools;37.0.0' 'ndk;30.0.16248370'
+          echo "NDK_HOME=$ANDROID_HOME/ndk/30.0.16248370" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/30.0.16248370" >> "$GITHUB_ENV"
+          npm install --global pnpm@12.15.0
           rustup show
           rustup target add aarch64-linux-android
 

@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
@@ -14,7 +15,9 @@ val tauriProperties = Properties().apply {
 }
 
 android {
-    compileSdk = 36
+    compileSdk = libs.versions.compile.sdk.get().toInt()
+    buildToolsVersion = libs.versions.build.tools.get()
+    ndkVersion = libs.versions.ndk.get()
     namespace = "com.voltius.app"
     signingConfigs {
         getByName("debug") {
@@ -38,8 +41,8 @@ android {
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
         applicationId = "com.voltius.app"
-        minSdk = 24
-        targetSdk = 36
+        minSdk = libs.versions.min.sdk.get().toInt()
+        targetSdk = libs.versions.target.sdk.get().toInt()
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
     }
@@ -74,8 +77,9 @@ android {
             }
         }
     }
-    kotlinOptions {
-        jvmTarget = "1.8"
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
     buildFeatures {
         buildConfig = true
@@ -85,27 +89,31 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions { jvmTarget.set(JvmTarget.JVM_1_8) }
+}
+
 rust {
     rootDirRel = "../../../"
 }
 
 dependencies {
-    implementation("androidx.webkit:webkit:1.14.0")
-    implementation("androidx.appcompat:appcompat:1.7.1")
-    implementation("androidx.activity:activity-ktx:1.10.1")
-    implementation("com.google.android.material:material:1.12.0")
-    implementation("androidx.lifecycle:lifecycle-process:2.10.0")
+    implementation(libs.androidx.webkit)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.activity)
+    implementation(libs.material)
+    implementation(libs.androidx.lifecycle.process)
     // Navy splash with the bolt, held until the first web paint (see SplashGate.kt).
-    implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation(libs.androidx.splashscreen)
     // Hardware-backed secret storage for the OS keychain (see VoltiusKeychain.kt).
-    implementation("androidx.security:security-crypto:1.1.0-alpha06")
-    implementation("androidx.biometric:biometric:1.1.0")
+    implementation(libs.androidx.security.crypto)
+    implementation(libs.androidx.biometric)
     // SAF tree writes for the SFTP download directory (see VoltiusDownloads.kt).
-    implementation("androidx.documentfile:documentfile:1.0.1")
-    testImplementation("junit:junit:4.13.2")
-    testImplementation("org.robolectric:robolectric:4.17")
-    androidTestImplementation("androidx.test.ext:junit:1.1.4")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.0")
+    implementation(libs.androidx.documentfile)
+    testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    androidTestImplementation(libs.android.test.junit)
+    androidTestImplementation(libs.espresso)
 }
 
 apply(from = "tauri.build.gradle.kts")

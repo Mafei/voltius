@@ -10,6 +10,7 @@ import re
 import shutil
 import struct
 import subprocess
+import tomllib
 import zipfile
 
 
@@ -34,7 +35,8 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     sdk = os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")
     require(sdk, "ANDROID_HOME or ANDROID_SDK_ROOT is required")
-    tools = Path(sdk) / "build-tools" / "36.0.0"
+    versions = tomllib.loads((root / "src-tauri/gen/android/gradle/libs.versions.toml").read_text())["versions"]
+    tools = Path(sdk) / "build-tools" / versions["build-tools"]
 
     def command(args, logfile=None):
         result = subprocess.run(args, cwd=root, text=True, capture_output=True)
@@ -109,7 +111,7 @@ def main():
         "workflow_run": os.environ.get("GITHUB_SERVER_URL", "https://github.com") + "/" + os.environ.get("GITHUB_REPOSITORY", "Mafei/voltius") + "/actions/runs/" + os.environ.get("GITHUB_RUN_ID", "local"),
         "apk": {"filename": name, "size_bytes": apk.stat().st_size, "sha256": digest, "package": package[1], "version_code": int(package[2]), "version_name": version, "min_sdk": 24, "target_sdk": 36, "debuggable": debuggable, "abi": "arm64-v8a", "signature_v2_verified": True, "certificate_sha256": cert[1], "zip_alignment_16k_verified": True},
         "native_library": {"sha256": library_digest, "cargo_output_sha256": cargo_digest, "packaged_source": str(packaged_library.relative_to(root)), "load_segments": loads, "relro_end_addresses": relro_ends, "elf_alignment_16k_verified": True},
-        "toolchain": {"rust": command(["rustc", "--version"]).strip(), "node": command(["node", "--version"]).strip(), "pnpm": command(["pnpm", "--version"]).strip(), "tauri": command(["pnpm", "tauri", "--version"]).strip(), "java": command(["java", "-version"]).strip(), "ndk": "27.1.12297006", "sdk_build_tools": "36.0.0"},
+        "toolchain": {"rust": command(["rustc", "--version"]).strip(), "node": command(["node", "--version"]).strip(), "pnpm": command(["pnpm", "--version"]).strip(), "tauri": command(["pnpm", "tauri", "--version"]).strip(), "java": command(["java", "-version"]).strip(), "ndk": versions["ndk"], "sdk_build_tools": versions["build-tools"]},
         "runtime_tested": False,
         "signing_notice": "Existing public development test key; unsuitable for long-term production upgrades. No private key is included in this artifact.",
     }

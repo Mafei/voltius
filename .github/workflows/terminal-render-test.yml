@@ -23,6 +23,9 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Verify raw upstream patch bytes and tested product identity
+        shell: bash
+        run: python3 scripts/verify-upstream-inputs.py --self-test --evidence desktop-platform-evidence/input-integrity.json
       - name: Require the reviewed rendering and dependency baseline
         shell: bash
         run: |
@@ -30,7 +33,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           baseline=$(git log --format=%H --fixed-strings --grep='Imported-from-commit: 89211d216bec165e2f07db568bcd454a06ca1a50' -1)
           test -n "$baseline"
-          test "$(git rev-parse "$baseline^{tree}")" = 87bdc39306f9096d8801ef483a086f92376ea2f8
+          test "$(git rev-parse "$baseline^{tree}")" = 6434396055c282d511921603e4274340eaf4ffbb
           git merge-base --is-ancestor "$baseline" HEAD
           printf 'Checkout SHA: %s\nImported application baseline: %s\n' "$GITHUB_SHA" "$baseline"
       - uses: ./.github/actions/build-desktop-platform

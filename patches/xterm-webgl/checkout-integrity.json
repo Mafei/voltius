@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "tested_source_commit": "1804c8e7bb54cc8cbbe770106f681dfb7e6a796a",
+  "tested_product_files": 3111,
+  "tested_product_sha256": "c6e2e843fe1b4d5f383af30d184e78a21321afb05b54eb3d68f2e90d616d7ee0",
+  "excluded_nonproduct_paths": [
+    "docs/build/recovery-20261026.md",
+    "docs/build/recovery-native-20261026.md",
+    "docs/build/dependency-maintenance-20261026.md",
+    "docs/build/dependency-repairs-20261026.md",
+    "docs/build/sdk-license-basis-20261026.json",
+    "docs/build/terminal-diagnostics-20261026.md",
+    "docs/build/color-render-review-20261026.md",
+    "docs/build/xterm-atlas-backport-20261026.md",
+    "docs/build/xterm-stable-backport-proposal.md",
+    "docs/build/ssh-key-dedup-assessment-20261026.md",
+    "patches/xterm-webgl/README.md",
+    "tests/native-gates/README.md",
+    ".github/workflows/terminal-render-test.yml",
+    "scripts/verify-upstream-inputs.py",
+    "patches/xterm-webgl/checkout-integrity.json"
+  ],
+  "verification_counts": {
+    "vendor_tests": 333,
+    "native_tests": 47,
+    "minimal_feature_tests": 65,
+    "failed": 0,
+    "ignored": 0,
+    "scanner_regressions": 18,
+    "upstream_integrity_positive": 1,
+    "upstream_integrity_negative": 7
+  },
+  "scope": "Linux cloud synthetic tests; not real GPU, device or macOS runtime proof",
+  "patches": [
+    {
+      "path": "patches/xterm-webgl/upstream/0b1c0b5c5a9e159a41d326eedbc3bfe0282783d4.patch.gz",
+      "git_blob": "31c529c33ca37ba8bb7f040bc779e1bfc264a5b1",
+      "sha256": "3316eda9b3ef95acd3aa17f9f8d4b6c9c6efbafbba26dfe32a29f5044072f623",
+      "expanded_sha256": "914d1ad374f604f8e5b9a3f2292fb9f5fc4ceb6ff9a1e8e6f8e66f76e36469a2"
+    },
+    {
+      "path": "patches/xterm-webgl/upstream/3bcb57545e3d2db44555f9128f4fefb66555fd98.patch.gz",
+      "git_blob": "27652954ebadd0fdd47305fab351904daa26323a",
+      "sha256": "a79db45cd22850407835a4deb5e72765fc6e4a84e92fa6b0c4d51836f8f80c31",
+      "expanded_sha256": "d6853f105cc6f5999059dd7570816c189cb086cf58eb36ea2a2aabb3308986a8"
+    },
+    {
+      "path": "patches/xterm-webgl/upstream/6fe6fe1af303a4ed0b5e6ae2ab393dfd2be09347.patch.gz",
+      "git_blob": "22f1f961548cfed12cf18cf1a4f568eab52277cf",
+      "sha256": "6d4d7f5edd5e9935144265f4958ebc69f19654e083a60e59d08cf639a4e0deec",
+      "expanded_sha256": "a88d7cf1b6dbc271f0b4f5f72159ba4077dc40362a9cd544832188fe7cb856db"
+    },
+    {
+      "path": "patches/xterm-webgl/upstream/dc726a2ae6287e1aa09d410f4f11b4d73ed3fe4b.patch.gz",
+      "git_blob": "ad564caf2c2e6d172ba23e550c662de8c61e5821",
+      "sha256": "2b7f87cec4a71a38dfd06969bf3ff2d454b938e8b6da53b9983f8d307d755cdb",
+      "expanded_sha256": "665b6c3f285cdc609648715c5cf2b293a482703d7f0b357b2f5a82e4c06961d7"
+    }
+  ]
+}

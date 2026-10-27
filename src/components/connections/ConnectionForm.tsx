@@ -63,6 +63,7 @@ import {
   formIdentifierProps,
 } from "@/components/shared/Panel";
 import { YouConnectAsRow } from "./YouConnectAsRow";
+import { FieldError, useReportBlocked, useRequiredField, type MobileEditFormProps } from "@/components/shared/fieldValidation";
 import { SystemSshAuthFields } from "./SystemSshAuthFields";
 import { systemSshAuthFor } from "@/stores/systemSshAuthStore";
 import { SecretInput, TagsAndFolderFields } from "@/components/shared/vaultObjectForm";
@@ -80,9 +81,9 @@ import {
   type ConnectionFormProps,
 } from "./formShared";
 
-type Props = ConnectionFormProps & {
+type Props = ConnectionFormProps & MobileEditFormProps & {
   /** Mobile embed: hide the desktop PanelHeader (close, actions) and the
-   *  VaultPicker subheader so the mobile screen owns the single header + Save.
+   *  VaultPicker subheader so the mobile screen owns the single header.
    *  Desktop default is undefined → unchanged behavior. */
   hideChrome?: boolean;
 };
@@ -92,7 +93,7 @@ const DEFAULT_PORT: Record<Exclude<Protocol, "webdav">, number> = { ssh: 22, ftp
 const DEFAULT_USERNAME: Record<Protocol, string> = { ssh: "root", ftp: "", webdav: "" };
 const initialProtocol = (type?: ConnectionType): Protocol => (type === "ftp" || type === "webdav" ? type : "ssh");
 
-const ConnectionFormEditor = forwardRef<ConnectionFormHandle, Props & EditAccessProps>(function ConnectionFormEditor({ initial, onSubmit, onClose, onDuplicate, onConnect, onDelete, vaults, hideChrome, onMoveToVault, onCopyToVault, readOnly }, ref) {
+const ConnectionFormEditor = forwardRef<ConnectionFormHandle, Props & EditAccessProps>(function ConnectionFormEditor({ initial, onSubmit, onClose, onDuplicate, onConnect, onDelete, vaults, hideChrome, revealErrors, onBlockedChange, onMoveToVault, onCopyToVault, readOnly }, ref) {
   const { t } = useTranslation();
   const owned = useManagedOwned(initial?.id);
   const locks = (f: OwnedField) => owned.includes(f);
@@ -299,12 +300,16 @@ const ConnectionFormEditor = forwardRef<ConnectionFormHandle, Props & EditAccess
     };
   };
 
-  const { schedule, markDirty: _markDirty, flushAndClose, flush, saveState } = useAutosave({
+  const { schedule, markDirty: _markDirty, flushAndClose, flush, saveState, blocked } = useAutosave({
     onSave: () => { const { data, secrets } = buildSubmit(); return keepSavedOnCancel(onSubmit(data, secrets)); },
     canSave: () => (isWebdav ? !!webdavTarget : !!host.trim() && (port === "" || (port >= 1 && port <= 65535))),
     readOnly,
+    flushOnUnmount: hideChrome,
   });
   const markDirty = useCallback(() => { userEditedRef.current = true; _markDirty(); }, [_markDirty]);
+  useReportBlocked(blocked, onBlockedChange);
+  const hostField = useRequiredField(host, { enabled: !!hideChrome && !isWebdav, reveal: revealErrors });
+  const webdavField = useRequiredField(webdavUrl, { enabled: !!hideChrome && isWebdav, reveal: revealErrors });
 
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -544,6 +549,7 @@ const ConnectionFormEditor = forwardRef<ConnectionFormHandle, Props & EditAccess
             <LockedField label={t("connections.form.protocol")} locked={locks("connection_type")}>
               <FormSelect
                 value={protocol}
+                title={t("connections.form.protocol")}
                 options={[
                   { value: "ssh", label: t("connections.form.protocolSsh") },
                   { value: "ftp", label: t("connections.form.protocolFtp") },
@@ -569,8 +575,11 @@ const ConnectionFormEditor = forwardRef<ConnectionFormHandle, Props & EditAccess
                   value={webdavUrl}
                   onChange={(e) => { markDirty(); setWebdavUrl(e.target.value); }}
                   placeholder={t("connections.form.webdavUrlPlaceholder")}
+                  inputMode="url"
                   {...formIdentifierProps}
+                  {...webdavField.fieldProps}
                 />
+                <FieldError show={webdavField.invalid} />
                 {webdavUrl.trim() !== "" && !webdavTarget && (
                   <p className="mt-1 text-xs text-(--t-status-error)" data-webdav-url-error>{t("connections.form.webdavUrlInvalid")}</p>
                 )}
@@ -587,7 +596,11 @@ const ConnectionFormEditor = forwardRef<ConnectionFormHandle, Props & EditAccess
                     value={host}
                     onChange={(e) => { markDirty(); setHost(e.target.value); }}
                     placeholder={t("connections.form.hostPlaceholder")}
+                    inputMode="url"
+                    {...formIdentifierProps}
+                    {...hostField.fieldProps}
                   />
+                  <FieldError show={hostField.invalid} />
                 </LockedField>
                 <LockedField className="w-20" label={<>{t("connections.common.port")} <span className="text-(--t-accent)">*</span></>} locked={locks("port")}>
                   <input
@@ -595,6 +608,8 @@ const ConnectionFormEditor = forwardRef<ConnectionFormHandle, Props & EditAccess
                     style={{ ...formInputStyle, MozAppearance: "textfield" }}
                     value={port}
                     placeholder="22"
+                    inputMode="numeric"
+                    autoComplete="off"
                     onChange={(e) => {
                       const raw = e.target.value.replace(/\D/g, "");
                       markDirty();
@@ -634,6 +649,7 @@ const ConnectionFormEditor = forwardRef<ConnectionFormHandle, Props & EditAccess
                   <FormSelect
                     className="w-36"
                     value={shellIntegration}
+                    title={t("connections.form.shellIntegration")}
                     options={shellIntegrationOptions}
                     onChange={(v) => { markDirty(); setShellIntegration(v as "" | "on" | "off"); }}
                   />
@@ -642,6 +658,7 @@ const ConnectionFormEditor = forwardRef<ConnectionFormHandle, Props & EditAccess
                   <FormSelect
                     className="w-36"
                     value={keepalivePreset}
+                    title={t("connections.form.keepalive")}
                     options={keepaliveOptions}
                     onChange={(v) => { markDirty(); setKeepalivePreset(v as KeepalivePreset | ""); }}
                   />
@@ -651,6 +668,7 @@ const ConnectionFormEditor = forwardRef<ConnectionFormHandle, Props & EditAccess
                   <FormSelect
                     className="w-36"
                     value={persistSession}
+                    title={t("connections.form.persistentSession")}
                     options={persistOptions}
                     onChange={(v) => { markDirty(); setPersistSession(v as "" | "on" | "off"); }}
                   />
@@ -731,6 +749,7 @@ const ConnectionFormEditor = forwardRef<ConnectionFormHandle, Props & EditAccess
                         value={privateKey}
                         onChange={(e) => { markDirty(); privateKeyDirty.current = true; setPrivateKey(e.target.value); }}
                         placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;..."
+                        {...formIdentifierProps}
                       />
                       <div className="mt-2">
                         <label className={formLabelClass} style={formLabelStyle}>

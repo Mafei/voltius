@@ -352,7 +352,7 @@ pub(super) async fn authenticate_at<H: client::Handler>(
                 continue;
             }
         };
-        let key = match russh::keys::decode_secret_key(&text, passphrase) {
+        let key = match crate::ssh::private_key::decode(&text, passphrase) {
             Ok(key) => Arc::new(key),
             Err(_) => {
                 let encrypted = ssh_key::PrivateKey::from_openssh(&text)

@@ -1,3 +1,4 @@
+import { validTuiosName } from "@/services/sessionTypes";
 import { normalizeTabTitle } from "@/utils/sessionLabel";
 // Pure logic for the workspace snapshot: building it from store state and
 // validating it back at launch. No zustand/tauri/"@/" imports so it runs
@@ -133,7 +134,7 @@ function isValidSession(x: unknown): x is SnapshotSession {
   const s = x as SnapshotSession;
   const mode = s.sshMode;
   if (mode !== undefined && (!mode || typeof mode !== "object" ||
-    (mode.kind !== "plain" && !(mode.kind === "tmux" && validTmuxMode(mode)) && !(mode.kind === "zellij" && validZellijMode(mode))))) return false;
+    (mode.kind !== "plain" && !(mode.kind === "tmux" && validTmuxMode(mode)) && !(mode.kind === "zellij" && validZellijMode(mode)) && !(mode.kind === "tuios" && validTuiosMode(mode))))) return false;
   return (
     typeof s.id === "string" &&
     typeof s.connectionId === "string" &&
@@ -156,6 +157,15 @@ function validZellijMode(mode: Extract<NonNullable<SnapshotSession["sshMode"]>, 
     typeof session.name === "string" && !!session.name.trim() && !/[\p{Cc}/]/u.test(session.name) && !session.name.startsWith("-") &&
     typeof session.socket_dir === "string" && session.socket_dir.startsWith("/") && !/[\p{Cc}]/u.test(session.socket_dir) &&
     typeof session.socket_id === "string" && /^\d+:\d+$/.test(session.socket_id);
+}
+
+function validTuiosMode(mode: Extract<NonNullable<SnapshotSession["sshMode"]>, { kind: "tuios" }>): boolean {
+  const session = mode.session;
+  return typeof mode.username === "string" && !!mode.username && typeof mode.endpoint === "string" && !!mode.endpoint
+    && !!session && typeof session.name === "string" && validTuiosName(session.name)
+    && typeof session.id === "string" && !!session.id && session.id.length <= 128 && !/[\p{Cc}]/u.test(session.id)
+    && Number.isSafeInteger(session.created) && session.created >= 0 && typeof session.saved === "boolean"
+    && Number.isSafeInteger(session.window_count) && session.window_count >= 0 && typeof session.attached === "boolean";
 }
 
 /** Validate a raw (rehydrated) snapshot. Returns null when the whole

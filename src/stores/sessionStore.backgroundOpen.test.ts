@@ -52,6 +52,30 @@ beforeEach(() => {
   useSessionStore.setState({ sessions: [], activeSessionId: null });
 });
 
+test("TUIOS explicit restore reuses a tab and subsequent reconnect attaches without creation", async () => {
+  const target = { name: "work", id: "synthetic-tuios", created: 123, saved: false, window_count: 1, attached: false };
+  const remote = { backend: "tuios" as const, session: target };
+  vi.mocked(sshConnect).mockResolvedValueOnce({ session: remote } as never);
+  const id = await useSessionStore.getState().connect("c1", { sshLaunch: {
+    preparedId: "first-picker", choice: { backend: "tuios", choice: { kind: "attach", session: target } }, session: remote, username: "root",
+  } });
+  useSessionStore.getState().markDisconnected(id);
+  const saved = { ...target, saved: true };
+  vi.mocked(sshConnect).mockResolvedValueOnce({ session: remote } as never);
+  await useSessionStore.getState().reconnect(id, { sshLaunch: {
+    preparedId: "restore-picker", choice: { backend: "tuios", choice: { kind: "restore", session: saved } }, username: "root",
+  } });
+  expect(vi.mocked(sshConnect).mock.lastCall?.[0]).toMatchObject({
+    preparedId: "restore-picker", persist: false, sessionChoice: { backend: "tuios", choice: { kind: "restore", session: saved } }, preCommand: undefined,
+  });
+  expect(useSessionStore.getState().sessions).toHaveLength(1);
+  expect(useSessionStore.getState().sessions[0]).toMatchObject({ id, status: "connected", sshMode: { kind: "tuios", session: { saved: false } } });
+  await useSessionStore.getState().reconnect(id);
+  expect(vi.mocked(sshConnect).mock.lastCall?.[0]).toMatchObject({ sessionChoice: { backend: "tuios", choice: { kind: "attach", session: target } } });
+  expect(vi.mocked(sshConnect).mock.lastCall?.[0].preparedId).toBeUndefined();
+  expect(runHostCommand).not.toHaveBeenCalled();
+});
+
 test("explicit tmux connect and reconnect preserve identity/name without injecting host commands", async () => {
   const target = tmuxSession();
   vi.mocked(sshConnect).mockResolvedValueOnce({ session: { backend: "tmux", session: target } } as never);

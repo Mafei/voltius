@@ -76,7 +76,7 @@ interface SessionStore {
   markConnecting: (sessionId: string) => void;
   setReconnectWait: (sessionId: string, wait: ReconnectWait | undefined) => void;
   removeSession: (sessionId: string) => void;
-  reconnect: (sessionId: string, options?: { restore?: boolean; skipIdentityPick?: boolean }) => Promise<void>;
+  reconnect: (sessionId: string, options?: { restore?: boolean; skipIdentityPick?: boolean; sshLaunch?: OpenOptions["sshLaunch"] }) => Promise<void>;
   /** Silent reconnect for the auto-backoff loop: performs the same connect as
    * reconnect() but mutates no visible status, returning the outcome so the loop
    * can hold a single steady "reconnecting" state and decide what to surface. */
@@ -995,6 +995,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           restore: options?.restore ?? false,
           attachOnly: !!(session.persist && session.everConnected),
           ...opts,
+          ...(options?.sshLaunch && {
+            preparedId: options.sshLaunch.preparedId, sessionChoice: options.sshLaunch.choice,
+            username: options.sshLaunch.username ?? credentials.username,
+            persist: false, preCommand: undefined,
+          }),
         });
       });
       setSkipPick(set, sessionId, false);

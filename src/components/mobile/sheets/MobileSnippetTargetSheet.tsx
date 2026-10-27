@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { useTranslation } from "react-i18next";
 import BottomSheet from "./BottomSheet";
+import MobileFilterBar from "../MobileFilterBar";
 import { useMobileNavStore } from "@/stores/mobileNavStore";
 import { useSnippetStore } from "@/stores/snippetStore";
 import { useAllSnippets } from "@/hooks/useAllSnippets";
@@ -80,14 +81,8 @@ export default function MobileSnippetTargetSheet(
   }
 
   return (
-    <BottomSheet title={t(execute ? "mobile.sheets.snippetTarget.executeTitle" : "mobile.sheets.snippetTarget.insertTitle", { name: snippet.name })} onClose={closeSheet} registerBack={false}>
-      <div className="px-3 pb-2">
-        <div className="flex items-center gap-2 rounded-xl px-3 h-10" style={{ background: "var(--t-bg-card)", border: "1px solid var(--t-border)" }}>
-          <Icon icon="lucide:search" width={16} className="text-(--t-text-dim)" />
-          <input data-snippet-target-search value={p.search} onChange={(e) => p.setSearch(e.target.value)} placeholder={t("mobile.filterBar.placeholder")}
-            className="flex-1 bg-transparent text-sm outline-none text-(--t-text-primary)" />
-        </div>
-      </div>
+    <BottomSheet title={t(execute ? "mobile.sheets.snippetTarget.executeTitle" : "mobile.sheets.snippetTarget.insertTitle", { name: snippet.name })} onClose={closeSheet}>
+      <MobileFilterBar attr="snippet-target-search" value={p.search} onChange={p.setSearch} inset="px-1 pb-2" />
 
       {p.filteredSessions.length > 0 && (
         <>
@@ -120,7 +115,7 @@ export default function MobileSnippetTargetSheet(
       {!p.hasHosts && <p className="px-4 py-3 text-xs text-(--t-text-dim)">{t("mobile.sheets.snippetTarget.noHosts")}</p>}
 
       {p.totalSelected > 0 && (
-        <div className="sticky bottom-0 px-3 pt-2 pb-[env(safe-area-inset-bottom)]" style={{ background: "var(--t-bg-modal)" }}>
+        <div className="sticky bottom-0 px-3 pt-2 pb-(--vt-safe-bottom)" style={{ background: "var(--t-bg-modal)" }}>
           <button data-snippet-target-confirm onClick={() => void go()}
             className="w-full h-11 rounded-xl text-sm font-bold flex items-center justify-center gap-2"
             style={{ background: "var(--t-accent)", color: "#fff" }}>

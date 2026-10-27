@@ -20,12 +20,14 @@ export interface JumpHostConnect {
 export type TmuxChoice = { kind: "attach"; id: string; created: number; serverPid: number } | { kind: "create"; name: string };
 export interface TmuxSession { id: string; name: string; windows: number; attached: number; created: number; server_pid: number }
 export interface TmuxListing { installed: boolean; sessions: TmuxSession[] }
-export type SessionBackend = "tmux" | "zellij";
+export type SessionBackend = "tmux" | "zellij" | "tuios";
+export interface TuiosSession { name: string; id: string; created: number; saved: boolean; window_count: number; attached: boolean }
 export type SessionType = "none" | SessionBackend;
 export interface ZellijSession { name: string; socket_dir: string; socket_id: string }
-export type RemoteSession = { backend: "tmux"; session: TmuxSession } | { backend: "zellij"; session: ZellijSession };
-export type SessionChoice = { backend: "tmux"; choice: TmuxChoice } | { backend: "zellij"; choice: { kind: "attach"; session: ZellijSession } | { kind: "create"; name: string } };
-export type SshMode = { kind: "plain" } | { kind: "tmux"; session: TmuxSession; username: string; endpoint: string } | { kind: "zellij"; session: ZellijSession; username: string; endpoint: string };
+export type RemoteSession = { backend: "tmux"; session: TmuxSession } | { backend: "zellij"; session: ZellijSession } | { backend: "tuios"; session: TuiosSession };
+export type TuiosChoice = { kind: "attach" | "restore"; session: TuiosSession } | { kind: "create"; name: string };
+export type SessionChoice = { backend: "tmux"; choice: TmuxChoice } | { backend: "zellij"; choice: { kind: "attach"; session: ZellijSession } | { kind: "create"; name: string } } | { backend: "tuios"; choice: TuiosChoice };
+export type SshMode = { kind: "plain" } | { kind: "tmux"; session: TmuxSession; username: string; endpoint: string } | { kind: "zellij"; session: ZellijSession; username: string; endpoint: string } | { kind: "tuios"; session: TuiosSession; username: string; endpoint: string };
 export interface SessionListing { backend: SessionBackend; installed: boolean; version: string | null; sessions: RemoteSession[]; reserved_names: string[] }
 export interface SshConnectResult { session_listing: SessionListing | null; session: RemoteSession | null }
 

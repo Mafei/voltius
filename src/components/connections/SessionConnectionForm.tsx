@@ -1,3 +1,4 @@
+import { sessionBackendLabel, validTuiosName } from "@/services/sessionTypes";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Connection } from "@/types";
@@ -57,9 +58,10 @@ export default function SessionConnectionForm({ connection, onClose, onOpened, p
     if (/ZELLIJ_SESSION_NOT_RUNNING/.test(message)) return translate.current("mobile.session.notRunning");
     if (/UNSUPPORTED_VERSION/.test(message)) return translate.current("mobile.session.unsupportedVersion", { version: message.split(":").slice(1).join(":").trim() });
     if (/ZELLIJ_REQUIRES_LINUX|ZELLIJ_SOCKET_BIND_FAILED/.test(message)) return translate.current("mobile.session.zellijPlatform");
+    if (/TUIOS_UNSUPPORTED_CAPABILITY/.test(message)) return translate.current("mobile.session.tuiosCapability");
     if (/INVALID_NAME/.test(message)) return translate.current("mobile.session.invalidName");
     if (/COMMAND_TIMEOUT|START_NOT_CONFIRMED|START_FAILED/.test(message)) return translate.current("mobile.session.timeout");
-    return message.replace(/^(?:TMUX|ZELLIJ|SESSION)_(?:LIST|CHOICE|VERSION)_FAILED:\s*/, "");
+    return message.replace(/^(?:TMUX|ZELLIJ|TUIOS|SESSION)_(?:LIST|CHOICE|VERSION)_FAILED:\s*/, "");
   }
 
   useEffect(() => {
@@ -110,7 +112,8 @@ export default function SessionConnectionForm({ connection, onClose, onOpened, p
   }
   const close = () => { cancel(); onClose(); };
   const selectedNew = selection?.kind === "new";
-  const invalidName = !name.trim() || new TextEncoder().encode(name).length > (backend === "zellij" ? 48 : 128)
+  const restoring = selection?.kind === "existing" && selection.remote.backend === "tuios" && selection.remote.session.saved;
+  const invalidName = backend === "tuios" ? !validTuiosName(name) : !name.trim() || new TextEncoder().encode(name).length > (backend === "zellij" ? 48 : 128)
     || name.startsWith("-") || /[\p{Cc}]/u.test(name)
     || (backend === "tmux" ? /[.:]/.test(name) : name.includes("/") || name === "." || name === "..");
   const duplicate = selectedNew && listing?.reserved_names.includes(name);
@@ -131,7 +134,7 @@ export default function SessionConnectionForm({ connection, onClose, onOpened, p
     }
     busyRef.current = true; setBusy(true); setError("");
     const generation = epoch.current;
-    const operation = type === "none" ? picker.open() : selection?.kind === "existing" ? picker.attach(selection.remote)
+    const operation = type === "none" ? picker.open() : selection?.kind === "existing" ? (selection.remote.backend === "tuios" && selection.remote.session.saved ? picker.restore(selection.remote) : picker.attach(selection.remote))
       : backend ? picker.open({ backend, choice: { kind: "create", name } }) : Promise.reject(new Error("SESSION_SELECTION_REQUIRED"));
     void operation.then((id) => { if (alive.current && generation === epoch.current) onOpened(id); }, (reason) => {
       if (alive.current && generation === epoch.current) {
@@ -158,7 +161,7 @@ export default function SessionConnectionForm({ connection, onClose, onOpened, p
       <label className="block text-sm mt-3" htmlFor="ssh-session-type">{t("mobile.session.type")}</label>
       <select id="ssh-session-type" value={type} disabled={busy} className="w-full rounded-lg border p-2 mt-1 bg-(--t-bg-card) border-(--t-border)"
         onChange={(event) => { if (dismissed.current || busyRef.current) return; const value = event.target.value as SessionType; useSshSessionTypeStore.getState().setType(connection.id, value); restart(value, false); }}>
-        <option value="none">None</option><option value="tmux">Tmux</option><option value="zellij">Zellij</option>
+        <option value="none">None</option><option value="tmux">Tmux</option><option value="zellij">Zellij</option><option value="tuios">TUIOS</option>
       </select>
       {type === "none" && <p className="text-xs text-(--t-text-dim) mt-2">{t("mobile.session.noneHint")}</p>}
       {listing?.version && <p className="text-xs text-(--t-text-dim) mt-2">{listing.version}</p>}
@@ -192,20 +195,21 @@ export default function SessionConnectionForm({ connection, onClose, onOpened, p
           {!isAndroid && !!listing?.sessions.length && <option value="separator" disabled>──────────</option>}
           {!!listing?.sessions.length && <optgroup label={t("mobile.session.existing")}>
             {listing.sessions.map((remote, index) => <option key={`${remote.backend}:${index}`} value={`existing:${index}`}>
-              {remote.session.name} · {remote.backend === "tmux" ? t("mobile.tmux.details", { windows: remote.session.windows, attached: remote.session.attached }) : t("mobile.session.running")}
+              {remote.session.name} · {remote.backend === "tmux" ? t("mobile.tmux.details", { windows: remote.session.windows, attached: remote.session.attached }) : t(remote.backend === "tuios" && remote.session.saved ? "mobile.session.tuiosSaved" : "mobile.session.running")}
             </option>)}
           </optgroup>}
         </select>
-        {listing && !listing.installed && <p role="status" className="text-sm mt-2">{t("mobile.session.missing", { backend: type === "tmux" ? "Tmux" : "Zellij" })}</p>}
+        {listing && !listing.installed && <p role="status" className="text-sm mt-2">{t("mobile.session.missing", { backend: sessionBackendLabel[backend] })}</p>}
         {listing?.installed && !listing.sessions.length && <p role="status" className="text-xs mt-2 text-(--t-text-dim)">{t("mobile.session.empty")}</p>}
         {backend === "zellij" && <p className="text-xs mt-2 text-(--t-text-dim)">{t("mobile.session.runningOnly")}</p>}
+        {restoring && <p role="status" className="text-xs mt-2 text-(--t-text-dim)">{t("mobile.session.tuiosRestoreHint")}</p>}
         {selectedNew && <>
         <label className="block text-sm mt-4" htmlFor="ssh-session-name">{t("mobile.session.name")}</label>
         <input id="ssh-session-name" type="text" autoCapitalize="none" autoCorrect="off" autoComplete="off" value={name}
           disabled={busy || loading || !listing?.installed} aria-invalid={!!duplicate || (!!name && invalidName)}
           onChange={(event) => { setName(event.target.value); setError(""); }}
           className="w-full rounded-lg border p-2 mt-1 bg-(--t-bg-card) border-(--t-border) disabled:opacity-50" />
-        <p className="text-xs text-(--t-text-dim) mt-1">{t(backend === "tmux" ? "mobile.tmux.nameHint" : "mobile.session.zellijNameHint")}</p>
+        <p className="text-xs text-(--t-text-dim) mt-1">{t(backend === "tmux" ? "mobile.tmux.nameHint" : backend === "tuios" ? "mobile.session.tuiosNameHint" : "mobile.session.zellijNameHint")}</p>
         {duplicate && <p role="alert" className="text-sm text-(--t-danger) mt-2">{t("mobile.session.duplicate")}</p>}
         </>}
       </>}
@@ -215,7 +219,7 @@ export default function SessionConnectionForm({ connection, onClose, onOpened, p
       <div className="flex gap-3 mt-5">
         <button type="button" onClick={close} className="flex-1 rounded-lg border border-(--t-border) px-3 py-2">{t("common.action.cancel")}</button>
         <button type="submit" disabled={!canConnect} className="flex-1 rounded-lg bg-(--t-accent) text-white px-3 py-2 disabled:opacity-50">
-          {t(busy ? "mobile.session.opening" : "mobile.session.connect")}
+          {t(busy ? "mobile.session.opening" : restoring ? "mobile.session.restore" : "mobile.session.connect")}
         </button>
       </div>
     </form>;

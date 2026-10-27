@@ -56,11 +56,20 @@ export function createSessionPicker(connection: Connection, backend: SessionBack
       if (selected) {
         const existing = findSessionTab(useSessionStore.getState().sessions, connection.id, username, selected, tmuxEndpoint(connection));
         if (existing) {
-          await release();
+          if (choice?.backend === "tuios" && choice.choice.kind === "restore") {
+            if (existing.status === "connecting" || existing.status === "connected") throw new Error("SESSION_CHANGED");
+            await useSessionStore.getState().reconnect(existing.id, {
+              sshLaunch: { preparedId, choice, session: selected, username },
+            });
+            await release();
+            if (useSessionStore.getState().sessions.find(s => s.id === existing.id)?.status !== "connected") throw new Error("TUIOS_RESTORE_FAILED");
+          } else await release();
           if (closed) throw new Error("SESSION_PICKER_CLOSED");
           // Refresh the displayed name, but identity is the stable remote tuple, never its label.
+          const target = selected.backend === "tuios" && choice?.backend === "tuios" && choice.choice.kind === "restore"
+            ? { ...selected, session: { ...selected.session, saved: false } } : selected;
           useSessionStore.setState((s) => ({ sessions: s.sessions.map((tab) => tab.id === existing.id
-            ? { ...tab, sshMode: modeForSession(selected, username, tmuxEndpoint(connection)) } : tab) }));
+            ? { ...tab, sshMode: modeForSession(target, username, tmuxEndpoint(connection)) } : tab) }));
           if (isMobileShell()) useSessionStore.getState().setActive(existing.id);
           else activateOwnedSession(existing.id);
           // An offline tab is reused. Its existing error/reconnect UI stays available.
@@ -94,7 +103,11 @@ export function createSessionPicker(connection: Connection, backend: SessionBack
     return opening;
   }
 
-  return { ready, close, open, attach: (session: RemoteSession) => open(sessionAttachChoice(session), session) };
+  return { ready, close, open, attach: (session: RemoteSession) => open(sessionAttachChoice(session), session),
+    restore: (session: Extract<RemoteSession, { backend: "tuios" }>) => {
+      if (!session.session.saved) return Promise.reject(new Error("SESSION_CHANGED"));
+      return open({ backend: "tuios", choice: { kind: "restore", session: session.session } }, session);
+    } };
 }
 
 export type SessionPicker = ReturnType<typeof createSessionPicker>;

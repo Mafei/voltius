@@ -4,7 +4,7 @@ import { tmuxSession, tmuxTab } from "./__fixtures__/tmux";
 
 const h = vi.hoisted(() => ({
   prepare: vi.fn(), cancel: vi.fn(async () => {}), drop: vi.fn(async () => {}),
-  credentials: vi.fn(), connect: vi.fn(), direct: vi.fn(), active: vi.fn(), remove: vi.fn(),
+  credentials: vi.fn(), reconnect: vi.fn(), connect: vi.fn(), direct: vi.fn(), active: vi.fn(), remove: vi.fn(),
   sessions: [] as TerminalSession[],
 }));
 vi.mock("./credentials", () => ({ resolveConnectionCredentials: h.credentials }));
@@ -12,7 +12,7 @@ vi.mock("./ssh", () => ({ sshConnect: h.prepare, sshSessionCancel: h.cancel, ssh
 vi.mock("@/stores/sessionStore", () => ({
   buildSshConnectOptions: async () => ({ keepaliveIntervalSecs: 3, keepaliveMax: 3 }),
   useSessionStore: {
-    getState: () => ({ sessions: h.sessions, connect: h.connect, connectDirect: h.direct, setActive: h.active, removeSession: h.remove }),
+    getState: () => ({ sessions: h.sessions, connect: h.connect, connectDirect: h.direct, reconnect: h.reconnect, setActive: h.active, removeSession: h.remove }),
     setState: (update: (s: { sessions: TerminalSession[] }) => { sessions: TerminalSession[] }) => { h.sessions = update({ sessions: h.sessions }).sessions; },
   },
 }));
@@ -134,4 +134,35 @@ test("a same-name tmux tab cannot consume a Zellij selection or a mismatched bac
   const picker = createSessionPicker(connection, "zellij"); await picker.ready;
   await expect(picker.open({ backend: "tmux", choice: { kind: "create", name: "work" } })).rejects.toThrow("SESSION_BACKEND_CHANGED");
   await picker.attach(selected); expect(h.connect).toHaveBeenCalledTimes(1); picker.close();
+});
+
+const tuiosRemote = (saved = false) => ({ backend: "tuios" as const, session: { name: "work", id: "synthetic-id", created: 123, saved, window_count: 1, attached: false } });
+function tuiosListing(saved = false) { const selected = tuiosRemote(saved); return { session_listing: { backend: "tuios", installed: true, version: "tuios synthetic", sessions: [selected], reserved_names: [selected.session.name] } }; }
+
+test("TUIOS duplicate clicks share one launch and retain the typed target", async () => {
+  h.prepare.mockResolvedValue(tuiosListing());
+  const picker = createSessionPicker(connection, "tuios"); await picker.ready;
+  const target = tuiosRemote(); const first = picker.attach(target), second = picker.attach(target);
+  expect(first).toBe(second); await first;
+  expect(h.connect).toHaveBeenCalledTimes(1);
+  expect(h.connect.mock.calls[0][1]).toMatchObject({ sshLaunch: { choice: { backend: "tuios", choice: { kind: "attach", session: target.session } } } });
+});
+
+test("saved TUIOS restore reuses an offline tab without duplicating it", async () => {
+  const selected = tuiosRemote(true);
+  h.prepare.mockResolvedValue(tuiosListing(true));
+  h.sessions = [tmuxTab({ status: "disconnected", sshMode: { kind: "tuios", session: selected.session, username: "alice", endpoint: "example.test:22" } })];
+  h.reconnect.mockImplementation(async () => { h.sessions[0].status = "connected"; });
+  const picker = createSessionPicker(connection, "tuios"); await picker.ready;
+  expect(await picker.restore(selected)).toBe("tab-1");
+  expect(h.reconnect).toHaveBeenCalledWith("tab-1", expect.objectContaining({ sshLaunch: expect.objectContaining({ choice: { backend: "tuios", choice: { kind: "restore", session: selected.session } } }) }));
+  expect(h.connect).not.toHaveBeenCalled(); expect(h.remove).not.toHaveBeenCalled();
+  expect(h.sessions[0].sshMode).toMatchObject({ kind: "tuios", session: { saved: false } });
+});
+
+test("TUIOS restore refuses a live selection and does not issue a create", async () => {
+  h.prepare.mockResolvedValue(tuiosListing());
+  const picker = createSessionPicker(connection, "tuios"); await picker.ready;
+  await expect(picker.restore(tuiosRemote())).rejects.toThrow("SESSION_CHANGED");
+  expect(h.connect).not.toHaveBeenCalled(); expect(h.reconnect).not.toHaveBeenCalled();
 });

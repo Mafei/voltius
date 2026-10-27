@@ -1,3 +1,5 @@
+import { sessionBackendLabel } from "@/services/sessionTypes";
+import { isUserSession } from "@/services/tmuxSessionCore";
 import type { ReactNode } from "react";
 import { Icon } from "@iconify/react";
 import type { TFunction } from "i18next";
@@ -13,8 +15,8 @@ import { sessionLabel } from "@/utils/sessionLabel";
 export function SessionTabLabel({ session }: { session: TerminalSession }) {
   const mode = session.sshMode;
   const primary = sessionLabel(session);
-  const secondary = mode?.kind === "tmux" || mode?.kind === "zellij"
-    ? `${mode.kind === "tmux" ? "Tmux" : "Zellij"} · ${session.customTitle && session.customTitle !== mode.session.name ? `${mode.session.name} · ` : ""}${session.connectionName} · ${mode.username}@${mode.endpoint}`
+  const secondary = isUserSession(mode)
+    ? `${sessionBackendLabel[mode.kind]} · ${session.customTitle && session.customTitle !== mode.session.name ? `${mode.session.name} · ` : ""}${session.connectionName} · ${mode.username}@${mode.endpoint}`
     : undefined;
   // Reserve room for glyph ascent/descent as well as the line boxes and borders.
   // Inheriting text-base's 1.6rem line-height on both lines clips session and host.

@@ -1,7 +1,7 @@
 //! Shared authenticated picker lifetime and typed user-owned session launches.
 use super::client::{AuthenticatedConnection, SshClient};
 use super::exec::{run_captured, sh_c, Captured};
-use super::{tmux, zellij};
+use super::{tmux, tuios, zellij};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
@@ -12,6 +12,7 @@ use tokio::time::{timeout, Duration};
 pub enum Backend {
     Tmux,
     Zellij,
+    Tuios,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -19,6 +20,7 @@ pub enum Backend {
 pub enum SessionChoice {
     Tmux(tmux::TmuxChoice),
     Zellij(zellij::ZellijChoice),
+    Tuios(tuios::TuiosChoice),
 }
 
 impl SessionChoice {
@@ -26,6 +28,7 @@ impl SessionChoice {
         match self {
             Self::Tmux(_) => Backend::Tmux,
             Self::Zellij(_) => Backend::Zellij,
+            Self::Tuios(_) => Backend::Tuios,
         }
     }
 }
@@ -35,6 +38,7 @@ impl SessionChoice {
 pub enum RemoteSession {
     Tmux(tmux::TmuxSession),
     Zellij(zellij::ZellijSession),
+    Tuios(tuios::TuiosSession),
 }
 
 #[derive(Debug, Serialize)]
@@ -63,6 +67,7 @@ pub async fn version(
     let (binary, flag) = match backend {
         Backend::Tmux => ("tmux", "-V"),
         Backend::Zellij => ("zellij", "--version"),
+        Backend::Tuios => ("tuios", "--version"),
     };
     let result = run(handle, &sh_c(&format!(
         "unset TMUX TMUX_PANE ZELLIJ ZELLIJ_SESSION_NAME ZELLIJ_PANE_ID; command -v {binary} >/dev/null 2>&1 || exit 127; LC_ALL=C {binary} {flag}"
@@ -70,17 +75,25 @@ pub async fn version(
     match result.code {
         Some(127) => Ok(None),
         Some(0) => {
-            let value = result.stdout_text().trim().to_string();
-            if value.len() > 160
-                || value.chars().any(char::is_control)
-                || !value.starts_with(binary)
-            {
-                return Err("SESSION_INVALID_VERSION_RESPONSE".into());
-            }
-            Ok(Some(value))
+            Ok(Some(version_text(backend, binary, &result.stdout_text())?))
         }
         _ => Err(format!("SESSION_VERSION_FAILED: {}", result.stderr.trim())),
     }
+}
+
+fn version_text(backend: Backend, binary: &str, raw: &str) -> Result<String, String> {
+    // TUIOS can include backend/build metadata on separate lines. Capabilities
+    // come from this installed binary's help, not a guessed semantic-version range.
+    let value = if backend == Backend::Tuios {
+        raw.lines().map(str::trim).collect::<Vec<_>>().join(" ")
+    } else { raw.trim().to_string() };
+    let max = if backend == Backend::Tuios { 512 } else { 160 };
+    if value.is_empty() || value.len() > max || value.chars().any(char::is_control)
+        || (backend != Backend::Tuios && !value.starts_with(binary))
+    {
+        return Err("SESSION_INVALID_VERSION_RESPONSE".into());
+    }
+    Ok(value)
 }
 
 pub async fn list(
@@ -111,6 +124,11 @@ pub async fn list(
                 .into_iter()
                 .map(RemoteSession::Tmux)
                 .collect();
+        }
+        Backend::Tuios => {
+            let sessions = tuios::list(&connection.handle).await?;
+            listing.reserved_names = sessions.iter().map(|s| s.name.clone()).collect();
+            listing.sessions = sessions.into_iter().map(RemoteSession::Tuios).collect();
         }
         Backend::Zellij => {
             let result = zellij::scan(&connection.handle, &version).await?;
@@ -145,6 +163,7 @@ pub async fn resolve(
             })
         }
         SessionChoice::Zellij(choice) => zellij::resolve(handle, choice).await,
+        SessionChoice::Tuios(choice) => tuios::resolve(handle, choice).await,
     }
 }
 
@@ -243,6 +262,14 @@ impl SessionPickers {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn tuios_build_metadata_is_displayed_without_assuming_a_version_range() {
+        assert_eq!(version_text(Backend::Tuios, "tuios", "tuios v0.11.0\nVT backend: pure-Go\n").unwrap(), "tuios v0.11.0 VT backend: pure-Go");
+        assert!(version_text(Backend::Tuios, "tuios", "").is_err());
+        assert!(version_text(Backend::Tuios, "tuios", "tuios\x1b[31m").is_err());
+        assert!(version_text(Backend::Tmux, "tmux", "unexpected").is_err());
+    }
 
     #[test]
     fn protocol_keeps_backend_and_stable_session_identity_explicit() {

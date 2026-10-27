@@ -12,6 +12,8 @@ pub mod test_docker;
 #[cfg(test)]
 pub mod test_proc_server;
 pub mod tmux;
+pub mod tuios;
 
 pub mod multiplexer;
+pub(crate) mod private_key;
 pub mod zellij;

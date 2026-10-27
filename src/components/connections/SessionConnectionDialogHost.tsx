@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useSessionConnectionStore } from "@/stores/sessionConnectionStore";
 import SessionConnectionForm from "./SessionConnectionForm";
 
-export function SessionConnectionDialogHost() {
+export function SessionConnectionDialogHost({ presentation = "dialog" }: { presentation?: "sheet" | "dialog" }) {
   const request = useSessionConnectionStore((s) => s.pending[0]);
   const mount = useRef(0);
   useEffect(() => {
@@ -10,7 +10,7 @@ export function SessionConnectionDialogHost() {
     return () => queueMicrotask(() => { if (mount.current === generation) useSessionConnectionStore.getState().cancel(); });
   }, []);
   if (!request) return null;
-  return <SessionConnectionForm key={request.token} connection={request.connection} direct={request.direct} presentation="dialog"
+  return <SessionConnectionForm key={request.token} connection={request.connection} direct={request.direct} presentation={presentation}
     onClose={() => useSessionConnectionStore.getState().cancel(request.token)}
     onOpened={(id) => useSessionConnectionStore.getState().finish(request.token, id)} />;
 }

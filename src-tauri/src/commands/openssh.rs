@@ -160,7 +160,7 @@ fn public_half(text: &str) -> Option<String> {
     }
     match ssh_key::PrivateKey::from_openssh(text) {
         Ok(key) => key.public_key().to_openssh().ok(),
-        Err(_) => russh::keys::decode_secret_key(text, None)
+        Err(_) => crate::ssh::private_key::decode(text, None)
             .ok()?
             .public_key()
             .to_openssh()

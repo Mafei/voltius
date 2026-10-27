@@ -22,9 +22,10 @@ import SessionConnectionForm from "./SessionConnectionForm";
 const host = { id: "host-a", name: "服务器 A", host: "example.test", port: 22 } as Connection;
 const remote = (backend: SessionBackend, name = "work"): RemoteSession => backend === "tmux"
   ? { backend, session: tmuxSession({ name }) }
+  : backend === "tuios" ? { backend, session: { name, id: "synthetic-id", created: 1, saved: false, attached: false, window_count: 1 } }
   : { backend, session: { name, socket_dir: "/tmp/z/contract_version_1", socket_id: "10:20" } };
 const listing = (backend: SessionBackend, sessions = [remote(backend)]): SessionListing => ({ backend, installed: true, version: `${backend} test`, sessions, reserved_names: sessions.map((s) => s.session.name) });
-const fake = (value: SessionListing | null) => ({ ready: Promise.resolve(value), close: vi.fn(), open: vi.fn(async () => "tab"), attach: vi.fn(async () => "tab") });
+const fake = (value: SessionListing | null) => ({ ready: Promise.resolve(value), close: vi.fn(), open: vi.fn(async () => "tab"), attach: vi.fn(async () => "tab"), restore: vi.fn(async () => "tab") });
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>((r) => { resolve = r; }); return { promise, resolve }; }
 const typeSelect = () => screen.getByLabelText("mobile.session.type");
 const listSelect = () => screen.getByLabelText("mobile.session.list");
@@ -53,7 +54,7 @@ async function renderAndroidPicker(backend: SessionBackend, sessions: RemoteSess
   return { picker, select: listSelect() as HTMLSelectElement };
 }
 
-for (const backend of ["tmux", "zellij"] as const) {
+for (const backend of ["tmux", "zellij", "tuios"] as const) {
   test(`Android ${backend}: removes the divider row, retains the non-option group heading and attaches the exact session`, async () => {
     const sessions = [remote(backend, "New"), remote(backend, "工作会话")];
     const { picker, select } = await renderAndroidPicker(backend, sessions);
@@ -102,7 +103,7 @@ test("None hides backend fields and uses the one Connect action for ordinary SSH
   expect(plain.open).toHaveBeenCalledWith(); expect(plain.attach).not.toHaveBeenCalled();
 });
 
-for (const backend of ["tmux", "zellij"] as const) {
+for (const backend of ["tmux", "zellij", "tuios"] as const) {
   test(`${backend}: the entire name group appears only for New, with its draft restored and irrelevant validation ignored`, async () => {
     render(<SessionSheet connection={host} onClose={vi.fn()} onOpened={vi.fn()} />); await choose(backend);
     expectNameGroupHidden(); expect(connectButton().disabled).toBe(true);
@@ -250,4 +251,24 @@ for (const authKind of ["password", "passphrase"] as const) {
   });
 }
 
+}
+
+for (const presentation of ["sheet", "dialog"] as const) {
+  test(`${presentation}: saved TUIOS sessions require the explicit Restore action`, async () => {
+    const saved = remote("tuios");
+    if (saved.backend !== "tuios") throw new Error("fixture backend");
+    saved.session.saved = true;
+    const picker = fake(listing("tuios", [saved]));
+    h.create.mockImplementation((_connection, selected) => selected ? picker : fake(null));
+    render(<SessionConnectionForm connection={host} onClose={vi.fn()} onOpened={vi.fn()} presentation={presentation} />);
+    await choose("tuios");
+    expect(screen.getByText(/mobile.session.tuiosSaved/)).toBeTruthy();
+    expect(picker.restore).not.toHaveBeenCalled();
+    fireEvent.change(listSelect(), { target: { value: "existing:0" } });
+    expect(screen.getByText("mobile.session.tuiosRestoreHint")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "mobile.session.restore" }));
+    await waitFor(() => expect(picker.restore).toHaveBeenCalledWith(saved));
+    expect(picker.attach).not.toHaveBeenCalled();
+    expect(picker.open).not.toHaveBeenCalled();
+  });
 }

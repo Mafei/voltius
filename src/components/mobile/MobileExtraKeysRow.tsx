@@ -1,3 +1,5 @@
+import { haptic } from "@/lib/haptics";
+import { EXTRA_KEYS, keyForGesture, keyGesture, modTapAction, type ExtraKey } from "./extraKeysCore";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@iconify/react";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -13,14 +15,13 @@ import { terminalPanelsVisible } from "./terminalChromeState";
 import { terminalClipboardAction } from "@/hooks/useTerminal";
 import { useMobilePasteConfirmStore } from "@/stores/mobilePasteConfirmStore";
 
-type KeyDef = { key: SpecialKey | "Paste"; label?: string; icon?: string };
+type KeyDef = Omit<ExtraKey, "key"> & { key: SpecialKey | "Paste" };
+const MOD_LOCK_HOLD_MS = 450;
 const KEYS: KeyDef[] = [
-  { key: "Esc", label: "Esc" }, { key: "Tab", label: "Tab" },
-  { key: "Up", icon: "lucide:arrow-up" }, { key: "Down", icon: "lucide:arrow-down" },
-  { key: "Left", icon: "lucide:arrow-left" }, { key: "Right", icon: "lucide:arrow-right" },
+  ...["Esc", "Tab", "Up", "Down", "Left", "Right"].map(key => EXTRA_KEYS.find(k => k.key === key)!),
   { key: "Home", label: "Home" }, { key: "End", label: "End" }, { key: "PgUp", label: "PgUp" }, { key: "PgDn", label: "PgDn" },
-  { key: "+", label: "+" }, { key: "|", label: "|" },
-  { key: "Paste" },
+  { key: "+", label: "+" }, { key: "|", label: "|" }, { key: "Paste" },
+  ...EXTRA_KEYS.filter(k => k.key === "-" || k.key === "/"),
 ];
 const MODS: { mod: Modifier; label: string }[] = [ { mod: "ctrl", label: "Ctrl" }, { mod: "alt", label: "Alt" } ];
 const keyClass = "mobile-chrome-face mobile-terminal-toolbar-button";
@@ -63,24 +64,43 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
   useEffect(() => () => clearPressTimer(longPressTimer), []);
   // Tap-vs-scroll tracking for KEYS: record the touch origin, only fire on touchend
   // if the finger barely moved (a real tap, not a horizontal scroll-drag of the row).
+  const lastModTap = useRef<Record<Modifier, number | null>>({ ctrl: null, alt: null });
   const keyTouchStart = useRef<{ x: number; y: number } | null>(null);
-  const TAP_MOVE_PX = 10;
+  // The key whose alternate a swipe up would send right now (its superscript lights up).
+  const [altArmed, setAltArmed] = useState<SpecialKey | null>(null);
 
   const press = (key: KeyDef["key"]) => {
     const activeSessionId = useSessionStore.getState().activeSessionId;
     if (!activeSessionId) return;
     if (key === "Paste") { void terminalClipboardAction(activeSessionId, "pasteClipboard").catch(() => {}); return; }
+    haptic("key");
     sendSpecialKey(activeSessionId, key, { ctrl: isActive(latch.ctrl), alt: isActive(latch.alt) });
     consume();
   };
-  const tapMod = (mod: Modifier) => tap(mod);
-  const lockMod = (mod: Modifier) => lock(mod);
+  const lockMod = (mod: Modifier) => { haptic("press"); lock(mod); };
+  const tapMod = (mod: Modifier) => {
+    const now = performance.now();
+    if (modTapAction(latch[mod], lastModTap.current[mod], now) === "lock") {
+      lastModTap.current[mod] = null;
+      lockMod(mod);
+      return;
+    }
+    lastModTap.current[mod] = now;
+    haptic("key");
+    tap(mod);
+  };
   const noFocusSteal = (e: React.SyntheticEvent) => e.preventDefault();
   // The row must never summon the soft keyboard. The xterm textarea is programmatically focused
   // (Android keeps the IME hidden), so the first touch gesture would otherwise pop the IME for it.
   // When the keyboard is closed, blur the focused element on touch so the tap can't trigger it.
   // Keyboard open: leave focus alone so it stays open for continued typing.
   const keepKeyboardClosed = () => { if (!keyboardOpen) (document.activeElement as HTMLElement | null)?.blur(); };
+  const travel = (e: React.TouchEvent) => {
+    const start = keyTouchStart.current;
+    const t = e.changedTouches[0] ?? e.touches[0];
+    return start && t ? { dx: t.clientX - start.x, dy: t.clientY - start.y } : null;
+  };
+
 
   return (
     // Keep system navigation inset outside both identically measured toolbars.
@@ -112,7 +132,7 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
               noFocusSteal(e);
               clearPressTimer(longPressTimer);
               // On fire, null the ref so touchend treats this as a completed lock (not a tap).
-              longPressTimer.current = setTimeout(() => { longPressTimer.current = null; lockMod(mod); }, 450);
+              longPressTimer.current = setTimeout(() => { longPressTimer.current = null; lockMod(mod); }, MOD_LOCK_HOLD_MS);
             }}
             onTouchEnd={(e) => {
               noFocusSteal(e);
@@ -138,8 +158,8 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
         className="mobile-terminal-chrome-scroll mobile-terminal-toolbar-strip"
         style={{ overflowX: pinned ? "auto" : "visible" }}
         onScroll={(e) => { const el = e.currentTarget; setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1); }}>
-      {KEYS.map(({ key, label, icon }) => (
-        <button key={key} data-mobile-key={key} aria-label={key === "Paste" ? t("common.action.paste") : label ?? key} title={key === "Paste" ? "Ctrl+Shift+V" : undefined}
+      {KEYS.map((k) => { const { key, label, icon } = k; return (
+        <button key={key} data-mobile-key={key} data-mobile-key-alt={k.alt} data-alt-armed={altArmed === key ? "" : undefined} aria-label={key === "Paste" ? t("common.action.paste") : label ?? key} title={key === "Paste" ? "Ctrl+Shift+V" : undefined}
           // Touch path: fire once on touchend (a tap), never on touchstart — so the row
           // can be scrolled by dragging a button without firing its key, and the ghost
           // mousedown/click is suppressed on touch (mirrors the MODS' onClick guard).
@@ -149,21 +169,29 @@ export default function MobileExtraKeysRow({ keyboardOpen }: { keyboardOpen?: bo
             const t = e.touches[0];
             keyTouchStart.current = t ? { x: t.clientX, y: t.clientY } : null;
           }}
+          onTouchMove={(e) => {
+            const d = travel(e);
+            setAltArmed(d && k.alt && keyGesture(d.dx, d.dy) === "alt" && key !== "Paste" ? key : null);
+          }}
           onTouchEnd={(e) => {
             noFocusSteal(e);
+            setAltArmed(null);
             const start = keyTouchStart.current;
             keyTouchStart.current = null;
             const t = e.changedTouches[0];
             if (!start || !t) return;
-            if (Math.hypot(t.clientX - start.x, t.clientY - start.y) < TAP_MOVE_PX) press(key);
+            const gesture = keyGesture(t.clientX - start.x, t.clientY - start.y);
+            const selected = key === "Paste" ? (gesture === "tap" ? key : null) : keyForGesture({ ...k, key }, gesture);
+            if (selected) press(selected);
           }}
-          onTouchCancel={() => { keyTouchStart.current = null; }}
+          onTouchCancel={() => { keyTouchStart.current = null; setAltArmed(null); }}
           onClick={(e) => { noFocusSteal(e); if (isActivationClick(e)) press(key); }}
-          className={`${keyClass} font-medium`}
+          className={`${keyClass} relative font-medium`}
           style={keyFace("var(--t-bg-card)")}>
           {icon ? <Icon icon={icon} width={16} /> : key === "Paste" ? t("common.action.paste") : label}
+          {k.altLabel && <sup data-mobile-key-alt-label aria-hidden className="absolute top-0.5 right-1 text-[9px]" style={{ color: altArmed === key ? "var(--t-accent)" : "var(--t-text-dim)" }}>{k.altLabel}</sup>}
         </button>
-      ))}
+      ); })}
       <button data-mobile-panels-toggle aria-label={t("mobile.terminalTopBar.panelsAriaLabel")} aria-pressed={panelsOpen}
         onMouseDown={noFocusSteal}
         onTouchStart={(e) => { noFocusSteal(e); keepKeyboardClosed(); }}

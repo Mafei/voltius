@@ -5,6 +5,7 @@ export function createSessionPicker(_host: Connection, backend: SessionBackend |
   let closed = false;
   const sessions: RemoteSession[] = backend ? ["New", "中文工作"].map((name, index) => backend === "tmux"
     ? { backend, session: { name, id: `$${index}`, windows: 1, attached: 0, created: 123, server_pid: 42 } }
+    : backend === "tuios" ? { backend, session: { name, id: `synthetic-${index}`, created: 123, saved: index === 1, window_count: 1, attached: false } }
     : { backend, session: { name, socket_dir: "/tmp/synthetic/contract_version_1", socket_id: `10:${20 + index}` } }) : [];
   const open = async (choice?: SessionChoice, remote?: RemoteSession) => {
     if (closed) throw new Error("SESSION_PICKER_CLOSED");
@@ -12,9 +13,10 @@ export function createSessionPicker(_host: Connection, backend: SessionBackend |
     return remote ? `${remote.backend}:${remote.session.name}` : choice?.choice.kind === "create" ? `${choice.backend}:new:${choice.choice.name}` : "plain";
   };
   return {
-    ready: Promise.resolve(backend ? { backend, installed: true, version: backend === "tmux" ? "tmux 3.4" : "zellij 0.45.1", sessions, reserved_names: sessions.map((s) => s.session.name) } : null),
+    ready: Promise.resolve(backend ? { backend, installed: true, version: backend === "tmux" ? "tmux 3.4" : backend === "tuios" ? "tuios synthetic" : "zellij 0.45.1", sessions, reserved_names: sessions.map((s) => s.session.name) } : null),
     close: () => { closed = true; metrics.closes++; }, open,
     attach: (remote: RemoteSession) => open(undefined, remote),
+    restore: (remote: Extract<RemoteSession, { backend: "tuios" }>) => open({ backend: "tuios", choice: { kind: "restore", session: remote.session } }, remote),
   };
 }
 export type SessionPicker = ReturnType<typeof createSessionPicker>;

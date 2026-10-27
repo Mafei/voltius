@@ -99,7 +99,7 @@ test("final row order and actual terminal sequences preserve navigation and lite
   const order = [...container.querySelectorAll<HTMLElement>("[data-mobile-key]")].map(n => n.dataset.mobileKey);
   const right = order.indexOf("Right");
   expect(order.slice(right + 1, right + 5)).toEqual(["Home", "End", "PgUp", "PgDn"]);
-  expect(order).toEqual(["ctrl", "alt", "Esc", "Tab", "Up", "Down", "Left", "Right", "Home", "End", "PgUp", "PgDn", "+", "|", "Paste"]);
+  expect(order).toEqual(["ctrl", "alt", "Esc", "Tab", "Up", "Down", "Left", "Right", "Home", "End", "PgUp", "PgDn", "+", "|", "Paste", "-", "/"]);
   for (const key of ["Home", "End", "PgUp", "PgDn", "+"]) touch(screen.getByRole("button", { name: key }));
   expect(sent).toEqual(["\x1b[H", "\x1b[F", "\x1b[5~", "\x1b[6~", "+"]);
   // Removing buttons must not remove the keyboard/terminal mappings.

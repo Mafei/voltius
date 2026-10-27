@@ -37,6 +37,7 @@ mod shell_integration;
 mod ssh;
 mod storage;
 mod system_auth;
+mod system_bars;
 mod terminal_browser_keys;
 mod terminal_kbd;
 mod terminal_output;
@@ -290,6 +291,7 @@ pub fn run() {
             passkey_loopback::passkey_loopback_stop,
             system_auth::system_auth_available,
             system_auth::system_auth_verify,
+            system_bars::set_system_bars,
             terminal_kbd::terminal_show_keyboard,
             terminal_kbd::terminal_hide_keyboard,
             terminal_kbd::terminal_selection_touch_feed,

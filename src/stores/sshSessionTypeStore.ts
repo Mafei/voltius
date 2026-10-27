@@ -1,3 +1,4 @@
+import { isSessionBackend } from "@/services/sessionTypes";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { SessionType } from "@/services/ssh";
@@ -15,5 +16,5 @@ export const useSshSessionTypeStore = create<State>()(persist((set) => ({
 
 export function sessionTypeForHost(connectionId: string): SessionType {
   const value = useSshSessionTypeStore.getState().types[connectionId];
-  return value === "tmux" || value === "zellij" ? value : "none";
+  return isSessionBackend(value) ? value : "none";
 }

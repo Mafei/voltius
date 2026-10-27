@@ -1,3 +1,4 @@
+import { isSessionBackend } from "./sessionTypes";
 import type { RemoteSession, SessionChoice, SshMode, TmuxChoice, TmuxSession } from "./ssh";
 import type { Connection, TerminalSession } from "@/types";
 
@@ -19,25 +20,26 @@ export function findTmuxTab(sessions: TerminalSession[], connectionId: string, u
 }
 
 export function isUserSession(mode: SshMode | undefined): mode is Exclude<SshMode, { kind: "plain" }> {
-  return mode?.kind === "tmux" || mode?.kind === "zellij";
+  return !!mode && isSessionBackend(mode.kind);
 }
 
 export function remoteFromMode(mode: Exclude<SshMode, { kind: "plain" }>): RemoteSession {
-  return mode.kind === "tmux" ? { backend: "tmux", session: mode.session } : { backend: "zellij", session: mode.session };
+  return { backend: mode.kind, session: mode.session } as RemoteSession;
 }
 
 export function modeForSession(remote: RemoteSession, username: string, endpoint: string): SshMode {
-  return remote.backend === "tmux" ? { kind: "tmux", session: remote.session, username, endpoint } : { kind: "zellij", session: remote.session, username, endpoint };
+  return { kind: remote.backend, session: remote.session, username, endpoint } as SshMode;
 }
 
 export function sessionAttachChoice(remote: RemoteSession): SessionChoice {
   return remote.backend === "tmux" ? { backend: "tmux", choice: tmuxAttachChoice(remote.session) }
-    : { backend: "zellij", choice: { kind: "attach", session: remote.session } };
+    : { backend: remote.backend, choice: { kind: "attach", session: remote.session } } as SessionChoice;
 }
 
 export function sameRemoteSession(a: RemoteSession, b: RemoteSession): boolean {
   if (a.backend === "tmux" && b.backend === "tmux") return sameTmux(a.session, b.session);
   if (a.backend === "zellij" && b.backend === "zellij") return a.session.socket_dir === b.session.socket_dir && a.session.socket_id === b.session.socket_id;
+  if (a.backend === "tuios" && b.backend === "tuios") return a.session.id === b.session.id && a.session.created === b.session.created;
   return false;
 }
 

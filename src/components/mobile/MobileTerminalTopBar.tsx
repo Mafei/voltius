@@ -1,4 +1,8 @@
-import { useRef, useState } from "react";
+import { sessionBackendLabel } from "@/services/sessionTypes";
+import { isUserSession } from "@/services/tmuxSessionCore";
+import { useEffect, useRef, useState } from "react";
+import { prefersReducedMotion } from "@/lib/motion";
+import NewSessionSheet from "./sheets/NewSessionSheet";
 import { Icon } from "@iconify/react";
 import { useTranslation } from "react-i18next";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -44,7 +48,22 @@ export default function MobileTerminalTopBar() {
   const openSheet = useMobileNavStore((s) => s.openSheet);
   const exitTo = useMobileNavStore((s) => s.lastNonTerminalTab);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const chipsRef = useRef<HTMLDivElement>(null);
+
+  // Keep the active chip on screen when the session or the chip list changes (swipe, new
+  // session, close). Measured on the next frame, once the new chip has its final width.
+  const chipKey = sessions.map((x) => `${x.id}:${x.status}`).join(",");
+  useEffect(() => {
+    if (!activeSessionId) return;
+    const raf = requestAnimationFrame(() => {
+      const chips = chipsRef.current?.children ?? [];
+      const chip = [...chips].find((el) => (el as HTMLElement).dataset.mobileSessionChip === activeSessionId);
+      chip?.scrollIntoView?.({ inline: "nearest", block: "nearest", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [activeSessionId, chipKey]);
   // Derive Proxmox gate as a primitive (boolean) — Zustand-safe; no fresh array/object from the selector.
   const activeConnId = allSessions.find((s) => s.id === activeSessionId)?.connectionId;
   const isProxmox = useConnectionStore((s) => s.connections.find((c) => c.id === activeConnId)?.distro === "proxmox");
@@ -73,12 +92,12 @@ export default function MobileTerminalTopBar() {
       </button>
       {/* Intrinsic height includes both text lines at the user's font scale.
           Keep vertical overflow measurable; never crop enlarged text to fit. */}
-      <div data-mobile-session-strip className="mobile-terminal-chrome-scroll min-w-0 flex-1 flex items-center gap-[6px] overflow-x-auto px-[4px]">
+      <div ref={chipsRef} data-mobile-session-chips data-mobile-session-strip className="mobile-terminal-chrome-scroll min-w-0 flex-1 flex items-center gap-[6px] overflow-x-auto px-[4px]">
         {sessions.map((s) => {
           const active = s.id === activeSessionId;
           const primary = sessionLabel(s);
-          const mux = s.sshMode?.kind === "tmux" || s.sshMode?.kind === "zellij" ? s.sshMode : undefined;
-          const secondary = mux ? `${mux.kind === "tmux" ? "Tmux" : "Zellij"} · ${mux.username}@${s.connectionName}` : undefined;
+          const mux = isUserSession(s.sshMode) ? s.sshMode : undefined;
+          const secondary = mux ? `${sessionBackendLabel[mux.kind]} · ${mux.username}@${s.connectionName}` : undefined;
           const fullTitle = mux ? `${primary} · ${secondary} · ${mux.username}@${mux.endpoint}` : `${primary} · ${s.connectionName}`;
           return (
             <span
@@ -102,12 +121,13 @@ export default function MobileTerminalTopBar() {
       </div>
       <button
         data-mobile-terminal-new
-        onClick={() => setTab("hosts")}
+        onClick={() => setPickerOpen(true)}
         className={`${iconButtonClass} text-(--t-text-primary)`}
         aria-label={t("mobile.terminalTopBar.newSessionAriaLabel")}
       >
         <Icon icon="lucide:plus" width={20} />
       </button>
+      {pickerOpen && <NewSessionSheet onClose={() => setPickerOpen(false)} />}
       <div data-mobile-terminal-notifications className="flex w-(--mobile-touch-size) shrink-0 justify-center [&>div]:px-0 [&_button]:min-h-(--mobile-touch-size) [&_button]:max-h-(--mobile-touch-size) [&_button]:min-w-(--mobile-touch-size) [&_button]:max-w-(--mobile-touch-size)">
         <NotificationBell />
       </div>

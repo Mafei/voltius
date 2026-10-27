@@ -12,10 +12,13 @@ import { getCurrentUserEmail, logout } from "@/services/account";
 import { openBillingCheckout } from "@/services/billingCheckout";
 import { TEAMS_TRIAL_DAYS } from "@/services/billingTrial";
 import { openPortal } from "@/utils/billing";
+import { CAN_OPEN_CHECKOUT } from "@/services/distribution";
+import { AvailableWithPlan } from "@/components/shared/AvailableWithPlan";
 import { useServerBillingEnabled } from "@/services/serverCapabilities";
 import { useSeatReadout } from "@/hooks/useSeatReadout";
 import { seatsUsedText } from "@/services/seatMath";
 import { formatOptionalDate, SHORT_DATE } from "@/utils/localeFormat";
+import { DeleteAccountModal } from "@/components/shared/DeleteAccountModal";
 
 export default function MobileAccountPage() {
   const { t } = useTranslation();
@@ -43,6 +46,7 @@ export default function MobileAccountPage() {
   const sync = useSyncProviders().effective;
   const [email, setEmail] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
 
   useEffect(() => { void getCurrentUserEmail().then(setEmail); }, []);
@@ -113,7 +117,9 @@ export default function MobileAccountPage() {
               </div>
             )}
 
-            {!isPro && (
+            {!isPro && !CAN_OPEN_CHECKOUT && <AvailableWithPlan plan="Pro" />}
+
+            {!isPro && CAN_OPEN_CHECKOUT && (
               <button
                 data-account-upgrade-pro
                 disabled={checkoutBusy}
@@ -125,7 +131,7 @@ export default function MobileAccountPage() {
               </button>
             )}
 
-            {isPro && !isTeams && (
+            {isPro && !isTeams && CAN_OPEN_CHECKOUT && (
               <>
                 <button
                   data-account-upgrade-teams
@@ -140,7 +146,7 @@ export default function MobileAccountPage() {
               </>
             )}
 
-            {billingEnabled && (
+            {billingEnabled && CAN_OPEN_CHECKOUT && (
               <button
                 data-account-manage-billing
                 onClick={() => void openPortal()}
@@ -190,7 +196,21 @@ export default function MobileAccountPage() {
               {t("mobile.account.signOut")}
             </button>
           )}
+          {signedIn && !confirming && (
+            <button
+              data-account-delete
+              onClick={() => setDeletingAccount(true)}
+              className="mt-3 w-full h-11 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
+              style={{ color: "var(--t-danger, #e5484d)" }}
+            >
+              <Icon icon="lucide:user-x" width={16} />
+              {t("shared.deleteAccount.action")}
+            </button>
+          )}
         </div>
+        {deletingAccount && (
+          <DeleteAccountModal onCancel={() => setDeletingAccount(false)} onDeleted={() => { setDeletingAccount(false); pop(); }} />
+        )}
       </div>
     </div>
   );

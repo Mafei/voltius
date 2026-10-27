@@ -10,16 +10,23 @@ import { fontSizeFromPinch } from "./mobileTerminalGesturesCore";
 import { createNativeSelection } from "./nativeSelectionOverlay";
 import { MAX_TERMINAL_FONT_SIZE, MIN_TERMINAL_FONT_SIZE, useUIStore } from "@/stores/uiStore";
 import { useThemeStore } from "@/stores/themeStore";
+import { haptic } from "@/lib/haptics";
+import { animate, motionMs, SESSION_MOTION } from "@/lib/motion";
+import { useSessionStore } from "@/stores/sessionStore";
+import { VelocityTracker } from "./sheets/sheetDrag";
+import { adjacentSessionId, claimSwipeAxis, inEdgeZone, sessionSwipeStep, SWIPE_FOLLOW } from "./sessionSwipeCore";
 
 const LONG_PRESS_MS = 380;
 const MOVE_THRESHOLD_PX = 1;
 const DOUBLE_TAP = { ms: 300, px: 24 };
 
-type Phase = "idle" | "pending" | "scrolling" | "native" | "pinching" | "cancelled";
+type Phase = "idle" | "pending" | "scrolling" | "swiping" | "native" | "pinching" | "cancelled";
 
 /** Mobile terminal gestures: drag scrolls, long-press selects natively (Paste on blank),
  *  double-tap sends Tab; two-finger translation is consumed, deliberate pinch
  *  sets font size. Single-finger drag follows CSS pixels; taps reach xterm. */
+const sessionIds = () => useSessionStore.getState().sessions.filter((s) => s.type !== "multiplayer").map((s) => s.id);
+
 export default function MobileTerminalGestures({ sessionId, active }: { sessionId: string; active: boolean }) {
   const { t } = useTranslation();
   const isAndroid = useIsAndroid();
@@ -36,6 +43,7 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
   const lastTap = useRef<TapPoint | null>(null);
+  const swipeVelocity = useRef(new VelocityTracker());
   const pinch = useRef<{ gesture: TwoFingerGesture; size: number } | null>(null);
 
   useEffect(() => {
@@ -57,6 +65,26 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
     const showPaste = (x: number, y: number) => {
       const r = rootRef.current?.getBoundingClientRect();
       setPaste({ x: x - (r?.left ?? 0), y: y - (r?.top ?? 0) });
+    };
+
+    // Sideways swipe: the terminal follows the finger a little; release switches or settles back.
+    const follow = (dx: number) => { container.style.transform = dx ? `translateX(${dx * SWIPE_FOLLOW}px)` : ""; };
+    const endSwipe = (dx: number, t: number) => {
+      const step = sessionSwipeStep(dx, swipeVelocity.current.velocity(t), container.clientWidth || window.innerWidth);
+      const target = adjacentSessionId(sessionIds(), sessionId, step);
+      if (target) {
+        haptic("tick");
+        useSessionStore.getState().setActive(target);
+        // MobileSessionLayer slides this session out from where the finger left it; drop the
+        // follow offset once it is hidden again.
+        setTimeout(() => follow(0), motionMs(SESSION_MOTION.exit.duration) + 50);
+        return;
+      }
+      const from = container.style.transform;
+      follow(0);
+      if (from && typeof container.animate === "function") {
+        animate(container, [{ transform: from }, { transform: "none" }], SESSION_MOTION.snapBack.duration, SESSION_MOTION.snapBack.easing);
+      }
     };
 
     const reset = () => {
@@ -82,6 +110,7 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
         e.preventDefault(); e.stopPropagation(); pinch.current.gesture.cancel(); return;
       }
       if (e.touches.length === 2) {
+        if (phase.current === "swiping") follow(0);
         e.preventDefault(); e.stopPropagation(); lastTap.current = null;
         clearLongPress();
         getTerminalApi(sessionId)?.endTouchScroll();
@@ -111,6 +140,7 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
         longPressTimer.current = null;
         if (phase.current !== "pending" || !start.current) return;
         longPressFired.current = true;
+        haptic("press");
         if (onText.current) {
           phase.current = "native";
           sel.arm();
@@ -127,8 +157,18 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
       if (!s) return false;
       if (phase.current === "pending") {
         if (Math.hypot(x - s.x, y - s.y) <= MOVE_THRESHOLD_PX) return false;
-        clearLongPress(); sel.disarm(true); phase.current = "scrolling"; lastTap.current = null;
+        // Preserve pixel scrolling for vertical movement. Only a potential horizontal
+        // session swipe waits for the upstream axis threshold.
+        clearLongPress(); sel.disarm(true); lastTap.current = null;
+        const canSwipe = sessionIds().length > 1 && !inEdgeZone(s.x, window.innerWidth);
+        if (canSwipe && Math.abs(x - s.x) > Math.abs(y - s.y) && !claimSwipeAxis(x - s.x, y - s.y)) return false;
+        const axis = claimSwipeAxis(x - s.x, y - s.y);
+        if (axis === "x" && sessionIds().length > 1 && !inEdgeZone(s.x, window.innerWidth)) {
+          phase.current = "swiping";
+          swipeVelocity.current.reset();
+        } else phase.current = "scrolling";
       }
+      if (phase.current === "swiping") { follow(x - s.x); return true; }
       if (phase.current !== "scrolling") return false;
       const dy = y - lastY.current; lastY.current = y;
       getTerminalApi(sessionId)?.scrollByTouch(-dy, x, y);
@@ -163,6 +203,7 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
         clearLongPress(); sel.disarm(true); phase.current = "cancelled"; return;
       }
 
+      swipeVelocity.current.add(e.timeStamp, t.clientX);
       if (moveSingleFinger(t.clientX, t.clientY)) e.preventDefault();
     };
 
@@ -181,6 +222,16 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
         e.stopPropagation(); pinch.current?.gesture.cancel();
         // The lifted finger must not be read as the start of a tap or a scroll.
         if (e.touches.length === 0) { sel.disarm(); reset(); }
+        return;
+      }
+
+      if (wasPhase === "swiping") {
+        e.preventDefault();
+        const t = e.changedTouches[0];
+        const s = start.current;
+        if (t && s) swipeVelocity.current.add(e.timeStamp, t.clientX);
+        endSwipe(t && s ? t.clientX - s.x : 0, e.timeStamp);
+        reset();
         return;
       }
 
@@ -217,6 +268,7 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
     };
 
     const onTouchCancel = () => {
+      if (phase.current === "swiping") endSwipe(0, 0);
       sel.disarm();
       reset();
     };
@@ -230,6 +282,7 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
       if (phase.current === "idle" || phase.current === "native" || sel.isSelecting()) return;
       pinch.current?.gesture.cancel(); clearLongPress(); lastTap.current = null;
       getTerminalApi(sessionId)?.endTouchScroll();
+      follow(0);
       sel.disarm(true); start.current = null; phase.current = "cancelled";
     };
     window.visualViewport?.addEventListener("resize", cancelViewportGesture);
@@ -253,6 +306,7 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
       clearLongPress();
       getTerminalApi(sessionId)?.endTouchScroll();
       lastTap.current = null;
+      follow(0);
       sel.dispose();
       if (w.__voltiusSelTouch === onFinger) delete w.__voltiusSelTouch;
       setPaste(null);
@@ -304,7 +358,7 @@ export default function MobileTerminalGestures({ sessionId, active }: { sessionI
         >
           <button
             data-toolbar-paste
-            className="px-3 py-1.5 rounded-md text-xs font-medium text-(--t-text-primary)"
+            className="vt-hit px-3 py-1.5 rounded-md text-xs font-medium text-(--t-text-primary)"
             onClick={() => {
               void terminalClipboardAction(sessionId, "pasteClipboard").catch(() => {});
               setPaste(null);

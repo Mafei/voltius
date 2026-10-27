@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 voltius-crypto = { path = "../voltius-crypto" }
-wasm-bindgen = "0.2"
+wasm-bindgen = "0.2.129"
 base64 = "0.22"
 getrandom = { version = "0.2", features = ["js"] }
 

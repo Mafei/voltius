@@ -5,3 +5,5 @@ overrides:
   "@codemirror/state": "$@codemirror/state"
   "@codemirror/view": "$@codemirror/view"
   js-yaml@>=4.0.0 <4.3.2: ^4.3.2
+patchedDependencies:
+  '@xterm/addon-webgl@0.19.0': patches/@xterm__addon-webgl@0.19.0.patch

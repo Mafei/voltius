@@ -1,0 +1,52 @@
+{
+  "stable_core": "6.0.0",
+  "stable_addon": "0.19.0",
+  "npm_source_commit": "f447274f430fd22513f6adbf9862d19524471c04",
+  "upstream_commits": [
+    {
+      "commit": "0b1c0b5c5a9e159a41d326eedbc3bfe0282783d4",
+      "source": "https://github.com/xtermjs/xterm.js/commit/0b1c0b5c5a9e159a41d326eedbc3bfe0282783d4",
+      "original_patch_sha256": "914d1ad374f604f8e5b9a3f2292fb9f5fc4ceb6ff9a1e8e6f8e66f76e36469a2",
+      "stored_gzip_sha256": "3316eda9b3ef95acd3aa17f9f8d4b6c9c6efbafbba26dfe32a29f5044072f623"
+    },
+    {
+      "commit": "3bcb57545e3d2db44555f9128f4fefb66555fd98",
+      "source": "https://github.com/xtermjs/xterm.js/commit/3bcb57545e3d2db44555f9128f4fefb66555fd98",
+      "original_patch_sha256": "d6853f105cc6f5999059dd7570816c189cb086cf58eb36ea2a2aabb3308986a8",
+      "stored_gzip_sha256": "a79db45cd22850407835a4deb5e72765fc6e4a84e92fa6b0c4d51836f8f80c31"
+    },
+    {
+      "commit": "6fe6fe1af303a4ed0b5e6ae2ab393dfd2be09347",
+      "source": "https://github.com/xtermjs/xterm.js/commit/6fe6fe1af303a4ed0b5e6ae2ab393dfd2be09347",
+      "original_patch_sha256": "a88d7cf1b6dbc271f0b4f5f72159ba4077dc40362a9cd544832188fe7cb856db",
+      "stored_gzip_sha256": "6d4d7f5edd5e9935144265f4958ebc69f19654e083a60e59d08cf639a4e0deec"
+    },
+    {
+      "commit": "dc726a2ae6287e1aa09d410f4f11b4d73ed3fe4b",
+      "source": "https://github.com/xtermjs/xterm.js/commit/dc726a2ae6287e1aa09d410f4f11b4d73ed3fe4b",
+      "original_patch_sha256": "665b6c3f285cdc609648715c5cf2b293a482703d7f0b357b2f5a82e4c06961d7",
+      "stored_gzip_sha256": "2b7f87cec4a71a38dfd06969bf3ff2d454b938e8b6da53b9983f8d307d755cdb"
+    }
+  ],
+  "adaptations": [
+    "Stable import/lifecycle context retained; patch applies without context fuzz",
+    "Keep #6042 pagesVersion naming; adapt #6055 _pageLayoutVersion increment to equivalent _pagesVersion",
+    "Rebuild shipped ESM/UMD and maps with pinned MIT esbuild-wasm0.28.2; retain UMD API and no-final-newline convention",
+    "No unpublished master/beta source; no other upstream feature changes"
+  ],
+  "source_changed_files": [
+    "src/GlyphRenderer.ts",
+    "src/RectangleRenderer.ts",
+    "src/TextureAtlas.ts",
+    "src/Types.ts",
+    "src/WebglRenderer.ts"
+  ],
+  "runtime_assets": [
+    "lib/addon-webgl.js",
+    "lib/addon-webgl.js.map",
+    "lib/addon-webgl.mjs",
+    "lib/addon-webgl.mjs.map"
+  ],
+  "license": "MIT, original LICENSE and source/bundle notices retained",
+  "physical_GPU_verified": false
+}

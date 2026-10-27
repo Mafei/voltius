@@ -63,7 +63,7 @@ def main():
         build_log = re.sub(r"\x1b\[[0-9;]*m", "", args.build_log.read_text())
         optimized = bool(re.search(r"Finished `release` profile \[optimized\]", build_log))
         require(optimized, "Cargo optimized release profile not confirmed in build log")
-    cert = re.search(r"Signer #1 certificate SHA-256 digest: ([0-9a-f]+)", signature)
+    cert = re.search(r"(?:Signer #1 |V2 Signer: )certificate SHA-256 digest: ([0-9a-f]{64})", signature)
     expected_cert = "975c51aa7858bd9af3a8e75e96d36778ac133e29aa09a7a2a71eb5c206fe590a"
     require(cert and cert[1] == expected_cert, "unexpected public development signing certificate")
     require("Number of signers: 1" in signature and "Verified using v2 scheme (APK Signature Scheme v2): true" in signature, "APK signature v2 verification failed")
